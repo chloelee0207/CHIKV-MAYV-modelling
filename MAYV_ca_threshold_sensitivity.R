@@ -6,10 +6,11 @@
 # draw, paired with freshly drawn vaccine parameters), so the 95% UIs are
 # comparable with the headline table.
 #
-# The vaccine draws are read from MAYV_ca_engine_results_high.rds rather than redrawn, so
-# the R0 = 2.47 / seed-week-1 cell reproduces the headline result exactly.
+# The vaccine draws are read from the engine results rather than redrawn, so both sheets
+# share the engine's Monte Carlo realisation.
 #
-#   1. TRANSMISSION POTENTIAL. Baseline and averted symptomatic cases across fixed R0,
+#   1. TRANSMISSION POTENTIAL. Baseline and averted symptomatic cases for each R0
+#      scenario, with R0 sampled within the scenario range as in the main analysis,
 #      reported alongside the reproduction numbers the model actually runs at. R0 here
 #      is the WET-SEASON PEAK (the envelope is peak-normalised), so the operative
 #      quantities are the effective reproduction numbers: mean R_eff over the 52 weeks,
@@ -34,11 +35,11 @@ season <- { v <- as.numeric(readRDS("caldas_hybrid_season.rds")); v / max(v) }  
 target_age <- rep(0, A); target_age[4:8] <- 1
 start_pre <- 17L; immun_delay <- 2                        # 2025-W40, matching CHIKV
 
-# Vaccine parameters are READ FROM THE ENGINE, not redrawn. Redrawing from the same
-# distributions gives a different Monte Carlo realisation, which would make the R0 = 2.1
-# / seed-week-1 row disagree with the headline results by a case or two -- a discrepancy
-# a reader would reasonably query. Reusing the engine's draws makes that row reproduce
-# the main analysis exactly, so the table is a strict extension of it.
+# Vaccine parameters are READ FROM THE ENGINE, not redrawn, so these sheets share the
+# engine's Monte Carlo realisation rather than adding a second one. Sheet 1 therefore
+# reproduces the main analysis for each scenario. The seeding-week sheet does NOT: it holds
+# R0 at the high scenario's median (R0_MAIN) to isolate the effect of the seeding week,
+# whereas the main analysis also integrates over the sampled R0 range.
 Mres <- readRDS("MAYV_ca_engine_results_high.rds")
 stopifnot(!is.null(Mres$del_d))          # re-run MAYV_ca_engine.R if this fails
 cov_d <- Mres$cov_d; veb_d <- Mres$veb_d; del_d <- Mres$del_d; dly_d <- Mres$delay_d
@@ -76,13 +77,13 @@ sweep_cfg <- function(R0, seed_week) {
 }
 
 # ---- 1. transmission potential: the two SAMPLED scenarios --------------------
-# R0 is no longer fixed at grid points -- it is drawn per LHS row from a lognormal on the
-# scenario's range (MAYV_ca_lhs.R). So this sheet now reports ONE ROW PER SCENARIO, with
+# R0 is drawn per LHS row from a lognormal on the scenario's range (MAYV_ca_lhs.R), so
+# this sheet reports ONE ROW PER SCENARIO, with
 # every quantity summarised over the 1000 draws. With no prior immunity S/N = 1 at the
 # start, so R_eff = R0(draw) x season(t) and its uncertainty comes from the sampled R0.
 # Evaluated at the START of the epidemic; susceptible depletion lowers R_eff further as the
 # outbreak runs, though negligibly at MAYV attack rates.
-R0_MAIN <- 2.47                      # median of the sampled high range, used by sections 2-3
+R0_MAIN <- 2.47                      # median of the sampled high range, HELD by sections 2-3
 SCEN <- list(low  = "1.1-1.3 (incidental transmission, outside Amazon basin)",
              high = "2.1-2.9 (urban transmission, Amazon-basin intensity)")
 
@@ -162,7 +163,7 @@ notes <- data.frame(item = c(
   "Held at ONE infectious person in every row. Larger seeds were used only as a regime diagnostic and are not a plausible base case.",
   "Averted symptomatic cases per 100,000 doses administered. Ixchiq is deployed once, so the CHIKV and MAYV models consume the same doses (19,584 vs 19,589 median); normalising by doses therefore puts the two pathogens in a shared unit with a natural zero, without dividing one model by the other. Doses do not vary with R0 or seeding week -- the campaign is fixed -- so this column is proportional to averted cases within each table.",
   "Absolute burden is highly sensitive to seeding week; % averted is nearly invariant, because the vaccine's effect depends on the timing overlap between the epidemic and the coverage curve, and the seasonal envelope pins the peak regardless of seeding.",
-  sprintf("%d. Transmission draws (gamma, sigma, rho, prop_symp) come from the ensemble and vaccine draws from the engine, so the R0 = 2.47 / seed-week-1 cell reproduces the headline result exactly.", ND),
+  sprintf("%d. Transmission draws (gamma, sigma, rho, prop_symp, R0) come from each scenario's ensemble and vaccine draws from its engine run, so the transmission_potential sheet reproduces the main analysis. The seeding-week sheet holds R0 at the high-scenario median %.2f, so its seed-week-1 row is conditional on that R0 and differs from the headline, which integrates over R0 %.1f-%.1f.", ND, R0_MAIN, E$R0_lo, E$R0_hi),
   "Pre-outbreak campaign at 2025-W40, coverage of eligible 18-59 Beta(30%, 20-40%), disease-blocking efficacy Beta(4,8) from Kostecki et al. 2026 (4 of 12 patients; mean 33.3%, 95% UI 10.9-61.0%), VE_inf = 0."),
   stringsAsFactors = FALSE)
 

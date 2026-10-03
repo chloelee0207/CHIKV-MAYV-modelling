@@ -16,59 +16,49 @@
 #     sigma   = 1 / Normal(period)   intrinsic incubation 3.0 d, 95% CrI 2.2-3.8 (Caicedo 2021)
 #     rho     ~ Beta(20, 60)         reporting rate (mean 0.25)      [hardcoded]
 #     prop_symp ~ Beta(35.84, 32.56) symptomatic fraction (med 0.524)[hardcoded]
+#     R0      ~ Lognormal            peak R_eff within the scenario range (see below)
 #
 # PRIOR IMMUNITY: none. The population is assumed fully susceptible to MAYV (S(0) = N in
 # every draw), as there is no documented MAYV circulation in Caldas Novas.
 #
-# R0 = wet-season PEAK R_eff, and it is FIXED PER SCENARIO -- NOT sampled. base_beta =
+# R0 = wet-season PEAK R_eff, SAMPLED WITHIN A SCENARIO RANGE. base_beta =
 # R0 * gamma * season, so R_eff(t) = R0*season(t)*S/N is INDEPENDENT of gamma
-# (gamma/sigma move only PEAK TIMING & HEIGHT; size is driven by R0 & immunity).
+# (gamma/sigma move only PEAK TIMING & HEIGHT; size is driven by R0).
 # SEASONAL-PEAK scaling (envelope rescaled so max = 1) makes the cited R0 the wet-season
-# PEAK R_eff -- the honest, load-bearing quantity: it avoids the mean-1 framing that hides
-# a higher true peak. NB R0(t) = R0*season(t) is just beta_t/gamma with an imposed seasonal
-# shape (standard seasonal forcing), NOT a new formula.
+# PEAK R_eff, avoiding a mean-1 framing that would hide a higher true peak. NB
+# R0(t) = R0*season(t) is just beta_t/gamma with an imposed seasonal shape (standard
+# seasonal forcing), NOT a new formula.
 #
-# WHY R0 IS FIXED, NOT SAMPLED. The published MAYV R0 figures are POINT ESTIMATES FROM
-# DIFFERENT PLACES AND DECADES, each with its own interval -- Caicedo et al. 2021 give
-# 1.11 (French Guiana 1960), 3.47 (Brazil 1966), 2.1-2.9 (Amazon basin), 1.1-1.3 (outside
-# the Amazon); Dodero-Rojas et al. 2020 give 1.18-3.51 as LOWER/UPPER LIMITS. The spread
-# BETWEEN them is between-setting heterogeneity (vectors, land use, host contact), not
-# uncertainty about one municipality. Sampling R0 across that span therefore does not
-# produce a meaningful 95% UI for Caldas Novas: because outbreak size is a steep convex
-# function of R0, the draws split into "fizzle" and "explode" regimes, the output becomes
-# bimodal, and the reported central estimate detaches from the cited central R0. (Under the
-# old truncated-Lognormal[1.18,3.51] prior the stated median was 2.03, which alone yields
-# ~25 infections, yet the reported conditional median was ~6,650 -- i.e. the number
-# described R0 ~= 2.83, the take-off tail.) R0 is a SCENARIO-DEFINING variable here, so we
-# fix it and propagate the parameters that ARE genuine single-setting uncertainty.
+# WHY TWO SCENARIOS RATHER THAN ONE R0 PRIOR. The published MAYV R0 figures come from
+# DIFFERENT PLACES AND DECADES -- Caicedo et al. 2021 give 1.11 (French Guiana 1960), 3.47
+# (Brazil 1966), 2.1-2.9 (Amazon basin), 1.1-1.3 (outside the Amazon); Dodero-Rojas et al.
+# 2020 give 1.18-3.51. The spread BETWEEN them is between-setting heterogeneity (vectors,
+# land use, host contact), not uncertainty about one municipality. Sampling R0 across that
+# whole span would mix transmission regimes: outbreak size is a steep convex function of
+# R0, so the draws would split into "fizzle" and "explode" groups and the central estimate
+# would describe neither. R0 is therefore SCENARIO-DEFINING, and within each scenario it is
+# sampled only over that scenario's own range.
 #
-# THE TWO SCENARIOS (R0_SCENARIO, peak R_eff):
-#   low  = 1.20  Caicedo et al. 2021 outside-Amazon-basin (1.1-1.3) -- current ecology.
-#                Read as a PEAK (not annual-mean) value: this is the conservative reading,
-#                since an annual-mean 1.2 would imply a peak of ~3+ and a far larger
-#                outbreak. A single introduction does not self-sustain at this R0.
-#   high = 2.04  Urban Aedes-borne transmission. This is the GEOMETRIC MEAN of Dodero-Rojas
-#                et al. 2020's [1.18, 3.51] -- the only MAYV-SPECIFIC R0 range published --
-#                i.e. the central value of that range: sqrt(1.18 * 3.51) = 2.035. Geometric
-#                rather than arithmetic because R0 lives on a ratio scale.
-#                Preferred over the lower bound of Caicedo's Amazon-basin range (2.1-2.9):
-#                Caicedo derive R0 from age-stratified seroprevalence via catalytic models,
-#                so 2.1-2.9 is an ENDEMIC-AVERAGE reproduction number, not a seasonal peak.
-#                Importing one of its bounds as a PEAK R0 would silently mix two different
-#                quantities; the geometric centre of an explicitly-stated R0 range does not.
-#                Context: the peak R0 fitted for CHIKV in THIS municipality is 2.67
-#                (95% UI 2.39-3.13), and the Belterra 1977-78 growth rate implies ~1.9-2.5,
-#                so 2.04 is conservative against both. It is a COUNTERFACTUAL: it assumes
-#                MAYV acquires Ae. aegypti transmission competence it is not currently
-#                known to possess, and is not a prediction.
-#                NB R0 and the latent period are partly INTERCHANGEABLE in setting outbreak
-#                size, because both control how many generations fit inside the seasonal
-#                window before the dry-season tail collapses transmission. Shortening the
-#                latent period from 12 d to 3 d multiplies outbreak size ~50x at fixed R0,
-#                which is why moving to Caicedo's 3.0 d required re-anchoring R0 downward.
-# BECAUSE R0 IS FIXED, outbreak size is unimodal within a scenario and there is no
-# fizzle/take-off split, so the engine reports over ALL draws (no conditioning).
-# There is still NO MAYV outbreak to fit, so these remain PRIOR-PREDICTIVE bands.
+# THE TWO SCENARIOS (R0_SCENARIO, peak R_eff), both from Caicedo et al. 2021:
+#   low  = 1.1-1.3  outside the Amazon basin -- current ecology. Read as a PEAK (not
+#                   annual-mean) value, the conservative reading: an annual-mean 1.2 would
+#                   imply a peak of ~3+ and a far larger outbreak. A single introduction
+#                   does not self-sustain at this R0.
+#   high = 2.1-2.9  Amazon basin, applied to Goias as a PEAK R0. A COUNTERFACTUAL: it
+#                   assumes MAYV transmits in Caldas Novas as it does in the Amazon basin,
+#                   which it is not currently known to do, and is not a prediction.
+#                   Caveat: Caicedo derive R0 from age-stratified seroprevalence with
+#                   catalytic models, so 2.1-2.9 is an ENDEMIC-AVERAGE reproduction number;
+#                   using it as a seasonal PEAK is an assumption.
+# R0 ~ Lognormal with the range endpoints as its 2.5th/97.5th percentiles (median = the
+# geometric centre: 1.20 low, 2.47 high).
+#   NB R0 and the latent period are partly INTERCHANGEABLE in setting outbreak size,
+#   because both control how many generations fit inside the seasonal window before the
+#   dry-season tail collapses transmission.
+# Because each scenario's range is narrow, outbreak size is UNIMODAL (on the log scale)
+# within a scenario -- right-skewed, but with no fizzle/take-off split -- so the engine
+# reports over ALL draws (no conditioning). There is still NO MAYV outbreak to fit, so
+# these remain PRIOR-PREDICTIVE bands.
 #
 # WINDOW: 2025-W24 -> 2026-W22 (52 epi weeks). Extended past the CHIKV fit window (which
 # ends 2026-W22) so the dry-season tail sits inside the window and every outbreak resolves.
@@ -321,8 +311,8 @@ ps_ml  <- (log(48/71) + log(33/36)) / 2
 ps_sl  <- (log(33/36) - log(48/71)) / (2 * 1.96)
 ps_cap <- plnorm(1, ps_ml, ps_sl)               # CDF mass below 1, for the truncation
 
-# R0 = wet-season PEAK R_eff (r0_is_peak = TRUE above), FIXED PER SCENARIO (see the
-# header for why it is not sampled). Two scenarios only; each is one transmission regime.
+# R0 = wet-season PEAK R_eff (r0_is_peak = TRUE above), sampled within the scenario's
+# range (see the header). Two scenarios only; each is one transmission regime.
 if (!exists("R0_SCENARIO")) R0_SCENARIO <- "high"   # "high" = 2.1-2.9 | "low" = 1.1-1.3
 # R0 is SAMPLED from the scenario's range, lognormal with the endpoints as the 2.5th/97.5th
 # percentiles. BOTH ranges are Caicedo et al. 2021, so the two scenarios are one quantity
@@ -335,7 +325,6 @@ R0_LO <- R0_RANGE[[R0_SCENARIO]][1]; R0_HI <- R0_RANGE[[R0_SCENARIO]][2]
 R0_meanlog <- (log(R0_LO) + log(R0_HI)) / 2
 R0_sdlog   <- (log(R0_HI) - log(R0_LO)) / (2 * 1.96)
 R0_median  <- exp(R0_meanlog)                   # geometric centre of the range
-R0_VALUE   <- R0_median                         # name kept for downstream compatibility
 
 # Prior immunity: none. The population is assumed FULLY SUSCEPTIBLE to MAYV, so immunity
 # is 0 in every draw and S(0) = N; Caldas Novas lies outside the Amazon basin and has no
@@ -355,7 +344,7 @@ cat(sprintf("R0 ~ lognormal on [%.1f, %.1f] (%s scenario, %s): median %.3f\n",
 # Seasonality summary. R0 above is the WET-SEASON PEAK, because the envelope is
 # peak-normalised (r0_is_peak). The mean of season(t) is well below 1, so the
 # year-average transmission intensity is much lower than the headline R0 -- report both,
-# or a reader will read "R0 = 2.04" as an unforced R0 and expect a large attack rate.
+# or a reader will read the peak R0 as an unforced R0 and expect a large attack rate.
 # The model therefore runs close to the epidemic threshold for most of the year, which
 # is why burden is a steep function of R0 rather than a saturating one.
 # ------------------------------------------------------------
@@ -364,8 +353,8 @@ cat(sprintf("Seasonality: season(t) peak %.3f, MEAN %.4f, min %.3f; %d of %d wee
             max(season), season_mean, min(season), sum(season > 0.5), length(season)))
 # S/N = 1 at the start (no prior immunity), so R_eff(t) = R0(t) until depletion sets in.
 cat(sprintf("Implied MEAN R0(t) = %.3f (peak %.3f); %d of %d weeks with R0(t) > 1\n",
-            R0_VALUE*season_mean, R0_VALUE*max(season),
-            sum(R0_VALUE*season > 1), length(season)))
+            R0_median*season_mean, R0_median*max(season),
+            sum(R0_median*season > 1), length(season)))
 
 # ------------------------------------------------------------
 # 6. One forward run -> weekly reported / infections + summary scalars
@@ -397,11 +386,10 @@ cat(sprintf("Reference R0=%.2f (other scenario, same scaling): total infections 
             R0_other, base_other$tot_inf, base_other$tot_rep, base_other$attack))
 
 # ------------------------------------------------------------
-# 7. Latin Hypercube (5 SAMPLED inputs), forward-simulate each.
-#    R0 is FIXED per scenario (header), so it is NOT an LHS dimension: the propagated
-#    bands below carry natural-history / reporting / symptomatic-fraction / prior-immunity
-#    uncertainty ONLY. Every draw is the same transmission regime, so the outbreak-size
-#    distribution is unimodal and needs no take-off conditioning.
+# 7. Latin Hypercube, forward-simulate each draw. Sampled: gamma, sigma, rho,
+#    prop_symp and R0 (within the scenario's range). Every draw is the same transmission
+#    regime, so the outbreak-size distribution is unimodal and needs no take-off
+#    conditioning.
 # ------------------------------------------------------------
 set.seed(2024); n <- 1000
 lhs_col <- function(n) (sample.int(n) - runif(n)) / n
@@ -515,9 +503,8 @@ mayv_lhs_ensemble <- list(
   R0 = R0v[ok], gamma = gam[ok], sigma = sig[ok], rho = rho[ok], prop_symp = psy[ok],
   immune_frac = imm[ok],                          # prior immune fraction: 0 (naive population)
   base_R0 = R0_median, R0_scenario = R0_SCENARIO, r0_is_peak = r0_is_peak,
-  # R0 is now SAMPLED. R0_fixed is kept (= the scenario median) so downstream labels and
-  # the OWSA base case keep working; R0_sampled/R0_lo/R0_hi describe the actual prior.
-  R0_fixed = R0_median, R0_sampled = TRUE, R0_lo = R0_LO, R0_hi = R0_HI,
+  # R0 prior: lognormal on [R0_lo, R0_hi]; R0_median is the OWSA base case and the label value.
+  R0_median = R0_median, R0_sampled = TRUE, R0_lo = R0_LO, R0_hi = R0_HI,
   R0_meanlog = R0_meanlog, R0_sdlog = R0_sdlog,
   lat_meanlog = lat_ml, lat_sdlog = lat_sl,        # NA when the family is uniform
   lat_dist = lat$dist, lat_lo = lat_lo, lat_hi = lat_hi, MAYV_LATENT = MAYV_LATENT,
@@ -531,5 +518,5 @@ saveRDS(mayv_lhs_ensemble, "MAYV_ca_lhs_ensemble.rds")
 # Scenario-tagged copy, so both R0 scenarios can coexist on disk for comparison.
 saveRDS(mayv_lhs_ensemble, sprintf("MAYV_ca_lhs_ensemble_%s.rds", R0_SCENARIO))
 
-cat(sprintf("\nSaved MAYV_ca_lhs_reported.png, MAYV_ca_lhs_infections.png, MAYV_ca_lhs_draws.csv,\n  MAYV_ca_lhs_ensemble.rds and MAYV_ca_lhs_ensemble_%s.rds (R0 = %.2f)\n",
-            R0_SCENARIO, R0_VALUE))
+cat(sprintf("\nSaved MAYV_ca_lhs_reported.png, MAYV_ca_lhs_infections.png, MAYV_ca_lhs_draws.csv,\n  MAYV_ca_lhs_ensemble.rds and MAYV_ca_lhs_ensemble_%s.rds (R0 median %.2f)\n",
+            R0_SCENARIO, R0_median))

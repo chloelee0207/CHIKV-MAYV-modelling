@@ -1,21 +1,19 @@
 # ============================================================
 # MAYV_ca_owsa.R -- Caldas Novas MAYV one-way sensitivity analysis.
 #
-# DETERMINISTIC, at the scenario's FIXED peak R0. MAYV is not fitted to data, so no
+# DETERMINISTIC, at the scenario's MEDIAN peak R0. MAYV is not fitted to data, so no
 # re-fitting is needed: every run is a forward simulation at chosen parameter values.
-# No take-off conditioning: R0 is fixed, so there is no fizzle/take-off split.
+# No take-off conditioning: within one scenario's R0 range there is no fizzle/take-off split.
 #
-# BASE CASE. Peak R0 is taken from the engine's fixed scenario value (M$R0_fixed --
-# = the MEDIAN of the sampled range; low = 1.1-1.3, high = 2.1-2.9, both Caicedo 2021).
-# R0 is NOT a tornado row: it is scenario-defining, not a single-setting uncertain
-# parameter, and outbreak size is a steep convex function of it, so one bar would swamp
-# every other parameter and would misrepresent between-setting heterogeneity as
-# uncertainty. Instead R0 gets its own DEDICATED RESPONSE CURVE (section 5b): a fine
-# sweep over R0_SWEEP, reported as a table + figure. That is the honest way to show a
-# threshold relationship -- a curve, not an interval.
+# BASE CASE. Peak R0 is the MEDIAN of the scenario's sampled range (M$R0_median; low =
+# 1.1-1.3, high = 2.1-2.9, both Caicedo et al. 2021). Within the scenario R0 is a tornado
+# row like any other sampled input (see below). The choice BETWEEN scenarios is not: it is
+# between-setting heterogeneity, not uncertainty, and is shown instead as structural rows
+# and a DEDICATED RESPONSE CURVE (sections 4b-4c), a fine sweep over R0_SWEEP reported as
+# a table + figure -- a curve, not an interval, because the relationship is steeply convex.
 #
-# The tornado therefore answers: GIVEN a MAYV outbreak at the scenario's R0, what drives
-# the vaccine's impact.
+# The tornado therefore answers: GIVEN a MAYV outbreak in this scenario, what drives the
+# vaccine's impact.
 #
 # The vaccine is DISEASE-BLOCKING ONLY (Ixchiq cross-protection against MAYV is
 # hypothetical), so infections are identical across arms and only symptomatic cases,
@@ -50,13 +48,13 @@ EVAL_WIN <- 1:T_weeks
 # ------------------------------------------------------------
 # 1. Central values and one-way bounds
 # ------------------------------------------------------------
-ob <- M$outbreak                                   # ALL draws (fixed R0 -> no conditioning)
-R0_BASE <- unname(M$R0_fixed)                      # the scenario's FIXED peak R0
+ob <- M$outbreak                                   # ALL draws (no take-off conditioning)
+R0_BASE <- unname(M$R0_median)                     # the scenario's MEDIAN peak R0
 stopifnot(is.finite(R0_BASE))
 # Dedicated R0 response curve (section 5b). Step 0.1 is deliberate: in the steep region a
 # 0.1 increment roughly doubles outbreak size, so a coarser grid would hide the threshold.
 R0_MARKS <- c(low = 1.20, high = 2.47)             # scenario MEDIANS, for the figures
-# The scenario values are UNIONED into the grid: 2.04 is not on a 0.1 step, so without this
+# The scenario values are UNIONED into the grid: 2.47 is not on a 0.1 step, so without this
 # the r0_response table and the scenario markers on the figures would miss it entirely.
 # round() before unique(): seq() yields values like 1.2000000000000002, so a raw unique()
 # keeps both that and the literal 1.20 and the grid gains a duplicate row.
@@ -80,15 +78,11 @@ BASE <- list(R0 = R0_BASE, imm = IMM_BASE, rho = 0.25, ve = 4/12,
 # dry-season tail ends it. The ALTERNATIVE PRIORS (Caicedo 3.0 d, the earlier 12 d) remain
 # structural rows: those are competing sources, not points within one range.
 #
-# R0 IS a tornado row (added 2026-08). It was excluded while R0 was FIXED per scenario --
-# a scenario-defining choice is not a within-setting uncertain parameter. Now that R0 is
-# SAMPLED per draw from a lognormal on the scenario range, it is exactly that, and it is
-# propagated into every reported interval; leaving it out would make the tornado understate
-# what drives the result. Its bounds are the sampled 95% UI, matching how imm and ve are
-# keyed, so the bars are comparable. It also no longer swamps the figure: at the current
-# base case its swing is ~1.4x the next bar, not the ~100x seen at the old fixed R0 = 2.04,
-# because that base sat on the flat part of the convex R0-burden curve.
-# The response curve in section 4b is KEPT as well: the bar gives the swing across the
+# R0 IS a tornado row. Within a scenario it is SAMPLED per draw from a lognormal on the
+# scenario range and propagated into every reported interval, so leaving it out would make
+# the tornado understate what drives the result. Its bounds are the scenario range, the
+# sampled 95% UI, matching how ve is keyed, so the bars are comparable.
+# The response curve in section 4b complements it: the bar gives the swing across the
 # range, the curve shows the relationship is steeply convex, which a bar cannot convey.
 #
 # The following are deliberately NOT tornado rows, because none is a parameter with an
@@ -210,9 +204,9 @@ srow <- function(input, setting, p) {
              row.names = NULL)
 }
 struct <- rbind(
-  # Both fixed R0 scenarios, for context (the full curve is in the r0_response sheet).
+  # Both scenarios at their median R0, for context (the full curve is in the r0_response sheet).
   do.call(rbind, lapply(unname(R0_MARKS), function(x)
-    srow("Peak R0 (scenario, FIXED)", sprintf("%.2f", x), modifyList(BASE, list(R0 = x))))),
+    srow("Peak R0 (scenario median)", sprintf("%.2f", x), modifyList(BASE, list(R0 = x))))),
   do.call(rbind, lapply(c("beta", "hybrid", "rain"), function(x)
     srow("Seasonal envelope (structure)",
          c(beta = "pure CHIKV beta", hybrid = "hybrid (base case)",
@@ -271,11 +265,10 @@ ggsave("MAYV_ca_owsa_symptomatic.png", p_t, width = 8.5, height = 4.6, dpi = 130
 print(p_t)
 
 # ------------------------------------------------------------
-# 4b. R0 RESPONSE CURVE (replaces giving R0 a tornado bar).
-# Outbreak size is a steep CONVEX function of peak R0: over R0_SWEEP it spans several
-# orders of magnitude, so a single "lower/upper" bar would be meaningless and would
-# swamp every vaccine parameter. A curve is the honest presentation. Deterministic at
-# median inputs, matching the rest of this script.
+# 4b. R0 RESPONSE CURVE (complements the within-scenario R0 tornado bar).
+# Outbreak size is a steep CONVEX function of peak R0: over R0_SWEEP, which spans both
+# scenarios, it covers several orders of magnitude, which a single "lower/upper" bar cannot
+# convey. Deterministic at median inputs, matching the rest of this script.
 # Note what the curve shows: the vaccine's RELATIVE effect (% symptomatic reduced) is
 # almost R0-INVARIANT -- disease-blocking scales symptomatic cases by (1 - VE*coverage)
 # whatever the epidemic size -- while the ABSOLUTE cases averted track outbreak size.
@@ -321,8 +314,9 @@ cat("Saved MAYV_ca_r0_response.png\n")
 # ensemble at every R0 on the grid, so each row is a proper median [95% UI] carrying the
 # same uncertainty the engine propagates: gamma, sigma, rho and prop_symp
 # from the LHS ensemble, plus the engine's OWN sampled coverage / VE / deployment delay
-# (reused draw-for-draw from MAYV_ca_engine_results.rds). Because those are the identical
-# draws, the row at the scenario's R0 reproduces the engine's headline numbers.
+# (reused draw-for-draw from MAYV_ca_engine_results.rds). R0 is HELD at each grid value,
+# so a row is conditional on that R0: the row at the scenario median does NOT reproduce
+# the engine's headline, which also integrates over the sampled R0 range.
 #
 # Weekly delivery speed is held at its median rather than resampled: it is the weakest
 # input in the tornado (swing ~0.07 symptomatic cases) and the engine does not store its
@@ -438,9 +432,9 @@ notes <- data.frame(item = c("Analysis", "Base case R0", "R0 response curve", "V
                              "Seasonal envelope", "Fixed (not varied)", "Window"),
   detail = c(
   "Deterministic one-way sensitivity; MAYV is not fitted, so every run is a forward simulation.",
-  sprintf("Peak R0 %.2f, FIXED by the '%s' scenario (low = 1.20 Caicedo et al. 2021 outside-Amazon-basin; high = 2.04 geometric mean of Dodero-Rojas et al. 2020's [1.18, 3.51], the only MAYV-specific R0 range published, conservative vs the 2.67 peak R0 fitted for CHIKV in this municipality). Not sampled: published MAYV R0 figures are point estimates from different settings and decades.",
-          R0_BASE, M$R0_scenario),
-  sprintf("R0 is NOT a tornado row. It is scenario-defining, and outbreak size is a steep CONVEX function of it (%.0f -> %.0f symptomatic across R0 %.1f-%.1f), so one bar would swamp every other parameter. It is swept as a response curve instead: see the r0_response sheet and MAYV_ca_r0_response.png. No take-off conditioning is applied anywhere (R0 fixed -> one transmission regime, unimodal outbreak size).",
+  sprintf("Peak R0 %.2f, the median of the '%s' scenario's sampled range %.1f-%.1f (Caicedo et al. 2021: low = 1.1-1.3 outside the Amazon basin, high = 2.1-2.9 Amazon basin applied to Goias as a peak R0). R0 is sampled within the scenario range; the two scenarios are not pooled, because published MAYV R0 estimates come from different settings and decades.",
+          R0_BASE, M$R0_scenario, E$R0_lo, E$R0_hi),
+  sprintf("R0 is a tornado row over the scenario's own range. Across both scenarios outbreak size is a steep CONVEX function of R0 (%.0f -> %.0f symptomatic across R0 %.1f-%.1f), which a bar cannot show, so it is also swept as a response curve: see the r0_response sheet and MAYV_ca_r0_response.png. No take-off conditioning is applied anywhere (one scenario's R0 range -> one transmission regime, unimodal outbreak size on the log scale).",
           min(r0_response$symptomatic_base), max(r0_response$symptomatic_base),
           min(R0_SWEEP), max(R0_SWEEP)),
   "Disease-blocking only (VE_inf = 0): infections are identical across arms; only symptomatic cases and downstream outcomes move.",
