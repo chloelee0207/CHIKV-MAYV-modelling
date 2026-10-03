@@ -64,19 +64,17 @@ R0_SWEEP <- sort(unique(round(c(seq(1.1, 3.6, by = 0.1), unname(R0_MARKS)), 4)))
 IMM_BASE <- 0
 BASE <- list(R0 = R0_BASE, imm = IMM_BASE, rho = 0.25, ve = 4/12,
              cov = 0.30, deliv = 0.10, delay = 2, immun = 2, env = "hybrid",
-             psymp = PSYMP,                        # CHIKV-equivalent symptomatic fraction
+             psymp = PSYMP,                        # MAYV-specific symptomatic fraction (median)
              latent = 1/SIGMA)                     # latent period, weeks (active scenario median)
 
-# LATENT PERIOD is a tornado row for the same reason as R0. It is now SAMPLED uniformly
-# across the CDC 1-14 d range rather than fixed at a point estimate, so it is genuine
-# within-scenario uncertainty and is propagated into every reported interval. It is in fact
-# the STRONGEST single driver (r ~ -0.68 with log infections, ahead of R0), so omitting it
-# would badly understate what the result depends on. Bounds are the sampled support, not a
-# 95% interval: CDC give 1-14 as hard limits, and the uniform has no tail beyond them.
+# LATENT PERIOD is a tornado row for the same reason as R0: it is SAMPLED per draw from the
+# active latent prior (MAYV_LATENT; base case lognormal 7-12 d, Martins et al. 2020), so it
+# is genuine within-scenario uncertainty and is propagated into every reported interval.
+# Bounds are that prior's 95% interval (its support, for a uniform prior).
 # Its mechanism is indirect -- R_eff = R0 x season(t) x S/N contains no sigma -- so it acts
 # by changing how many generations fit inside the supercritical season before the
-# dry-season tail ends it. The ALTERNATIVE PRIORS (Caicedo 3.0 d, the earlier 12 d) remain
-# structural rows: those are competing sources, not points within one range.
+# dry-season tail ends it. The ALTERNATIVE SOURCES (Diagne 1-6 d, Caicedo 3.0 d, the 5-7 d
+# band) are structural rows: competing sources, not points within one range.
 #
 # R0 IS a tornado row. Within a scenario it is SAMPLED per draw from a lognormal on the
 # scenario range and propagated into every reported interval, so leaving it out would make
@@ -92,11 +90,10 @@ BASE <- list(R0 = R0_BASE, imm = IMM_BASE, rho = 0.25, ve = 4/12,
 #               rainfall shape and the hybrid. "Lower" and "upper" are meaningless for
 #               a categorical choice, and the rainfall arm additionally peaks before the
 #               campaign completes, so a single bar would conflate size with timing.
-#   (latent period is no longer in this list -- see below.)
-#   prop_symp -- 52.4% (CHIKV-equivalent, base) vs 90% (MAYV-specific). Two competing
+#   prop_symp -- the MAYV-specific median (base) vs the CHIKV value 52.4%. Two competing
 #               ASSUMPTIONS, not a range on one quantity. It is also a pure multiplier:
 #               it never enters transmission, so infections and the attack rate are
-#               identical and only the SCALE of symptomatic burden changes (x1.717).
+#               identical and only the SCALE of symptomatic burden changes.
 #               A tornado bar would show the scaling and hide the invariance.
 # The reporting rate is also excluded, but for a different reason: MAYV is not fitted,
 # so rho never enters the transmission model. The epidemic size comes from R0, prior
@@ -104,7 +101,7 @@ BASE <- list(R0 = R0_BASE, imm = IMM_BASE, rho = 0.25, ve = 4/12,
 # REPORTED ones. It therefore has exactly zero effect on true cases averted.
 BOUNDS <- list(
   R0     = unname(c(E$R0_lo, E$R0_hi)),                # the scenario's SAMPLED range
-  latent = unname(c(E$lat_lo, E$lat_hi)),              # sampled support of the active scenario
+  latent = unname(c(E$lat_lo, E$lat_hi)),              # 95% interval of the active latent prior
   ve     = c(0.109, 0.610),                            # Kostecki 2026, Beta(4,8) 95% UI
   cov   = c(0.20, 0.40),
   deliv = c(0.09, 0.11),
@@ -211,11 +208,11 @@ struct <- rbind(
     srow("Seasonal envelope (structure)",
          c(beta = "pure CHIKV beta", hybrid = "hybrid (base case)",
            rain = "pure rainfall")[[x]], modifyList(BASE, list(env = x))))),
-  # Symptomatic fraction: CHIKV-equivalent (base) vs the MAYV-specific 90% reported in
-  # the literature. Infections and attack rate are identical between the two -- only the
-  # scale of symptomatic burden moves -- so the pair documents the multiplier explicitly.
+  # Symptomatic fraction: MAYV-specific median (base) vs the CHIKV value. Infections and
+  # attack rate are identical between the two -- only the scale of symptomatic burden
+  # moves -- so the pair documents the multiplier explicitly.
   do.call(rbind, lapply(list(c(PSYMP,     sprintf("%.1f%% (MAYV-specific, base case)", 100*PSYMP)),
-                             c(0.5242478, "52.4% (borrowed CHIKV, earlier assumption)")), function(x)
+                             c(0.5242478, "52.4% (CHIKV value)")), function(x)
     srow("Symptomatic fraction (structure)", x[2],
          modifyList(BASE, list(psymp = as.numeric(x[1])))))),
   # Latent period by SOURCE. The published estimates genuinely disagree -- Martins et al.
@@ -439,7 +436,7 @@ notes <- data.frame(item = c("Analysis", "Base case R0", "R0 response curve", "V
           min(R0_SWEEP), max(R0_SWEEP)),
   "Disease-blocking only (VE_inf = 0): infections are identical across arms; only symptomatic cases and downstream outcomes move.",
   "Inherited from the CHIKV fit (hybrid = CHIKV beta rise + climatological dry-season tail). Reported as a structural sensitivity. NB the pure-rainfall envelope peaks at week 16, before the campaign completes (~week 29), so its low averted burden reflects timing as well as epidemic size.",
-  "gamma, sigma, prop_symp (as in the CHIKV OWSA). Also the reporting rate: MAYV is not fitted, so rho does not enter the transmission model at all -- it converts true cases to reported cases after the simulation and has exactly zero effect on true burden averted. (In the CHIKV OWSA rho ranks third, because there it works backwards from the observed 8,204 cases to infer the size of the true epidemic.)",
+  "gamma and prop_symp (as in the CHIKV OWSA; prop_symp has a structural row instead). Also the reporting rate: MAYV is not fitted, so rho does not enter the transmission model at all -- it converts true cases to reported cases after the simulation and has exactly zero effect on true burden averted. (In the CHIKV OWSA rho ranks third, because there it works backwards from the observed 8,204 cases to infer the size of the true epidemic.)",
   sprintf("52 weeks, 2025-W24 -> 2026-W22 (indices %d-%d).", min(EVAL_WIN), max(EVAL_WIN))),
   stringsAsFactors = FALSE)
 write_xlsx(c(list(notes = notes,
