@@ -21,10 +21,10 @@
 # CHIKV reached Brazil in 2014, so no one has been exposed for longer than ~12 years:
 # everyone aged 12+ carries the same immunity and children carry proportionally less.
 #
-# A draw is dropped only if it is epidemiologically impossible: an attack rate at or
-# above 100% (more infections than susceptibles), or a fitted total more than 10% from
-# the observed 8,204. No tighter cut-off is imposed, since any such threshold would be
-# arbitrary and would discard draws with entirely plausible R0.
+# Every draw is retained. The only guard drops a draw whose re-fit fails or that is
+# epidemiologically impossible (an attack rate at or above 100%, i.e. more infections
+# than susceptibles). No goodness-of-fit cut-off is imposed, since any such threshold
+# would be arbitrary and would discard draws with entirely plausible R0.
 #
 # Exports CHIKV_ca_lhs_ensemble.rds for CHIKV_ca_engine.R.
 # ============================================================
@@ -112,12 +112,6 @@ prop_symp     <- 0.5242478
 df_spline     <- 5
 active_weeks  <- 49        # beta spline-estimated over weeks 1-49, held flat to week 52
 rho_pt        <- 0.25      # reference reporting rate for the point-estimate fit
-# Relative tolerance on the predicted reported total, used to screen draws after the
-# re-fit. Inf RETAINS ALL DRAWS: the +/-10% screen removed 28 of 1000, all under-predicting
-# because low reporting x low symptomatic fraction exhausted the susceptible pool. Those
-# draws are not worse by likelihood (24 of the 28 beat the retained median BIC), so the
-# screen was excluding fits that the data do not reject. Set to 0.10 to restore it.
-FIT_TOL       <- Inf
 prior_logmean <- log(0.54); prior_logsd <- 0.70
 peak_emphasis <- 10
 E0            <- rep(0, A)
@@ -222,13 +216,11 @@ for (i in 1:n) {
   loglik[i]<-sum(dnbinom(observed_cases, mu=pmax(d$pred,1e-6), size=1+exp(d$par[df_spline+1]), log=TRUE))
   if (i %% 50 == 0) cat("  ", i, "/", n, "\n")
 }
-# Keep converged, epidemiologically POSSIBLE draws. The only hard constraint is that
-# the outbreak cannot infect more susceptibles than exist (attack < 100%); any lower
-# cut-off would be arbitrary and would discard draws with entirely plausible R0. The
-# binding check in practice is that the fit reproduces the observed 8,204 cases to
-# within 10%.
-ok <- which(!is.na(totrep) & attack < 100 & abs(totrep-obs_total)/obs_total < FIT_TOL)
-cat(sprintf("Kept %d / %d draws (dropped %d (attack >= 100%% or predicted total >10%% from observed)).\n",
+# Keep every draw whose re-fit completed and that is epidemiologically possible: the
+# outbreak cannot infect more susceptibles than exist (attack < 100%). No goodness-of-fit
+# cut-off is applied, since any threshold would be arbitrary.
+ok <- which(!is.na(totrep) & attack < 100)
+cat(sprintf("Kept %d / %d draws (dropped %d: re-fit failed or attack >= 100%%).\n",
             length(ok), n, n-length(ok)))
 
 # ------------------------------------------------------------
@@ -331,8 +323,8 @@ season_mean1 <- base$beta / mean(base$beta)
 stopifnot(length(season_mean1) == T_weeks, abs(mean(season_mean1) - 1) < 1e-6)
 saveRDS(season_mean1, "caldas_beta_season.rds")
 cat("Saved caldas_beta_season.rds (mean-1 beta envelope for the MAYV chain).\n")
-cat(sprintf("Saved CHIKV_ca_lhs_ensemble.rds (%d of %d draws retained; FIT_TOL = %s).\n",
-            length(ok), n, format(FIT_TOL)))
+cat(sprintf("Saved CHIKV_ca_lhs_ensemble.rds (%d of %d draws retained).\n",
+            length(ok), n))
 
 
 }  # end !DEFS_ONLY
