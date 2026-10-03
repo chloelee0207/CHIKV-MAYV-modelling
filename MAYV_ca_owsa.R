@@ -469,7 +469,7 @@ cat("\nWrote MAYV_ca_owsa.xlsx, MAYV_ca_owsa.rds, MAYV_ca_owsa_symptomatic.png\n
 # Coverage is of the ELIGIBLE 18-59 group, who are 61.5% of the population, so the
 # ceiling on % averted is VE x 0.615 less a small timing discount.
 # R0-INVARIANCE: because disease-blocking scales symptomatic cases by (1 - VE*coverage_frac)
-# regardless of epidemic size, this grid is essentially the SAME under either fixed-R0
+# regardless of epidemic size, this grid is essentially the SAME under either R0
 # scenario, provided the outbreak peaks after the campaign completes (it does: peak ~wk 44
 # vs campaign done ~wk 29). So one heatmap serves both scenarios -- it is a property of the
 # vaccine and the age structure, not of transmission intensity.
@@ -518,8 +518,10 @@ ggsave("MAYV_ca_ve_coverage_heatmap_600dpi.png", p_hm, width = 8.5, height = 6, 
 print(p_hm)
 
 write_xlsx(list(ve_coverage_grid = grid_df), "MAYV_ca_ve_coverage_sweep.xlsx")
-cat(sprintf("\nVE x coverage sweep: %d cells | base case (VE %.0f%%, cov %.0f%%) = %.2f%% averted | max (VE 100%%, cov 100%%) = %.2f%%\n",
-            nrow(grid_df), 100*BASE$ve, 100*BASE$cov,
-            grid_df$pct[grid_df$ve == 0.5 & grid_df$coverage == 0.3],
-            max(grid_df$pct)))
+# The base-case VE (4/12) is not on the 0.1 grid, so report the nearest cell and label it
+# with that cell's own values.
+near <- which.min(abs(grid_df$ve - BASE$ve) + abs(grid_df$coverage - BASE$cov))
+cat(sprintf("\nVE x coverage sweep: %d cells | cell nearest the base case (VE %.0f%%, cov %.0f%%) = %.2f%% averted | max (VE 100%%, cov 100%%) = %.2f%%\n",
+            nrow(grid_df), 100*grid_df$ve[near], 100*grid_df$coverage[near],
+            grid_df$pct[near], max(grid_df$pct)))
 cat("Saved MAYV_ca_ve_coverage_heatmap.png and MAYV_ca_ve_coverage_sweep.xlsx\n")
