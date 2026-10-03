@@ -9,7 +9,7 @@
 #   1. CHIKV_MAYV_epicurves.png       epidemic curves, side by side
 #   2. combined_residual_burden.png   burden as % of no vaccination
 #   3. CHIKV_MAYV_owsa.png            tornado, CHIKV over MAYV
-#   4. combined_master.png            A epicurves / B DALYs / C deaths / D hospitalisation cost
+#   4. combined_master.png            A epicurves / B DALYs / C deaths
 #   5. combined_per_100k_doses.xlsx   benefit per 100,000 doses, CHIKV beside MAYV
 #
 # Pure presentation: reads the .rds files the model scripts write and does no SEIR or
@@ -323,17 +323,19 @@ head_lab <- function(txt) ggplot() + labs(title = txt) + theme_void() +
         plot.margin = margin(0, 0, 0, 0))
 
 YLAB <- "Cumulative burden (% of no vaccination)"
+# Hospitalisation cost is no longer plotted (it stays in the .rds and the workbooks), so
+# Deaths is the bottom row and carries the x-axis. Mayaro has no Deaths panel (CFR = 0),
+# so its only panel, DALYs, needs its own x-axis labels or that column would have none.
 rB <- row_burden(OUT_LAB[1], "B", strip = TRUE)
-rC <- row_burden(OUT_LAB[2], "C")
-rD <- row_burden(OUT_LAB[3], "D", x_axis = TRUE)
+rB$m <- burden(one_row(mayv, OUT_LAB[1]), TRUE, NULL, TRUE, FALSE, NULL, row_strip = TRUE)
+rC <- row_burden(OUT_LAB[2], "C", x_axis = TRUE)
 
-# standalone version of the burden figure, three outcomes stacked
+# standalone version of the burden figure, two outcomes stacked
 burden_rows <- (head_lab("Chikungunya") + head_lab("Mayaro") +
                   plot_layout(widths = c(2, 1))) /
                (rB$c + rB$m + plot_layout(widths = c(2, 1))) /
-               (rC$c + rC$m + plot_layout(widths = c(2, 1))) /
-               (rD$c + rD$m + plot_layout(widths = c(2, 1))) +
-               plot_layout(heights = c(.01, 1, 1, 1))
+               (rC$c + rC$m + plot_layout(widths = c(2, 1))) +
+               plot_layout(heights = c(.01, 1, 1))
 
 # One rotated y title for the whole B-D block. Put on a single row it would be taller
 # than that row and get clipped, so it is attached to the wrapped block instead.
@@ -343,7 +345,7 @@ with_ylab <- function(blk) wrap_elements(patchworkGrob(blk)) +
         plot.margin = margin(t = 0, r = 0, b = 0, l = 0))
 
 p_burden <- with_ylab(burden_rows)
-save_fig("combined_residual_burden.png", p_burden, width = 9.5, height = 9, dpi = 150)
+save_fig("combined_residual_burden.png", p_burden, width = 9.5, height = 6.4, dpi = 150)
 cat("Saved combined_residual_burden.png (B DALYs / C deaths / D healthcare cost).\n")
 
 # ------------------------------------------------------------
@@ -425,14 +427,13 @@ row_A <- pA_c + pA_m + plot_layout(widths = c(1, 1), guides = "collect") &
 row_BCD <- plot_spacer() + with_ylab(burden_rows) + plot_spacer() +
   plot_layout(widths = c(.08, 1, .08))
 
-# Burden block gets a larger share and the figure is taller overall. The right-hand strip
-# text is rotated, so its available length IS the row height -- "Hospitalisation costs" is
-# the longest label and sets the requirement.
-master <- row_A / row_BCD + plot_layout(heights = c(1.15, 3.1))
+# Two burden rows now, so the block's share and the figure height both shrink; each row
+# keeps the same absolute height as in the three-row version.
+master <- row_A / row_BCD + plot_layout(heights = c(1.15, 2.1))
 
-save_fig("combined_master.png", master, width = 13, height = 15, dpi = 150)
-ggsave("combined_master.pdf", master, width = 13, height = 15)
-cat("Saved combined_master.png / .pdf (A epicurves, B DALYs, C deaths, D healthcare cost).\n")
+save_fig("combined_master.png", master, width = 13, height = 11.5, dpi = 150)
+ggsave("combined_master.pdf", master, width = 13, height = 11.5)
+cat("Saved combined_master.png / .pdf (A epicurves, B DALYs, C deaths).\n")
 
 
 # ------------------------------------------------------------
