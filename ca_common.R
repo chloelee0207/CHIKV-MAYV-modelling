@@ -122,9 +122,8 @@ load_burden_params <- function(A,
 
 # ------------------------------------------------------------
 # Canonical Caldas Novas age-stratified case loader (the "ca_combined" SINAN sheet).
-# Single source of truth for the outbreak-window cases used by BOTH the fit
-# (CHIKV_ca_lhs.R) and the age-stratified script (weekly_age_stratified.R),
-# so neither has to depend on the older plain weekly_all series (weekly_case.R).
+# Single source of truth for the outbreak-window cases used by the fit (CHIKV_ca_lhs.R),
+# the engine and the one-way sensitivity analysis.
 # Window 2025-W24 -> 2026-W22 = 52 weeks (2025 has an epi Semana 53). Missing zero-case
 # weeks (2025-W33 & W40) are zero-filled on a canonical contiguous grid.
 # Returns:
