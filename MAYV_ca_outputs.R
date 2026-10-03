@@ -319,7 +319,7 @@ p_resid <- ggplot(resid_plot, aes(scenario, med, fill = scenario)) +
         strip.text = element_text(face = "bold", size = 9),
         panel.grid.minor = element_blank())
 print(p_resid)
-ggsave("MAYV_ca_residual_burden.png", p_resid, width = 3.6, height = 3.0, dpi = 130)
+ggsave("MAYV_ca_residual_burden.png", p_resid, width = 3.6, height = 4.0, dpi = 130)
 # % reduction from no vaccination, the complement of the residual columns. The interval
 # BOUNDS SWAP: a draw with a high residual burden is a draw with a small reduction, so
 # red_lo is 100 - hi and red_hi is 100 - lo. Taking 100 - lo as the lower bound would
