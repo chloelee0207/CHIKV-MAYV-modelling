@@ -15,11 +15,12 @@
 #   * daly_averted `pct_DALY` likewise carries its 95% UI.
 #
 # MAYV-SPECIFIC FRAMING (differs from CHIKV, which is fitted to a real outbreak):
-#   * NO TAKE-OFF CONDITIONING. R0 is FIXED per scenario in MAYV_ca_lhs.R (low = 1.20,
-#     high = 2.1-2.9), sampled per draw. Every figure is summarised over ALL draws
-#     (G$outbreak is every row); no take-off conditioning is applied.
-#     The 95% UIs carry natural-history / reporting / symptomatic-fraction
-#     / vaccine / severity-DALY uncertainty, NOT the between-setting R0 span.
+#   * NO TAKE-OFF CONDITIONING. R0 is sampled per draw within the scenario's range in
+#     MAYV_ca_lhs.R (low = 1.1-1.3, high = 2.1-2.9). Every figure is summarised over ALL
+#     draws (G$outbreak is every row); no take-off conditioning is applied.
+#     The 95% UIs carry within-scenario R0 / natural-history / reporting /
+#     symptomatic-fraction / vaccine / severity-DALY uncertainty, NOT the span BETWEEN
+#     the two scenarios.
 #   * ONE vaccine scenario: pre-outbreak, DISEASE-BLOCKING ONLY (VE_inf = 0), so
 #     infections are never averted (Infections = 0, and Infection NNV = NA).
 #   * DEATHS = 0: no confirmed MAYV-attributable death, so CFR = 0 in the engine ->
@@ -36,7 +37,7 @@ if (!file.exists("MAYV_ca_engine_results.rds"))
   stop("MAYV_ca_engine_results.rds not found -- run MAYV_ca_engine.R first.")
 G <- readRDS("MAYV_ca_engine_results.rds")
 
-ok        <- G$outbreak                                  # ALL draws (fixed R0 -> no conditioning)
+ok        <- G$outbreak                                  # ALL draws (no take-off conditioning)
 rho_draw  <- G$rho_draw
 scen_names <- G$scen_names
 vac_names  <- setdiff(scen_names, "No vaccine (baseline)")
@@ -123,10 +124,10 @@ notes <- data.frame(
             "Hybrid: Caldas CHIKV beta_t for the rise/peak + CHIRPS climatological dry-season tail (2026-W10 join), mean-1.",
             sprintf("2025-W24 -> 2026-W22 (weeks %d-%d).", min(G$EVAL_WIN), max(G$EVAL_WIN)),
             "R0 = wet-season PEAK R_eff (envelope rescaled so max = 1).",
-            sprintf("'%s': R0 SAMPLED from %.1f-%.1f (lognormal, endpoints as 2.5th/97.5th percentiles; median %.2f). Both scenario ranges are Caicedo et al. 2021 -- low = outside the Amazon basin, high = Amazon basin applied to Goias as a PEAK R0 -- so this is within-source uncertainty, not a mix across settings.", G$R0_scenario, G$R0_lo, G$R0_hi, G$R0_fixed),
-            sprintf("%.1f%% of %d draws exceed attack > %.1f%% of susceptibles. DIAGNOSTIC ONLY -- not used to filter: at fixed R0 the outbreak-size distribution is unimodal, so this threshold would bisect a single continuous distribution.",
+            sprintf("'%s': R0 SAMPLED from %.1f-%.1f (lognormal, endpoints as 2.5th/97.5th percentiles; median %.2f). Both scenario ranges are Caicedo et al. 2021 -- low = outside the Amazon basin, high = Amazon basin applied to Goias as a PEAK R0 -- so this is within-source uncertainty, not a mix across settings.", G$R0_scenario, G$R0_lo, G$R0_hi, G$R0_median),
+            sprintf("%.1f%% of %d draws exceed attack > %.1f%% of susceptibles. DIAGNOSTIC ONLY -- not used to filter: within one scenario's R0 range the outbreak-size distribution is unimodal (on the log scale), so this threshold would bisect a single continuous distribution.",
                     100*G$frac_over_legacy_thresh, G$N_DRAWS, G$OUTBREAK_ATTACK_THRESH),
-            sprintf("NONE. All %d draws are summarised (fixed R0 -> one transmission regime).", length(ok)),
+            sprintf("NONE. All %d draws are summarised (one scenario's R0 range -> one transmission regime).", length(ok)),
             as.character(length(ok)),
             "Disease-blocking ONLY (VE_inf = 0), pre-outbreak campaign -> infections never averted.",
             sprintf("%.0f%%", 100*median(G$cov_d)),
@@ -339,6 +340,6 @@ cat("Wrote MAYV_ca_vacc_outputs.xlsx (notes, baseline_true_reported, vaccinated_
     "     averted_MC_95UI, averted_per_100k_doses, scenario_totals)\n", sep = "")
 cat("Wrote MAYV_ca_daly_outputs.xlsx (daly_by_scenario, daly_averted, yld_by_phase)\n")
 cat("Wrote MAYV_ca_nnv_outputs.xlsx  (nnv)\n\n")
-cat(sprintf("Fixed R0 = %.2f, all %d draws (no conditioning).  pct symptomatic reduced: %s\n",
-            G$R0_fixed, G$N_DRAWS, mc_tbl$pct_symp[1]))
+cat(sprintf("R0 %.1f-%.1f (median %.2f), all %d draws (no conditioning).  pct symptomatic reduced: %s\n",
+            G$R0_lo, G$R0_hi, G$R0_median, G$N_DRAWS, mc_tbl$pct_symp[1]))
 print(mc_tbl, row.names = FALSE)
