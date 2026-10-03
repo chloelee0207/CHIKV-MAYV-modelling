@@ -19,9 +19,11 @@
 #   log scale but heavily right-skewed. Read the 95% UI, not just the median, and see the
 #   r0_response table in MAYV_ca_owsa.xlsx for the underlying curve.
 #
-# BORROWED severity/DALY (no MAYV-specific data): CHIKV disease-progression params via
-# load_burden_params()/load_daly_params() in ca_common.R -- a CHIKV-equivalent UPPER
-# BOUND on MAYV severity, since MAYV has no severity data of its own.
+# SEVERITY/DALY: the CHIKV disease-progression set (load_burden_params()/load_daly_params()
+# in ca_common.R) with MAYV-specific overrides -- hospitalisation 5% (4-6%), acute duration
+# = the infectious period, recovery shares from Halsey et al. 2015, and no deaths. The
+# disability weights and the severe, sub-acute and chronic durations stay borrowed from
+# CHIKV, as MAYV has no data for them.
 #
 # VACCINE: DISEASE-BLOCKING ONLY (VE_inf = 0 -> infections identical across arms; only
 # symptomatic/hosp/deaths/DALY move), pre-outbreak campaign, coverage/VE_block/delivery
@@ -112,7 +114,7 @@ cat(sprintf("Loaded MAYV ensemble: %d draws | R0 scenario '%s' (peak=%s) | seed 
 EVAL_WIN <- 1:T_weeks   # 52-week hybrid window (2025-W24 -> 2026-W22); the dry-season tail lets every outbreak resolve inside it
 
 # ------------------------------------------------------------
-# 1. Severity + DALY params (borrowed CHIKV) + eligibility + uniform age weight
+# 1. Severity + DALY params (CHIKV set, MAYV overrides) + eligibility + uniform age weight
 # ------------------------------------------------------------
 invisible(list2env(load_burden_params(A), globalenv()))   # ps_*, hosp_*, cfr_*, age_to_band, cfr_vec
 

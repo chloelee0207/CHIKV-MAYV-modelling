@@ -4,19 +4,20 @@
 #
 # WHAT THIS IS. Parameter PRIORS are propagated through a forward SEIR: each Latin
 # hypercube draw re-runs the simulation, so the reported / infection / attack-rate
-# bands carry natural-history, reporting, R0 and prior-immunity uncertainty. There is
+# bands carry natural-history, reporting, symptomatic-fraction and R0 uncertainty. There is
 # NO fitting -- Caldas Novas has no observed MAYV outbreak -- so these are
 # PRIOR-PREDICTIVE bands, not posteriors. The seasonal transmission SHAPE is a HYBRID
 # (caldas_hybrid_season.rds, built by MAYV_build_hybrid_envelope.R): the fitted CHIKV
 # beta_t for the rise/peak + a climatological dry-season tail.
 # Window: 52 weeks, 2025-W24 -> 2026-W22.
 #
-# SAMPLED INPUTS (priors, from model_calibration.xlsx MAYV rows unless noted):
-#     gamma   ~ Normal(rate)         recovery rate  (7 d central, 5-10 d range)
-#     sigma   = 1 / Normal(period)   intrinsic incubation 3.0 d, 95% CrI 2.2-3.8 (Caicedo 2021)
-#     rho     ~ Beta(20, 60)         reporting rate (mean 0.25)      [hardcoded]
-#     prop_symp ~ Beta(35.84, 32.56) symptomatic fraction (med 0.524)[hardcoded]
-#     R0      ~ Lognormal            peak R_eff within the scenario range (see below)
+# SAMPLED INPUTS (priors; section 5 gives the sources):
+#     gamma     ~ Lognormal (rate)     recovery, ~7 d (5.2-9.4 d)  [model_calibration.xlsx]
+#     sigma     = 1 / latent period    lognormal 7-12 d (median 9.2 d) by default; family and
+#                                      range set by MAYV_LATENT    [matches the workbook row]
+#     rho       ~ Beta(20, 60)         reporting rate (mean 0.25)  [model_calibration.xlsx]
+#     prop_symp ~ Lognormal, truncated at 1; 95% 0.68-0.92 (48/71 to 33/36)   [hardcoded]
+#     R0        ~ Lognormal            peak R_eff within the scenario range (see below)
 #
 # PRIOR IMMUNITY: none. The population is assumed fully susceptible to MAYV (S(0) = N in
 # every draw), as there is no documented MAYV circulation in Caldas Novas.
@@ -107,7 +108,7 @@ seir_baseline_MAYV <- function(
 
 # ------------------------------------------------------------
 # 2. Population (Caldas Novas), grown 2022 -> 2025
-#    (immunity is now a SAMPLED input, so susceptible_pop / I0 are computed per draw)
+#    (no prior immunity, so the whole population is susceptible)
 # ------------------------------------------------------------
 age_df <- read_excel("population.xlsx", sheet = "prop_immune")
 age_df <- as.data.frame(age_df[tolower(age_df$municipality) == "caldas novas", ])
@@ -181,43 +182,21 @@ gr <- row_for("gamma"); sr <- row_for("sigma")
 g_ml <- as.numeric(gr[["Value 1"]]); g_sl <- as.numeric(gr[["Value 2"]])
 stopifnot(tolower(gr[["Uncertainty distribution"]]) == "lognormal", is.finite(g_ml), is.finite(g_sl))
 g_m <- exp(g_ml)                               # median rate, for the deterministic base run
-p_m <- sr$Median; p_sd <- sd_of(sr)            # sigma stored as a PERIOD (weeks) -> invert
+p_m <- sr$Median; p_sd <- sd_of(sr)            # workbook latent row (weeks); p_m is reset below
+                                               # from the MAYV_LATENT sampler, which matches it
 
-# LATENT-PERIOD SCENARIO. Base case = the workbook value: Caicedo et al. 2021's intrinsic
-# incubation period, 3.0 d (95% CrI 2.4-4.1) -- LOGNORMAL, fitted so the CrI endpoints are
-# the 2.5th/97.5th percentiles. Lognormal suits a duration bounded below by zero and is
-# right-skewed. NB the fitted MEDIAN is 3.14 d, not 3.0: no two-parameter lognormal can
-# reproduce a mean of 3.0 AND the CrI 2.4-4.1, because that interval is not symmetric about
-# 3.0 (its midpoint is 3.25). We preserve the INTERVAL, which carries the uncertainty, and
-# accept a 4.6% shift in the central value; forcing the median to 3.0 would instead shrink
-# the CrI to 2.30-3.92. Using Caicedo for BOTH the latent period and R0 keeps the natural
-# history and the reproduction number internally consistent (they were estimated together).
-#   NB Caicedo also report a distribution SD of 0.3 d (95% CrI 0.0-2.1). That is BETWEEN-
-#   INDIVIDUAL variation in incubation time, which the SEIR's exponential E->I waiting time
-#   already represents. The LHS samples uncertainty in the MEAN, so the CrI on the mean is
-#   the correct input -- same convention as every other row in the workbook.
-# Sensitivity: MAYV_LATENT <- "long12d" restores the previous 12-day assumption. That is a
-# STRUCTURAL sensitivity, not a wider prior: it changes the generation time from ~1.43 to
-# ~2.71 wk, so far fewer generations fit inside the supercritical season before the dry-
-# season tail collapses transmission, and the outbreak is ~50x smaller at the same R0.
-# Latent period and R0 are therefore partly interchangeable in setting outbreak size.
-# Scenario table. "cdc1_14" is the base case and matches the workbook row; the other two
-# are sensitivities. dist matters as much as the bounds: over a range spanning an order of
-# magnitude the uniform and lognormal centres diverge sharply (7.5 d vs 3.7 d on 1-14),
-# which moves outbreak size ~4x, so the family is recorded explicitly rather than assumed.
+# LATENT PERIOD. Base case MAYV_LATENT = "mayv7_12": Martins et al. 2020's incubation period of 7-12 d,
+# lognormal with 7 and 12 d as the 2.5th/97.5th percentiles (median 9.17 d = 1.309 wk), which
+# is the workbook's latent row. The other LAT_SPEC entries are STRUCTURAL sensitivities --
+# competing sources, not points within one range (see MAYV_ca_owsa.R). The family matters as
+# much as the bounds: over a range spanning an order of magnitude the uniform and lognormal
+# centres diverge sharply (7.5 d vs 3.7 d on 1-14), so it is recorded explicitly.
+# Latent period and R0 are partly interchangeable in setting outbreak size: a longer latent
+# period lengthens the generation time, so fewer generations fit inside the supercritical
+# season before the dry-season tail collapses transmission.
 if (!exists("MAYV_LATENT")) MAYV_LATENT <- "mayv7_12"
 stopifnot(MAYV_LATENT %in% c("mayv7_12", "mayv5_7", "mayv3_11", "diagne1_6", "cdc1_14", "caicedo3d", "long12d"))
 LAT_SPEC <- list(
-  # BASE CASE. MAYV intrinsic incubation "can range from 3 to 11 days", with viraemia and
-  # symptoms "usually 5-7 days". Fitted LOGNORMAL with 3 and 11 d as the 2.5th/97.5th
-  # percentiles; the median falls out at 5.74 d and the IQR at 4.59-7.18 d, so the source's
-  # "usually 5-7 d" is REPRODUCED rather than imposed -- the two statements in that paper are
-  # consistent under a single distribution, which is the reason for preferring it.
-  # Chosen over cdc1_14 because a Uniform(1, 14) asserts that the population-MEAN latent
-  # period could be 1 day or 14 days with equal weight. That is a far stronger claim than a
-  # stated clinical range supports, and it dominated the output interval: it alone accounted
-  # for ~41% of the variance in log symptomatic cases and widened the 95% UI to 443x, versus
-  # 181x here. See MAYV_ca_owsa.R for the latent-by-source structural rows.
   # BASE CASE. Stated incubation period of 7-12 days, taken as the 95% interval on the
   # population MEAN and centred on its geometric mean sqrt(84) = 9.17 d -> 1.309 wk
   # (1.000-1.714). Same convention as the CHIKV model: the interval is placed on the mean,
@@ -253,8 +232,7 @@ LAT_SPEC <- list(
   # 4.2 d (3.15-5.6), drawn from "usually 2 to 6 days" while discarding the stated 1-12 d
   # range for exactly this reason. Keeping the two models on one convention also keeps the
   # MAYV/CHIKV comparison like-for-like, which is the point of the analysis.
-  # Effect: overall 95% UI on symptomatic cases narrows 178x -> 121x, and the WITHIN-scenario
-  # width (R0 held fixed) falls from 35-58x to 3-8x. See mayv3_11 for the alternative.
+  # See mayv3_11 for the full-range alternative.
   mayv5_7   = list(dist = "lognormal", lo = 5/7,      hi = 7/7),
   # SENSITIVITY: treat the full stated 3-11 d range as the 95% interval on the mean, fitted
   # to BOTH statements at once by least squares on the log scale: 3 and 11 d at the
@@ -275,9 +253,11 @@ LAT_SPEC <- list(
   # outside the limits the source gives).
   cdc1_14   = list(dist = "uniform",   lo = 1/7,     hi = 14/7),
   # Caicedo et al. 2021 estimated intrinsic incubation, 3.0 d (95% CrI 2.4-4.1): the only
-  # FITTED estimate, but of the population mean rather than the clinical range.
+  # FITTED estimate, of the population mean, and estimated jointly with Caicedo's R0. NB the
+  # fitted lognormal's median is 3.14 d, not 3.0: the CrI is not symmetric about 3.0, and the
+  # interval, which carries the uncertainty, is preserved instead.
   caicedo3d = list(dist = "lognormal", lo = 2.4/7,   hi = 4.1/7),
-  # pre-2026-07 assumption, retained for continuity
+  # an earlier 12-day assumption, retained as a sensitivity
   long12d   = list(dist = "lognormal", lo = 11.31/7, hi = 12.69/7))
 lat <- LAT_SPEC[[MAYV_LATENT]]
 lat_lo <- lat$lo; lat_hi <- lat$hi
@@ -427,7 +407,7 @@ q3   <- function(x) quantile(x, c(.5, .025, .975), na.rm = TRUE)
 band <- function(M) apply(M[ok, , drop = FALSE], 2, quantile, c(.025, .5, .975), na.rm = TRUE)
 cat("\n=========== PROPAGATED MAYV RESULTS (", length(ok), " draws, R0 SAMPLED ",
     sprintf("%.1f-%.1f", R0_LO, R0_HI), ") ===========\n", sep = "")
-cat("Bands below carry gamma / sigma / rho / prop_symp / prior-immunity AND R0 uncertainty.\n")
+cat("Bands below carry gamma / sigma / rho / prop_symp AND R0 uncertainty.\n")
 cat(sprintf("Prior immunity:      propagated %.1f%% [%.1f%%, %.1f%%]\n",
             q3(immune[ok])[1], q3(immune[ok])[2], q3(immune[ok])[3]))
 cat(sprintf("R0 at seasonal peak: SAMPLED %.2f [%.2f, %.2f] (lognormal on the %s range)\n",
@@ -467,7 +447,7 @@ p_rep <- ggplot(data.frame(week = weeks, lo = rb[1,], med = rb[2,], hi = rb[3,],
   scale_x_continuous(breaks = x_ticks$week_index, labels = x_ticks$week) +
   labs(x = "Week", y = "Predicted reported MAYV cases",
        title = "Hypothetical MAYV outbreak: propagated 95% band",
-       subtitle = sprintf("Median (solid) + 95%% band from gamma/sigma/rho/prop_symp/immunity/R0 priors (R0 ~ %.1f-%.1f); baseline at median inputs (dashed)", R0_LO, R0_HI)) +
+       subtitle = sprintf("Median (solid) + 95%% band from gamma/sigma/rho/prop_symp/R0 priors (R0 ~ %.1f-%.1f); baseline at median inputs (dashed)", R0_LO, R0_HI)) +
   theme_bw(12) + theme(plot.title = element_text(face = "bold", hjust = 0.5),
                        plot.subtitle = element_text(hjust = 0.5, size = 9),
                        panel.grid.minor = element_blank())
