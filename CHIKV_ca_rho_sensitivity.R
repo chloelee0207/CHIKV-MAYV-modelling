@@ -48,7 +48,6 @@ cat(sprintf("Spline now active over all %d weeks (base case: 49).\n", active_wee
 # 95% endpoints reproduces them exactly. Its implied median is 16.5%, slightly above the
 # stated 15.40%, because the quoted triple is not itself lognormal -- the interval is
 # matched in preference to the median, since the tails drive feasibility here.
-# This mirrors how MAYV_ca_lhs.R handles the skewed Lima seroprevalence prior.
 low_ml <- (log(0.0702) + log(0.3887))/2
 low_sl <- (log(0.3887) - log(0.0702))/(2*1.96)
 cat(sprintf("Lognormal for 15.40%% (7.02-38.87%%): meanlog %.4f, sdlog %.4f -> quantiles %.4f / %.4f / %.4f\n",

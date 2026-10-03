@@ -62,10 +62,8 @@ R0_MARKS <- c(low = 1.20, high = 2.47)             # scenario MEDIANS, for the f
 # keeps both that and the literal 1.20 and the grid gains a duplicate row.
 R0_SWEEP <- sort(unique(round(c(seq(1.1, 3.6, by = 0.1), unname(R0_MARKS)), 4)))
 
-# imm follows the ensemble's baseline-immunity scenario (E$MAYV_IMMUNITY): 0 when the
-# population is assumed naive, the Lima median otherwise. Hardcoding it would silently
-# desynchronise the OWSA base case from the burden results.
-IMM_BASE <- if (identical(E$MAYV_IMMUNITY, "naive")) 0 else unname(median(E$immune_frac))
+# Prior immunity is 0: the population is assumed fully susceptible to MAYV.
+IMM_BASE <- 0
 BASE <- list(R0 = R0_BASE, imm = IMM_BASE, rho = 0.25, ve = 4/12,
              cov = 0.30, deliv = 0.10, delay = 2, immun = 2, env = "hybrid",
              psymp = PSYMP,                        # CHIKV-equivalent symptomatic fraction
@@ -118,13 +116,8 @@ BOUNDS <- list(
   deliv = c(0.09, 0.11),
   delay = c(1, 3),
   immun = c(1, 3))
-# Prior immunity is a tornado row ONLY when it is sampled. Under the naive-population
-# assumption it is fixed at 0, so a "lower/upper" bar would be meaningless; the naive-vs-Lima
-# contrast is reported in structural_sensitivity instead.
-if (!identical(E$MAYV_IMMUNITY, "naive"))
-  BOUNDS <- c(list(imm = c(0.03, 0.18)), BOUNDS)     # Lima 2021 Central-West 95% CI
 
-PAR_LAB <- c(R0 = "R0", latent = "Latent period", imm = "Rate of exposure",
+PAR_LAB <- c(R0 = "R0", latent = "Latent period",
              rho = "Reporting rate", ve = "Vaccine efficacy",
              cov = "Vaccine coverage", deliv = "Weekly delivery speed",
              delay = "Delay in deployment", immun = "Time to immunity",
@@ -145,7 +138,7 @@ env_of <- function(tag) {
 # ------------------------------------------------------------
 run_scenario <- function(p) {
   season <- env_of(p$env)
-  Rimm   <- rep(p$imm, A)                          # flat seroprevalence (Route B)
+  Rimm   <- rep(p$imm, A)                          # prior immunity (0: naive population)
   sus    <- N * (1 - p$imm)
   I0i    <- E$I0_total * sus / sum(sus)
   beta_t <- p$R0 * GAMMA * season
@@ -247,13 +240,6 @@ struct <- rbind(
       c(12.0/7,     "12 d (earlier assumption)")), function(x)
     srow("Latent period (source)", x[2],
          modifyList(BASE, list(latent = as.numeric(x[1])))))),
-  # Baseline immunity: naive population (base case) vs Lima's pooled Central-West
-  # seroprevalence. Two competing assumptions about whether MAYV has circulated in Caldas
-  # Novas at all, not a range on one quantity -- hence a structural row, not a tornado bar.
-  do.call(rbind, lapply(list(c(0,      "0% (naive population, base case)"),
-                             c(0.0735, "7.3% (Lima 2021 Central-West median)")), function(x)
-    srow("Baseline immunity (structure)", x[2],
-         modifyList(BASE, list(imm = as.numeric(x[1])))))),
   # Reporting rate. Included for completeness, and the result is the point: because MAYV is
   # NOT fitted, rho never enters the transmission model -- it converts TRUE cases to REPORTED
   # ones after the simulation. Every true-burden column below is therefore IDENTICAL between
@@ -333,7 +319,7 @@ cat("Saved MAYV_ca_r0_response.png\n")
 # 4c. PROBABILISTIC R0 SWEEP -- median + 95% UI at each fixed peak R0.
 # The section-4b curve is deterministic (median inputs). This one re-runs the FULL
 # ensemble at every R0 on the grid, so each row is a proper median [95% UI] carrying the
-# same uncertainty the engine propagates: gamma, sigma, rho, prop_symp and prior immunity
+# same uncertainty the engine propagates: gamma, sigma, rho and prop_symp
 # from the LHS ensemble, plus the engine's OWN sampled coverage / VE / deployment delay
 # (reused draw-for-draw from MAYV_ca_engine_results.rds). Because those are the identical
 # draws, the row at the scenario's R0 reproduces the engine's headline numbers.
@@ -437,7 +423,7 @@ if (R0_PSA_RUN) {
                         aesthetics = c("colour", "fill")) +
     labs(x = "Wet-season peak R0 (fixed)", y = "Symptomatic cases (log scale)",
          title = "MAYV: outbreak size and vaccine impact vs fixed peak R0",
-         subtitle = sprintf(paste("Median and 95%% UI over %d draws: gamma, sigma, rho, prop_symp, prior immunity,",
+         subtitle = sprintf(paste("Median and 95%% UI over %d draws: gamma, sigma, rho, prop_symp,",
                                   "coverage, VE, deployment delay.\nR0 is FIXED at each point, so its span is NOT inside these bands."), nd)) +
     theme_bw(11) + theme(legend.position = "bottom", panel.grid.minor = element_blank(),
                          plot.subtitle = element_text(size = 8.5))

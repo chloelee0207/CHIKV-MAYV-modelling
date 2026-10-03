@@ -2,8 +2,8 @@
 # MAYV_ca_threshold_sensitivity.R
 # ------------------------------------------------------------
 # Two structural sensitivity analyses for the MAYV model, both propagated over the
-# SAME 1000-draw ensemble the main results use (gamma, sigma, rho, prop_symp and prior
-# immunity per draw, paired with freshly drawn vaccine parameters), so the 95% UIs are
+# SAME 1000-draw ensemble the main results use (gamma, sigma, rho and prop_symp per
+# draw, paired with freshly drawn vaccine parameters), so the 95% UIs are
 # comparable with the headline table.
 #
 # The vaccine draws are read from MAYV_ca_engine_results_high.rds rather than redrawn, so
@@ -78,9 +78,8 @@ sweep_cfg <- function(R0, seed_week) {
 # ---- 1. transmission potential: the two SAMPLED scenarios --------------------
 # R0 is no longer fixed at grid points -- it is drawn per LHS row from a lognormal on the
 # scenario's range (MAYV_ca_lhs.R). So this sheet now reports ONE ROW PER SCENARIO, with
-# every quantity summarised over the 1000 draws. R_eff = R0(draw) x season(t) x S/N now
-# carries uncertainty from BOTH the sampled R0 and the sampled prior immunity, where the
-# old fixed-R0 rows carried immunity alone.
+# every quantity summarised over the 1000 draws. With no prior immunity S/N = 1 at the
+# start, so R_eff = R0(draw) x season(t) and its uncertainty comes from the sampled R0.
 # Evaluated at the START of the epidemic; susceptible depletion lowers R_eff further as the
 # outbreak runs, though negligibly at MAYV attack rates.
 R0_MAIN <- 2.47                      # median of the sampled high range, used by sections 2-3
@@ -129,7 +128,7 @@ scen_sampled <- function(sc) {
              pct_averted = fmt(100 * av / base, 1),
              stringsAsFactors = FALSE)
 }
-SN_d <- 1 - E$immune_frac; imm_med <- median(E$immune_frac); SN <- median(SN_d)
+SN_d <- 1 - E$immune_frac; SN <- median(SN_d)
 reff <- function(x, d = 3) sprintf("%.*f (%.*f-%.*f)", d, median(x), d,
                                    quantile(x, .025), d, quantile(x, .975))
 cat(sprintf("Propagating %d draws over the two sampled scenarios...\n", ND))
@@ -157,13 +156,13 @@ notes <- data.frame(item = c(
   "Structural sensitivity for MAYV. Both sheets use the same 1000-draw ensemble as the main results.",
   "R0 is the WET-SEASON PEAK: the seasonal envelope is normalised to a peak of 1, so R0(t) = R0 x season(t) <= R0 at all times.",
   "Mean R0(t) is mean R_eff without the susceptible factor. R_eff is what determines whether transmission grows, so only R_eff is tabulated.",
-  sprintf("R_eff = R0 x season(t) x S/N, evaluated at the START of the epidemic. Prior immunity is %.1f%% (95%% UI 3.0-18.0%%), so S/N = %.3f (0.820-0.970). Depletion lowers R_eff further as the epidemic runs, though negligibly at MAYV attack rates.", 100*imm_med, SN),
-  "R0 is SAMPLED within each scenario range, so R_eff = R0 x season(t) x S/N carries uncertainty from both the sampled R0 and the sampled prior immunity. The earlier fixed-R0 rows carried immunity alone.",
+  sprintf("R_eff = R0 x season(t) x S/N, evaluated at the START of the epidemic. The population is assumed fully susceptible to MAYV (no prior immunity), so S/N = %.3f. Depletion lowers R_eff further as the epidemic runs, though negligibly at MAYV attack rates.", SN),
+  "R0 is SAMPLED within each scenario range, so R_eff = R0 x season(t) x S/N carries the uncertainty of the sampled R0.",
   sprintf("Caicedo et al. 2021 derive R0 from age-stratified seroprevalence using catalytic models (P(a) = 1-exp(-lambda*a)), so their 2.1-2.9 for the Amazon is an ENDEMIC-AVERAGE reproduction number, not a seasonal peak. Applying that range to Goias as a seasonal PEAK is therefore a deliberate and conservative reading: at the range median it implies a season-averaged R0 of only %.2f, and reproducing 2.47 as an annual mean would instead need a peak of %.2f. The peak is instead comparable to their outbreak-derived estimate, 2.2 (95%% CrI 0.8-4.8) from the 1954-55 Santa Cruz epidemic.", R0_MAIN*mean(season), R0_MAIN/mean(season)),
   "Held at ONE infectious person in every row. Larger seeds were used only as a regime diagnostic and are not a plausible base case.",
   "Averted symptomatic cases per 100,000 doses administered. Ixchiq is deployed once, so the CHIKV and MAYV models consume the same doses (19,584 vs 19,589 median); normalising by doses therefore puts the two pathogens in a shared unit with a natural zero, without dividing one model by the other. Doses do not vary with R0 or seeding week -- the campaign is fixed -- so this column is proportional to averted cases within each table.",
   "Absolute burden is highly sensitive to seeding week; % averted is nearly invariant, because the vaccine's effect depends on the timing overlap between the epidemic and the coverage curve, and the seasonal envelope pins the peak regardless of seeding.",
-  sprintf("%d. Transmission draws (gamma, sigma, rho, prop_symp, prior immunity) come from the ensemble and vaccine draws from the engine, so the R0 = 2.47 / seed-week-1 cell reproduces the headline result exactly.", ND),
+  sprintf("%d. Transmission draws (gamma, sigma, rho, prop_symp) come from the ensemble and vaccine draws from the engine, so the R0 = 2.47 / seed-week-1 cell reproduces the headline result exactly.", ND),
   "Pre-outbreak campaign at 2025-W40, coverage of eligible 18-59 Beta(30%, 20-40%), disease-blocking efficacy Beta(4,8) from Kostecki et al. 2026 (4 of 12 patients; mean 33.3%, 95% UI 10.9-61.0%), VE_inf = 0."),
   stringsAsFactors = FALSE)
 
