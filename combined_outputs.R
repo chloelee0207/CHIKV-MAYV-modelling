@@ -25,8 +25,8 @@
 # ratio is undefined rather than zero. The facet level is kept (drop = FALSE) to hold the
 # row grid aligned, then the panel grob is deleted so no box or gridlines are drawn.
 #
-# Run order:  CHIKV_ca_engine.R -> CHIKV_ca_costs.R -> CHIKV_ca_outputs.R
-#             MAYV_ca_engine.R  -> MAYV_ca_costs.R  -> MAYV_ca_outputs.R
+# Run order:  CHIKV_ca_engine.R -> CHIKV_ca_outputs.R
+#             MAYV_ca_engine.R  -> MAYV_ca_outputs.R
 #             (CHIKV_ca_owsa.R, MAYV_ca_owsa.R for figure 3)  ->  this file
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2); library(patchwork); library(writexl)
@@ -37,11 +37,10 @@ suppressMessages({library(dplyr); library(ggplot2); library(patchwork); library(
 if (!exists("MAYV_EPI_SCENARIO")) MAYV_EPI_SCENARIO <- "high"   # "high" R0 2.1-2.9 | "low" R0 1.1-1.3
 
 ARMS      <- c("Disease-blocking", "Disease + infection blocking")
-OUT_LV    <- c("Cumulative DALYs", "Cumulative deaths", "Hospitalisation cost")  # as stored in the .rds
+OUT_LV    <- c("Cumulative DALYs", "Cumulative deaths")  # as stored in the .rds
 # Strip text for the B/C rows -- EDIT HERE to rename them. Must stay in OUT_LV order;
-# the .rds names above are the lookup keys and must not be changed. The third level
-# (hospitalisation cost) is still in the .rds but is not plotted.
-OUT_LAB   <- c("DALYs", "Deaths", "Hospitalisation costs")
+# the .rds names above are the lookup keys and must not be changed.
+OUT_LAB   <- c("DALYs", "Deaths")
 FILL      <- c("No vaccination" = "grey60", "Vaccination" = "#4e79a7")
 scen_cols <- c("No vaccination" = "grey55", "Disease-blocking" = "#4393c3",
                "Disease + infection blocking" = "#d6604d")
@@ -87,8 +86,8 @@ chik <- readRDS(need1("CHIKV_ca_residual_burden.rds", "run CHIKV_ca_outputs.R"))
 mayv <- readRDS(need1("MAYV_ca_residual_burden.rds",  "run MAYV_ca_outputs.R"))
 stopifnot(!is.null(M$wk_base))                 # re-run MAYV_ca_engine.R to store curves
 
-# Only the MAYV engine results are read by scenario-tagged file name. The residual-burden,
-# OWSA and cost files are whichever scenario was run last, so check each one's stored tag
+# Only the MAYV engine results are read by scenario-tagged file name. The residual-burden
+# and OWSA files are whichever scenario was run last, so check each one's stored tag
 # against MAYV_EPI_SCENARIO rather than risk mixing R0 scenarios across panels.
 check_mayv_scenario <- function(x, file) {
   s <- if (!is.null(attr(x, "R0_scenario"))) attr(x, "R0_scenario") else x[["R0_scenario"]]
@@ -338,7 +337,6 @@ head_lab <- function(txt) ggplot() + labs(title = txt) + theme_void() +
         plot.margin = margin(0, 0, 0, 0))
 
 YLAB <- "Cumulative burden (% of no vaccination)"
-# Hospitalisation cost is no longer plotted (it stays in the .rds and the workbooks), so
 # Deaths is the bottom row and carries the x-axis. Mayaro has no Deaths panel (CFR = 0),
 # so its only panel, DALYs, needs its own x-axis labels or that column would have none.
 rB <- row_burden(OUT_LAB[1], "B", strip = TRUE)
@@ -493,49 +491,15 @@ rows <- lapply(names(OUT100), function(o) {
              combined_CHIKV_db_plus_MAYV = fmt100(a + m[perm]),
              stringsAsFactors = FALSE) })
 
-# healthcare cost, if the cost layer has been run
-cc <- if (file.exists("CHIKV_ca_costs.rds")) readRDS("CHIKV_ca_costs.rds") else NULL
-cm <- if (file.exists("MAYV_ca_costs.rds"))  readRDS("MAYV_ca_costs.rds")  else NULL
-if (!is.null(cm)) check_mayv_scenario(cm, "MAYV_ca_costs.rds")
-if (!is.null(cc) && !is.null(cm)) {
-  K <- 1.47761 / 5.1257                                   # BRL2019 -> USD2026, as in the cost scripts
-  # Costs are split into INPATIENT and OUTPATIENT rather than reported as one total.
-  # MAYV outpatient care is deliberately not costed (no Mayaro treatment flowchart, drugs
-  # or unit costs exist), so those cells are NA and read "not estimated" -- never 0, which
-  # would assert that no outpatient cost is incurred.
-  cost100 <- function(cp, nm, doses, comp) {
-    base <- cp[["No vaccine (baseline)"]]; scen <- cp[[nm]]
-    a <- if (identical(comp, "outpatient")) {
-           (rowSums(base[, c("out_acute","out_subacute","out_chronic")]) -
-            rowSums(scen[, c("out_acute","out_subacute","out_chronic")])) * K
-         } else (base[, comp] - scen[, comp]) * K
-    r <- 1e5 * a / doses; r[!is.finite(r)] <- NA; r }
-  f100 <- function(v) if (all(is.na(v))) "not estimated" else fmt100(v)
-  mv_nm <- names(cm$cost_pd)[2]
-  for (cmp in c("hosp_inpatient", "outpatient")) {
-    a <- cost100(cc$cost_pd, "pre-outbreak | Disease-blocking", ch_db[, "doses"], cmp)
-    b <- cost100(cc$cost_pd, "pre-outbreak | Disease + infection blocking", ch_di[, "doses"], cmp)
-    m <- cost100(cm$cost_pd, mv_nm, mv_db[, "doses"], cmp)
-    comb <- if (all(is.na(m))) "CHIKV only (MAYV not estimated)" else f100(a + m[perm])
-    rows[[length(rows)+1]] <- data.frame(
-      outcome = if (cmp == "hosp_inpatient") "Hospitalisation cost (US$ 2026)"
-                else "Outpatient cost (US$ 2026)",
-      CHIKV_disease_blocking = f100(a), CHIKV_disease_and_infection = f100(b),
-      MAYV_disease_blocking = f100(m), combined_CHIKV_db_plus_MAYV = comb,
-      stringsAsFactors = FALSE)
-  }
-} else cat("NOTE: cost layers not found -- healthcare-cost row omitted from the per-100k table.\n")
-
 per100k_tbl <- do.call(rbind, rows)
 p100_notes <- data.frame(item = c("Unit", "Why doses", "Why not a ratio", "Combined column",
-                                  "Deaths", "Cost split", "Doses"),
+                                  "Deaths", "Doses"),
   detail = c(
   "Outcomes averted per 100,000 doses administered, median (95% UI), computed per draw.",
   "Ixchiq is deployed once, so both models consume the same doses. Doses are the shared input, which makes per-dose benefit comparable across pathogens without either model being divided by the other.",
   "Dividing Mayaro cases averted by chikungunya cases averted compares two different models on a scale with no natural zero. Per-dose benefit has a natural zero (no benefit) and is additive.",
   "CHIKV disease-blocking + MAYV, added per draw with MAYV randomly permuted, since the two models' draws are not paired. Assumes the two epidemics are independent, and is conditional on BOTH occurring as modelled -- the Mayaro outbreak is hypothetical.",
   "MAYV deaths are identically zero (MAYV_ZERO_DEATHS = TRUE fixes the CFR at 0), so the Mayaro column is 0 by construction.",
-  "Costs are split into inpatient and outpatient. MAYV outpatient is NOT costed -- no Mayaro treatment flowchart, drug list or unit costs exist, and borrowing the chikungunya regimen would manufacture a figure. Those cells read 'not estimated' rather than 0, and the combined outpatient row is therefore CHIKV only.",
   sprintf("CHIKV %s, MAYV %s (median), a %.2f%% difference from sampling alone.",
           format(round(median(ch_db[, "doses"])), big.mark=","),
           format(round(median(mv_db[, "doses"])), big.mark=","),
