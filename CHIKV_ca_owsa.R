@@ -7,8 +7,9 @@
 # CHIKV_ca_lhs.R / CHIKV_ca_engine.R, which vary everything at once.
 #
 # Two classes of parameter:
-#   FIT parameters (FOI, rho) change prior immunity or the case scaling, so beta must
-#     be RE-FITTED to the same 8,204 observed cases at each bound.
+#   FIT parameters (FOI, rho, prop_symp) change prior immunity or the number of
+#     infections behind each reported case, so beta must be RE-FITTED to the same 8,204
+#     observed cases at each bound.
 #   CAMPAIGN parameters (VE, coverage, delivery, delay, time-to-immunity) leave the
 #     epidemic fit untouched; only the SEIRV re-runs.
 #
@@ -35,12 +36,13 @@ young_idx <- which(age_to_band <= 4); old_idx <- which(age_to_band >= 5)
 # Central = the same point estimate the LHS uses for its reference fit. Bounds are the
 # 95% interval of each parameter's propagated distribution, except delay and
 # time-to-immunity, which are varied by +/- 1 week (their sampled range).
-BASE <- list(foi = 0.008, rho = 0.25, ve = 263/266, cov = 0.30,
+BASE <- list(foi = 0.008, rho = 0.25, psymp = prop_symp, ve = 263/266, cov = 0.30,
              deliv = 0.10, delay = 2, immun = 2)
 
 BOUNDS <- list(
   foi   = c(0.003, 0.020),                        # serocatalytic 95% UI
   rho   = unname(qbeta(c(.025, .975), 20, 60)),   # Beta(20,60)
+  psymp = unname(qbeta(c(.025, .975), ps_a, ps_b)), # Beta from disease_progression.xlsx
   ve    = unname(qbeta(c(.025, .975), 264, 4)),   # Beta(264,4) from 263/266 seroprotected
   cov   = c(0.20, 0.40),
   deliv = c(0.09, 0.11),
@@ -49,14 +51,16 @@ BOUNDS <- list(
 
 PAR_LAB <- c(foi   = "FOI",
              rho   = "Reporting rate",
+             psymp = "Proportion symptomatic",
              ve    = "Vaccine efficacy",
              cov   = "Vaccine coverage",
              deliv = "Weekly delivery speed",
              delay = "Delay in deployment",
              immun = "Time to immunity")
-REFIT_PARS <- c("foi", "rho")     # these change the epidemic fit
+REFIT_PARS <- c("foi", "rho", "psymp")   # these change the epidemic fit
 
-GAMMA <- 0.54; SIGMA <- 1/0.60; PSYMP <- prop_symp   # held fixed (see header of the workbook)
+GAMMA <- 0.54; SIGMA <- 1/0.60      # held fixed (see the workbook notes)
+PSYMP <- BASE$psymp                 # central value, used by the timing x coverage surface
 start_pre <- caldas_obs$week_index[caldas_obs$Year == 2025 & caldas_obs$week == 40]
 target_age <- rep(0, A); target_age[c(4,5,6,7,8)] <- 1          # eligible 18-59
 target_pop_elig <- sum(N[target_age == 1])
@@ -125,25 +129,25 @@ outcomes_det <- function(out, age_weight) {
 # 3. One full scenario: re-fit if needed, then baseline + both vaccine arms
 # ------------------------------------------------------------
 fit_cache <- list()
-get_fit <- function(foi, rho) {
-  k <- sprintf("%.6f_%.6f", foi, rho)
+get_fit <- function(foi, rho, psymp) {
+  k <- sprintf("%.6f_%.6f_%.6f", foi, rho, psymp)
   if (is.null(fit_cache[[k]])) {
-    f <- refit(foi, GAMMA, SIGMA, rho, PSYMP, gen_start)
-    if (is.null(f)) stop("re-fit failed at FOI=", foi, " rho=", rho)
+    f <- refit(foi, GAMMA, SIGMA, rho, psymp, gen_start)
+    if (is.null(f)) stop("re-fit failed at FOI=", foi, " rho=", rho, " prop_symp=", psymp)
     fit_cache[[k]] <<- f
   }
   fit_cache[[k]]
 }
 
 run_scenario <- function(p) {
-  f    <- get_fit(p$foi, p$rho)
+  f    <- get_fit(p$foi, p$rho, p$psymp)
   Rimm <- 1 - exp(-p$foi * exposure_age)
   sfrac <- (N*(1-Rimm))/sum(N*(1-Rimm))
-  I0i  <- round(((week_1_cases/p$rho/PSYMP)/GAMMA) * sfrac)
+  I0i  <- round(((week_1_cases/p$rho/p$psymp)/GAMMA) * sfrac)
   st   <- min(start_pre + p$delay, T_weeks)
   sim  <- function(cov, vi, vb)
     seirv_vaccinated(T_weeks, A, N, Rimm, I0i, E0, f$beta, SIGMA, GAMMA, p$rho,
-                     target_age, cov, p$deliv, st, vi, vb, p$immun, prop_symp = PSYMP)
+                     target_age, cov, p$deliv, st, vi, vb, p$immun, prop_symp = p$psymp)
   base <- sim(0, 0, 0)
   aw   <- compute_age_weight(rowSums(base$new_infections), obs_band_prop, age_to_band)
   ob   <- outcomes_det(base, aw)
@@ -229,7 +233,7 @@ WK_PRE <- start_pre                       # intended: pre-outbreak, 2025-W40
 WK_ACT <- idx_of(2026, 15)                # actual: announced 18 April 2026
 WK_PEAK <- idx_of(2025, 50)               # transmission peak of the fitted envelope
 
-sw_fit <- get_fit(BASE$foi, BASE$rho)     # cached; the tornado has already built it
+sw_fit <- get_fit(BASE$foi, BASE$rho, BASE$psymp)   # cached; the tornado has already built it
 sw_Rimm  <- 1 - exp(-BASE$foi * exposure_age)
 sw_sfrac <- (N*(1-sw_Rimm))/sum(N*(1-sw_Rimm))
 sw_I0i   <- round(((week_1_cases/BASE$rho/PSYMP)/GAMMA) * sw_sfrac)
@@ -336,10 +340,10 @@ notes <- data.frame(item = c(
           start_pre, format(round(target_pop_elig), big.mark = ",")),
   paste(sprintf("%s = %.4g", names(BASE), unlist(BASE)), collapse = "; "),
   paste(sprintf("%s [%.4g, %.4g]", names(BOUNDS), sapply(BOUNDS, `[`, 1), sapply(BOUNDS, `[`, 2)), collapse = "; "),
-  paste("gamma, sigma, prop_symp. gamma is absorbed by the beta re-fit (R0 = beta/gamma",
-        "against the same cases); sigma shifts peak timing not size; prop_symp cancels",
-        "because the fit anchors on rho x prop_symp x infections = 8,204."),
-  "FOI and rho change prior immunity / case scaling, so beta is re-fitted at each bound.",
+  paste("gamma, sigma. gamma is absorbed by the beta re-fit (R0 = beta/gamma against the",
+        "same cases); sigma shifts peak timing not size."),
+  paste("FOI changes prior immunity; rho and prop_symp change the number of infections behind",
+        "each reported case (reported = rho x prop_symp x infections). Beta is re-fitted at each bound."),
   "Averted = baseline - scenario, both inside the window.",
   sprintf("Campaign start week x coverage, %d x %d x 2 arms, deterministic at the central set. Three dates are tabulated: modelled pre-outbreak 2025-W40 (week %d), the transmission peak 2025-W50 (week %d), and the actual announcement 18 April 2026 = 2026-W15 (week %d). Both fold losses are measured against the pre-outbreak date. The propagated sheet covers only the pre-outbreak and actual dates, because those are the two campaign timings the engine simulates; 2025-W50 is deterministic only.", T_weeks, length(SW_COVS), WK_PRE, WK_PEAK, WK_ACT),
   "Coverage on the surface is of the ELIGIBLE 18-59 group (61.5% of the population), not of the whole population.",
