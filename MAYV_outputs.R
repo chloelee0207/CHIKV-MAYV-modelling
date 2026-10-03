@@ -134,7 +134,7 @@ notes <- data.frame(
             sprintf("%.0f%%", 100*median(G$cov_d)),
             sprintf("%.1f%% mean (Kostecki et al. 2026: 4 of 12 CHIKV patients cross-neutralised MAYV; Beta(4,8), 95%% UI 10.9-61.0%%)", 100*mean(G$veb_d)),
             "Zero: no confirmed MAYV-attributable death -> CFR = 0, so deaths & YLL = 0, DALY = YLD.",
-            "CHIKV set (Kang et al. Table S4) with MAYV-specific hospitalisation 5% (4-6%), acute duration (= infectious period), recovery shares (Halsey et al. 2015) and no deaths; disability weights and the severe, sub-acute and chronic durations are borrowed from CHIKV.",
+            "CHIKV set (Kang et al. 2025 Table S4) with MAYV-specific hospitalisation 5% (4-6%), acute duration (= infectious period), recovery shares (Halsey et al. 2015) and no deaths; disability weights and the severe, sub-acute and chronic durations are borrowed from CHIKV.",
             "Per-draw (Beta, median ~0.25).",
             "REPORTED = rho x TRUE per draw. Severe outcomes (hosp) are usually better ascertained, so their REPORTED values are conservative lower bounds.",
             "Latin-hypercube over gamma/sigma/rho/prop_symp/R0 + vaccine + severity/DALY, propagated jointly. R0 IS sampled within the scenario range, so its span IS inside these UIs and dominates them -- outbreak size is a steep convex function of R0, so the intervals are wide and right-skewed. Read the deciles, not just the median."),
