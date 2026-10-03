@@ -8,8 +8,6 @@
 #                               averted_MC_95UI, averted_per_100k_doses, scenario_totals
 #   MAYV_ca_daly_outputs.xlsx : daly_by_scenario, daly_averted
 #   MAYV_ca_nnv_outputs.xlsx  : nnv
-# (The direct-medical cost workbook, MAYV_ca_costs.xlsx, is produced separately by
-#  MAYV_ca_costs.R and is unchanged.)
 #
 # TWO IMPROVEMENTS over the CHIKV workbook, per request:
 #   * averted_MC_95UI `pct_symp` now carries its 95% UI (the CHIKV excel had only the
@@ -29,10 +27,7 @@
 #   * Severity/DALY parameters are BORROWED from CHIKV (upper bound), and the seasonal
 #     envelope is the hybrid CHIKV-beta + dry-season envelope (2025-W24 -> 2026-W22).
 #
-# Run order: source("MAYV_ca_lhs.R"); source("MAYV_ca_engine.R");
-#            source("MAYV_ca_costs.R"); source(this)
-#            (the cost layer reads only the engine .rds, and the residual-burden
-#             figure needs its per-draw direct medical costs.)
+# Run order: source("MAYV_ca_lhs.R"); source("MAYV_ca_engine.R"); source(this)
 # ============================================================
 library(writexl)
 if (!exists("fmtq")) source("ca_common.R")   # fmtq(v, d) -> "median (lo - hi)"
@@ -280,19 +275,6 @@ write_xlsx(list(nnv = nnv_tbl), "MAYV_ca_nnv_outputs.xlsx")
 #
 # Deaths are omitted: MAYV_ZERO_DEATHS = TRUE sets the MAYV CFR to 0, so baseline
 # deaths are identically 0 and the ratio is undefined. DALY = YLD for the same reason.
-#
-# Healthcare cost is TOTAL direct medical cost -- inpatient plus acute, sub-acute and
-# chronic outpatient -- matching the "costs averted" definition in Table 2. It is read
-# from the cost layer because the outpatient components need the recovery funnel, which
-# only MAYV_ca_costs.R evaluates.
-#
-# NOTE on interpretation: every cost component is linear in case counts that all descend
-# from total symptomatic through rates shared by both arms within a draw (a SINGLE
-# all-ages hosp_rate, the recovery funnel, and the sampled unit costs). Those factors
-# cancel in the ratio, so this PERCENTAGE equals the symptomatic-case percentage to ~0.1
-# pp. It is the absolute R$ averted, not the %, that this panel adds over a case count.
-# Deaths do differ (90% vs 84%) because cfr_vec IS age-specific, so the vaccine's
-# 18-59 targeting shifts the age mix of fatal cases.
 # ------------------------------------------------------------
 library(ggplot2)
 stopifnot(max(base_pd[ok, "deaths"]) == 0)        # guard the "no deaths panel" claim
@@ -305,40 +287,15 @@ add_res <- function(outcome, scen, v) res_rows[[length(res_rows)+1]] <<- data.fr
   med = median(v, na.rm = TRUE), lo = quantile(v, .025, na.rm = TRUE),
   hi = quantile(v, .975, na.rm = TRUE), row.names = NULL)
 
-if (!file.exists("MAYV_ca_costs.rds"))
-  stop("MAYV_ca_costs.rds not found -- run MAYV_ca_costs.R before this script ",
-       "(the residual-burden figure needs total direct medical cost).")
-mayv_cost <- readRDS("MAYV_ca_costs.rds")
-# GUARD: the cost layer is written by MAYV_ca_costs.R, which must run BEFORE this
-# script (see the run order above). Without this check, running them out of order --
-# or after switching R0_SCENARIO -- silently pairs one scenario's costs with another's
-# burden, which shows up as a ~0% healthcare-cost reduction instead of ~8%.
-if (!identical(mayv_cost$R0_scenario, G$R0_scenario))
-  stop("MAYV_ca_costs.rds is from R0 scenario '", mayv_cost$R0_scenario %||% "<untagged>",
-       "' but the engine results are '", G$R0_scenario,
-       "'. Re-run MAYV_ca_costs.R for this scenario BEFORE MAYV_ca_outputs.R.")
-cost_pd <- mayv_cost$cost_pd
-stopifnot(nrow(cost_pd[[1]]) == nrow(base_pd))    # cost draws align with engine draws
-
-# outcome -> (source, column). "engine" = per-draw burden; "cost" = per-draw cost layer.
+# outcome label -> per-draw burden column in the engine results.
+# Deaths are omitted: MAYV_ZERO_DEATHS = TRUE fixes the CFR at 0, so 0/0 is undefined.
+# The blank Mayaro deaths cell in the merged figure is drawn by combined_outputs.R.
 resid_outcomes <- list(
-  list(lab = "Cumulative DALYs",  src = "engine", col = "daly"),
-  # Deaths are omitted: MAYV_ZERO_DEATHS = TRUE fixes the CFR at 0, so 0/0 is undefined.
-  # The blank Mayaro deaths cell in the merged figure is drawn by combined_outputs.R.
-  # Costs are split. Only HOSPITALISATION is plotted, because MAYV outpatient care is
-  # deliberately not costed and a total would compare a CHIKV total against a MAYV
-  # inpatient-only figure. The workbook carries all three so the split is auditable.
-  list(lab = "Hospitalisation cost",  src = "cost", col = "hosp_inpatient"),
-  list(lab = "Outpatient cost",       src = "cost", col = "outpatient"),
-  list(lab = "Total direct medical",  src = "cost", col = "total_direct_medical"))
-PLOT_OUTCOMES <- c("Cumulative DALYs", "Hospitalisation cost")
-cost_col <- function(m, col) if (identical(col, "outpatient"))
-  rowSums(m[, c("out_acute", "out_subacute", "out_chronic"), drop = FALSE]) else m[, col]
+  list(lab = "Cumulative DALYs", col = "daly"))
+PLOT_OUTCOMES <- c("Cumulative DALYs")
 nm <- vac_names[1]
 for (o in resid_outcomes) {
-  v <- if (o$src == "engine") pct_of_base(G$per_draw[[nm]][ok, o$col], base_pd[ok, o$col])
-       else pct_of_base(cost_col(cost_pd[[nm]][ok, , drop = FALSE], o$col),
-                        cost_col(cost_pd[["No vaccine (baseline)"]][ok, , drop = FALSE], o$col))
+  v <- pct_of_base(G$per_draw[[nm]][ok, o$col], base_pd[ok, o$col])
   add_res(o$lab, "No vaccination", 100)
   add_res(o$lab, "Vaccination",    v)
 }
@@ -362,7 +319,7 @@ p_resid <- ggplot(resid_plot, aes(scenario, med, fill = scenario)) +
         strip.text = element_text(face = "bold", size = 9),
         panel.grid.minor = element_blank())
 print(p_resid)
-ggsave("MAYV_ca_residual_burden.png", p_resid, width = 3.6, height = 5.4, dpi = 130)
+ggsave("MAYV_ca_residual_burden.png", p_resid, width = 3.6, height = 4.0, dpi = 130)
 # % reduction from no vaccination, the complement of the residual columns. The interval
 # BOUNDS SWAP: a draw with a high residual burden is a draw with a small reduction, so
 # red_lo is 100 - hi and red_hi is 100 - lo. Taking 100 - lo as the lower bound would

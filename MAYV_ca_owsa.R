@@ -36,7 +36,7 @@ M <- readRDS("MAYV_ca_engine_results.rds")
 # GUARD: both files are untagged "current scenario" artefacts written by different scripts.
 # If the ensemble and the engine results come from different R0 scenarios (e.g. the engine
 # was re-run after switching R0_SCENARIO without re-running the LHS), every result below
-# would silently mix them. Same class of bug as the costs/outputs pairing.
+# would silently mix them.
 if (!identical(E$R0_scenario, M$R0_scenario))
   stop("MAYV_ca_lhs_ensemble.rds is scenario '", E$R0_scenario,
        "' but MAYV_ca_engine_results.rds is '", M$R0_scenario,

@@ -13,8 +13,8 @@
 #     epidemic fit untouched; only the SEIRV re-runs.
 #
 # Outcomes, all accrued over the 52-week observed window (2025-W24 -> 2026-W22):
-#   symptomatic cases averted, deaths averted, DALYs averted, direct medical cost
-#   averted (2019 BRL), and % symptomatic reduction.
+#   symptomatic cases averted, deaths averted, DALYs averted, and % symptomatic
+#   reduction.
 #
 # Run order:  CHIKV_ca_lhs.R (once, for the ensemble) -> this file
 # ============================================================
@@ -76,28 +76,6 @@ REC <- c(acy = mean_ab(dp$p14_y), aco = mean_ab(dp$p14_o),
          cho = mean_ab(dp$p6_o) + mean_ab(dp$p12_o) + mean_ab(dp$p30_o))
 CFR <- cfr_vec                                            # death per symptomatic, by age
 
-# Direct medical cost per case at median unit costs (Goncalves 2024; see CHIKV_ca_costs.R)
-CO <- as.data.frame(readxl::read_excel("costs.xlsx", sheet = "costs"))
-names(CO)[1:5] <- c("parameter", "median", "lo", "hi", "dist")
-um <- function(nm) CO$median[match(nm, CO$parameter)]
-appt <- um("Medical appointment cost (2019 R$)")
-PC <- c(
-  acute = 2*appt + um("Minor/moderate pain as share of acute phase cases") *
-            (um("Dipyrone - cost per case (2019 R$)") + um("Acetaminophen - cost per case (2019 R$)")) +
-          (1 - um("Minor/moderate pain as share of acute phase cases")) *
-            ((um("Dipyrone - cost per case (2019 R$)") + um("Acetaminophen - cost per case (2019 R$)"))/2 +
-             (um("Tramadol - cost per case (2019 R$)") + um("Codeine - cost per case (2019 R$)") +
-              um("Oxycodone - cost per case (2019 R$)"))/3),
-  sub   = 3*appt + um("Arthritis as share of sub-acute phase cases")*um("Prednisone - cost per case (2019 R$)") +
-          (1 - um("Arthritis as share of sub-acute phase cases")) *
-            (((um("Amitriptyline - cost per case (2019 R$)") + um("Gabapentin - cost per case (2019 R$)"))/2 +
-               um("Ibuprofen - cost per case (2019 R$)"))/2),
-  chr   = 3*appt + um("Mild illness as share of chronic phase cases")*um("Hydroxychloroquine - cost per case (2019 R$)") +
-          (1 - um("Mild illness as share of chronic phase cases")) *
-            (um("Methotrexate - cost per case (2019 R$)") + um("Folic acid - cost per case (2019 R$)")),
-  hosp  = um("Public share of inpatient admissions")*um("Average inpatient stay cost (2019 R$) - public sector") +
-          (1 - um("Public share of inpatient admissions"))*um("Average inpatient stay cost (2019 R$) - private sector"))
-
 outcomes_det <- function(out, age_weight) {
   symp_age <- rowSums(out$new_symptomatic[, EVAL_WIN, drop = FALSE])
   symp_w   <- symp_age * age_weight
@@ -114,11 +92,8 @@ outcomes_det <- function(out, age_weight) {
                 n_sub*DW["chr"]*DUR["sub"] + n_chr*DW["chr"]*DUR["chr"])
   deaths <- sum(symp_dw * CFR)
   yll    <- sum(symp_dw * CFR * LE[age_to_band])
-  # cost: outpatient on NON-hospitalised (nested phases) + inpatient per admission
-  cost <- n_hosp*PC["hosp"] + n_nonhosp*PC["acute"] +
-          n_nonhosp*((n_sub + n_chr)/st)*PC["sub"] + n_nonhosp*(n_chr/st)*PC["chr"]
   c(infections = sum(out$new_infections[, EVAL_WIN]), symptomatic = st,
-    hospitalisations = n_hosp, deaths = deaths, daly = yld + yll, cost = unname(cost))
+    hospitalisations = n_hosp, deaths = deaths, daly = yld + yll)
 }
 
 # ------------------------------------------------------------
@@ -168,7 +143,7 @@ for (nm in names(BOUNDS)) {
         value = p[[nm]],
         arm = if (arm == "disb") "Disease-blocking" else "Disease + infection blocking",
         symptomatic = r[[arm]]["symptomatic"], deaths = r[[arm]]["deaths"],
-        daly = r[[arm]]["daly"], cost = r[[arm]]["cost"],
+        daly = r[[arm]]["daly"],
         pct_symp = 100 * r[[arm]]["symptomatic"] / r$base["symptomatic"],
         row.names = NULL)
   }
@@ -179,7 +154,7 @@ owsa <- do.call(rbind, rows)
 base_tbl <- do.call(rbind, lapply(c("disb","both"), function(arm) data.frame(
   arm = if (arm=="disb") "Disease-blocking" else "Disease + infection blocking",
   symptomatic = base_run[[arm]]["symptomatic"], deaths = base_run[[arm]]["deaths"],
-  daly = base_run[[arm]]["daly"], cost = base_run[[arm]]["cost"],
+  daly = base_run[[arm]]["daly"],
   pct_symp = 100*base_run[[arm]]["symptomatic"]/base_run$base["symptomatic"], row.names = NULL)))
 
 # ------------------------------------------------------------
@@ -209,7 +184,6 @@ tornado <- function(outcome, xlab, file) {
 }
 p_symp <- tornado("symptomatic", "Symptomatic cases averted", "CHIKV_ca_owsa_symptomatic.png")
 p_daly <- tornado("daly",        "DALYs averted",                              "CHIKV_ca_owsa_daly.png")
-p_cost <- tornado("cost",        "Direct medical cost averted (2019 BRL)",     "CHIKV_ca_owsa_cost.png")
 print(p_symp)
 
 # ------------------------------------------------------------
@@ -364,5 +338,5 @@ print(owsa |> filter(arm == "Disease + infection blocking") |>
 cat("\n=== Campaign date: intended 2025-W40 vs actual 2026-W15 ===\n")
 print(intended_vs_actual |> mutate(coverage = 100*coverage,
         across(where(is.numeric), \(x) round(x, 2))) |> as.data.frame(), row.names = FALSE)
-cat("\nWrote CHIKV_ca_owsa.xlsx, CHIKV_ca_owsa.rds, 3 tornado figures",
+cat("\nWrote CHIKV_ca_owsa.xlsx, CHIKV_ca_owsa.rds, 2 tornado figures",
     "and CHIKV_ca_timing_coverage.png/.pdf\n")
