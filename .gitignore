@@ -61,7 +61,6 @@ population_MAYV.xlsx
 # ---- INPUT data: hand-maintained source parameters, MUST be tracked ----
 # (the *.xlsx / *.csv rules above ignore generated outputs; these are exceptions)
 !beta_hyolim.xlsx
-!costs.xlsx
 !disease_progression.xlsx
 !model_calibration.xlsx
 !population.xlsx
