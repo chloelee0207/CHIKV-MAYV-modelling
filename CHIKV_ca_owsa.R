@@ -33,8 +33,9 @@ young_idx <- which(age_to_band <= 4); old_idx <- which(age_to_band >= 5)
 # 1. Central values and one-way bounds
 # ------------------------------------------------------------
 # Central = the same point estimate the LHS uses for its reference fit. Bounds are the
-# 95% interval of each parameter's propagated distribution, except delay and
-# time-to-immunity, which are varied by +/- 1 week (their sampled range).
+# 95% interval of each parameter's propagated distribution, except the deployment delay,
+# varied over its sampled range (1-3 weeks), and time to immunity, which the engine fixes
+# at 2 weeks and is varied here by +/- 1 week.
 BASE <- list(foi = 0.008, rho = 0.25, ve = 263/266, cov = 0.30,
              deliv = 0.10, delay = 2, immun = 2)
 
@@ -311,14 +312,17 @@ notes <- data.frame(item = c(
   paste(sprintf("%s = %.4g", names(BASE), unlist(BASE)), collapse = "; "),
   paste(sprintf("%s [%.4g, %.4g]", names(BOUNDS), sapply(BOUNDS, `[`, 1), sapply(BOUNDS, `[`, 2)), collapse = "; "),
   paste("gamma, sigma, prop_symp. gamma is absorbed by the beta re-fit (R0 = beta/gamma",
-        "against the same cases); sigma shifts peak timing not size; prop_symp cancels",
-        "because the fit anchors on rho x prop_symp x infections = 8,204."),
+        "against the same cases); sigma shifts peak timing not size. prop_symp is held at",
+        "its median, as in Kang et al.; it does NOT cancel -- the fit anchors on",
+        "rho x prop_symp x infections = 8,204, so a lower prop_symp puts more infections",
+        "behind the same cases -- and its uncertainty is carried by the probabilistic",
+        "analysis (CHIKV_ca_lhs.R samples it per draw)."),
   "FOI and rho change prior immunity / case scaling, so beta is re-fitted at each bound.",
   "Averted = baseline - scenario, both inside the window.",
   sprintf("Campaign start week x coverage, %d x %d x 2 arms, deterministic at the central set. Three dates are tabulated: modelled pre-outbreak 2025-W40 (week %d), the transmission peak 2025-W50 (week %d), and the actual announcement 18 April 2026 = 2026-W15 (week %d). Both fold losses are measured against the pre-outbreak date. The propagated sheet covers only the pre-outbreak and actual dates, because those are the two campaign timings the engine simulates; 2025-W50 is deterministic only.", T_weeks, length(SW_COVS), WK_PRE, WK_PEAK, WK_ACT),
   "Coverage on the surface is of the ELIGIBLE 18-59 group (61.5% of the population), not of the whole population.",
   sprintf("The surface y-axis is the week the campaign is DECIDED; dosing begins %d weeks later (BASE$delay), as in run_scenario and the engine.", BASE$delay),
-  "Surface cells are deterministic and carry NO interval. The two marked dates are engine scenarios, so their 95%% UIs are propagated over the 1000-draw ensemble -- see intended_vs_actual_propagated. Those medians differ slightly from the deterministic cells because the engine also samples coverage, efficacy and deployment delay.",
+  "Surface cells are deterministic and carry NO interval. The two marked dates are engine scenarios, so their 95% UIs are propagated over the 1000-draw ensemble -- see intended_vs_actual_propagated. Those medians differ slightly from the deterministic cells because the engine also samples coverage, efficacy and deployment delay.",
   "The fold loss is UNSTABLE and should not be quoted precisely: its denominator is ~0.05% of cases, so small changes in assumptions move it by a multiple. Adding the 2-week deployment delay alone takes it from ~123x to ~319x, because two weeks costs nothing pre-outbreak (99.5% of cases still ahead) but 62% of the remaining benefit at 2026-W15 (cases left after immunity fall 2,346 -> 1,215, and the 10-week rollout is truncated by the window end). Prefer reporting the two percentages, which are stable, and describing the loss as two to three orders of magnitude."),
   stringsAsFactors = FALSE)
 write_xlsx(list(notes = notes, base_case = base_tbl, owsa = owsa,

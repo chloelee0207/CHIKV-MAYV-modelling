@@ -31,9 +31,10 @@ fmtq <- function(v, d = 0) {
 # (fmtq() is the string formatter; qs() returns the raw numbers for further use.)
 qs <- function(v) as.numeric(quantile(v, c(.5, .025, .975), na.rm = TRUE))
 
-# Optional age re-weighting for the (age-sensitive) death calc. Defaults to 1 (no
-# correction). The pipeline sets age_weight to observed_prop / model_prop by age so
-# deaths use the DATA-based age distribution instead of the population-structure one.
+# Optional age re-weighting for the age-sensitive outcomes: deaths and YLL (age-specific
+# CFR and life expectancy) and the <40 / >=40 split of YLD. Defaults to 1 (no correction).
+# The pipeline sets age_weight to observed_prop / model_prop by age so these use the
+# DATA-based age distribution instead of the population-structure one.
 # Guarded with exists() so RE-sourcing ca_common.R (e.g. from CHIKV_ca_outputs.R) does
 # not clobber an age_weight the engine already set.
 if (!exists("age_weight")) age_weight <- 1
@@ -185,7 +186,7 @@ load_caldas_age_cases <- function(path = "weekly_case.xlsx", sheet = "ca_combine
 # Age re-weighting vector w_a (length A) that maps the model's baseline infection age
 # split to the OBSERVED case age split, per decadal band. Feed the model's baseline
 # infections-by-age (length A) plus obs_band_prop + age_to_band from load_burden_params.
-# Deaths computed with this w reproduce the observed age distribution (see burden()).
+# Outcomes computed with this w follow the observed age distribution (see burden()).
 compute_age_weight <- function(inf_age_model, obs_band_prop, age_to_band) {
   mod_band <- as.numeric(tapply(inf_age_model, age_to_band, sum)[as.character(seq_along(obs_band_prop))])
   mod_band[is.na(mod_band)] <- 0
@@ -315,8 +316,8 @@ load_daly_params <- function(dp_path = "disease_progression.xlsx",
   p90_y <- beta_ab("Probability of recovery within 90 days after acute period", "< 40")
   p90_o <- beta_ab("Probability of recovery within 90 days after acute period", "> 40")
   # The five recovery rows are MARGINAL proportions of one cohort, not conditional
-  # probabilities: they sum to 1.02 (<40) and 0.98 (>=40). So the chronic proportion is
-  # the SUM of the 6m/12m/30m rows (0.309 / 0.356), matching Hyolim's chr_prop -- NOT
+  # probabilities: they sum to 1 in each age group. So the chronic proportion is
+  # the SUM of the 6m/12m/30m rows (0.287 / 0.378 at the means), matching Hyolim's chr_prop -- NOT
   # a survival cascade (1-p14)(1-p90). Source: O'Driscoll et al. 2021 IJID.
   p6_y  <- beta_ab("Probability of recovery within 6 months after sub-acute period", "< 40")
   p6_o  <- beta_ab("Probability of recovery within 6 months after sub-acute period", "> 40")

@@ -35,19 +35,19 @@ base_tbl <- do.call(rbind, lapply(outcomes, function(o) {
   d <- if (o == "deaths") 1 else 0
   data.frame(outcome = o, true = fmtq(base_true[,o], d), reported = fmtq(rho_i*base_true[,o], d))
 }))
+# % of baseline symptomatic cases averted, median (95% UI), from a per-draw vector.
+# Precision adapts because the timings span three orders of magnitude: a fixed 1 dp
+# renders the post-peak rollout as "0.0% (0.0-0.1%)", which cannot support the figure
+# being quoted in the text.
+pct_fmt <- function(r) { q <- quantile(r, c(.5,.025,.975), na.rm = TRUE)
+  d <- if (q[1] < 1) 3 else 1
+  sprintf("%.*f%% (%.*f-%.*f%%)", d, q[1], d, q[2], d, q[3]) }
 mc_tbl <- do.call(rbind, lapply(vac_names, function(nm) {
   m <- av[[nm]]
   data.frame(timing = sub(" \\|.*","",nm), arm = sub(".*\\| ","",nm),
              Infections = fmtq(m[,"infections"]), Symptomatic = fmtq(m[,"symptomatic"]),
              Hospitalisations = fmtq(m[,"hospitalisations"],1), Deaths = fmtq(m[,"deaths"],2),
-             # % of baseline symptomatic cases averted, median (95% UI), computed per
-             # draw. Precision adapts because the timings span three orders of magnitude:
-             # a fixed 1 dp renders the post-peak rollout as "0.1%" with no interval,
-             # which cannot support the figure being quoted in the text.
-             pct_symp = { r <- 100*m[,"symptomatic"]/base_true[,"symptomatic"]
-                          q <- quantile(r, c(.5,.025,.975), na.rm = TRUE)
-                          d <- if (q[1] < 1) 3 else 1
-                          sprintf("%.*f%% (%.*f-%.*f%%)", d, q[1], d, q[2], d, q[3]) },
+             pct_symp = pct_fmt(100*m[,"symptomatic"]/base_true[,"symptomatic"]),
              row.names = NULL)
 }))
 
@@ -216,10 +216,7 @@ band <- function(nm, lab) {
     data.frame(week=1:T_sim, lo=qt[1,], med=qt[2,], hi=qt[3,], scenario=lab, measure="True symptomatic"),
     data.frame(week=1:T_sim, lo=qr[1,], med=qr[2,], hi=qr[3,], scenario=lab, measure="Reported"))
 }
-pct_of <- function(nm) sprintf("%.1f%% (%.1f-%.1f%%)",
-  100*median(av[[nm]][,"symptomatic"]/base_true[,"symptomatic"]),
-  100*quantile(av[[nm]][,"symptomatic"]/base_true[,"symptomatic"], .025, na.rm=TRUE),
-  100*quantile(av[[nm]][,"symptomatic"]/base_true[,"symptomatic"], .975, na.rm=TRUE))
+pct_of <- function(nm) pct_fmt(100*av[[nm]][,"symptomatic"]/base_true[,"symptomatic"])
 
 make_epicurve <- function(tn) {
   disb <- paste0(tn," | Disease-blocking"); both <- paste0(tn," | Disease + infection blocking")
@@ -227,7 +224,9 @@ make_epicurve <- function(tn) {
                band(disb,"Disease-blocking"), band(both,"Disease + infection blocking"))
   pdf$scenario <- factor(pdf$scenario, levels=names(scen_cols))
   pdf$measure  <- factor(pdf$measure, levels=c("True symptomatic","Reported"))
-  roll0 <- timings[[tn]] + 2; roll1 <- roll0 + 10   # median deploy delay + 10-wk rollout
+  # median deploy delay + 10-wk rollout, clipped to the window: at 2026-W15 the rollout
+  # would otherwise run to week 57 of a 52-week window
+  roll0 <- timings[[tn]] + 2; roll1 <- min(roll0 + 10, T_sim + 0.5)
   lab <- paste0("% symptomatic reduction:\nDisease-blocking: ", pct_of(disb),
                 "\nDisease + infection blocking: ", pct_of(both))
   ggplot(pdf, aes(week, med, colour=scenario, fill=scenario)) +
@@ -242,7 +241,7 @@ make_epicurve <- function(tn) {
     scale_x_continuous(breaks=x_breaks, labels=x_labs) +
     scale_y_continuous(labels=scales::comma) +
     labs(x="Week", y="Predicted symptomatic cases", colour=NULL, fill=NULL,
-         title=paste0("CHIKV symptomatic cases at 30% coverage")) +
+         title="CHIKV symptomatic cases (coverage sampled, median 30%)") +
          # caption=sprintf("Green = vaccination rollout window; band = 95%% UI", T_data)) +
     theme_bw(11) + theme(legend.position="bottom", plot.title=element_text(face="bold"),
                          panel.grid.minor=element_blank())
@@ -304,7 +303,7 @@ print(p_fit); ggsave("CHIKV_ca_vacc_fit_observed.png", p_fit, width = 9, height 
 # which is a model inference with no observable counterpart: reported = rho * symptomatic,
 # so (b) is larger than (a) by the reporting rate AND the symptomatic fraction together.
 #
-# Two panels rather than one with two y-axes: the series differ by ~2 orders of magnitude
+# Two panels rather than one with two y-axes: the series differ ~8-fold
 # (peak 675 reported vs 5,282 infections) and a second axis would invite a slope comparison
 # that means nothing. Both panels share one x scale and one colour, so they read as two
 # views of a single fit rather than two results.
