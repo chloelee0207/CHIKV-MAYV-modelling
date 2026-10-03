@@ -68,7 +68,7 @@ target_age <- rep(0, A); target_age[c(4,5,6,7,8)] <- 1     # eligible = 18-59
 target_pop_elig <- sum(N[target_age == 1])
 immun_delay <- 2
 idx_of <- function(yr, wk) caldas_obs$week_index[caldas_obs$Year == yr & caldas_obs$week == wk]
-start_s1 <- idx_of(2026, 16)     # IXCHIQ real rollout
+start_s1 <- idx_of(2026, 15)     # IXCHIQ rollout, announced Sat 18 Apr 2026 (2026-W15)
 start_s3 <- idx_of(2025, 40)     # pre-outbreak (primary analysis)
 
 timings <- list("actual rollout" = start_s1, "pre-outbreak" = start_s3)

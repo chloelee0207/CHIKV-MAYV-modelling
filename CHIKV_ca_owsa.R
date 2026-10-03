@@ -217,7 +217,7 @@ print(p_symp)
 # The one-way tornado varies deployment DELAY by a week or two; this asks the bigger
 # question the delay parameter cannot -- what does the campaign DATE cost? Ixchiq was
 # intended as a pre-outbreak prophylactic (2025-W40); in Caldas Novas it was announced on
-# 18 April 2026 = 2026-W16, after the modelled peak.
+# 18 April 2026 = 2026-W15, after the modelled peak.
 #
 # Deterministic, like the rest of this script: 52 start weeks x 10 coverage levels x 2
 # arms is a scenario surface, and re-propagating 1,040 cells would obscure the pattern
@@ -226,7 +226,7 @@ print(p_symp)
 # ------------------------------------------------------------
 idx_of <- function(y, w) caldas_obs$week_index[caldas_obs$Year == y & caldas_obs$week == w]
 WK_PRE <- start_pre                       # intended: pre-outbreak, 2025-W40
-WK_ACT <- idx_of(2026, 16)                # actual: announced 18 April 2026
+WK_ACT <- idx_of(2026, 15)                # actual: announced 18 April 2026
 WK_PEAK <- idx_of(2025, 50)               # transmission peak of the fitted envelope
 
 sw_fit <- get_fit(BASE$foi, BASE$rho)     # cached; the tornado has already built it
@@ -265,11 +265,11 @@ intended_vs_actual <- surface |>
   filter(week %in% c(WK_PRE, WK_PEAK, WK_ACT)) |>
   mutate(timing = dplyr::case_when(week == WK_PRE  ~ "modelled_pre_outbreak_2025W40",
                                    week == WK_PEAK ~ "peak_2025W50",
-                                   TRUE            ~ "actual_2026W16")) |>
+                                   TRUE            ~ "actual_2026W15")) |>
   select(arm, coverage, timing, pct_averted) |>
   tidyr::pivot_wider(names_from = timing, values_from = pct_averted) |>
   mutate(fold_loss_peak   = modelled_pre_outbreak_2025W40 / peak_2025W50,
-         fold_loss_actual = modelled_pre_outbreak_2025W40 / actual_2026W16) |>
+         fold_loss_actual = modelled_pre_outbreak_2025W40 / actual_2026W15) |>
   as.data.frame()
 
 
@@ -288,7 +288,7 @@ if (file.exists("CHIKV_ca_engine_results.rds")) {
     act <- 100*(be - Ge$per_draw[[paste0("actual rollout | ", a)]][, "symptomatic"])/be
     data.frame(arm = a, coverage = "sampled, Beta(30%, 20-40%)",
                intended_pre_outbreak_pct = qf(pre, 2),
-               actual_2026W16_pct        = qf(act, 3),
+               actual_2026W15_pct        = qf(act, 3),
                fold_loss                 = qf(pre/act, 0),
                stringsAsFactors = FALSE) }))
   cat("\n=== Propagated (1000 draws), the two marked campaign dates ===\n")
@@ -303,7 +303,7 @@ p_surface <- ggplot(surface, aes(100*coverage, week, fill = pct_averted)) +
   annotate("text", x = 12, y = WK_PRE + 2.4, hjust = 0, size = 4, colour = "grey15",
            label = "Modelled: pre-outbreak, 2025-W40") +
   annotate("text", x = 12, y = WK_ACT + 2.4, hjust = 0, size = 4, colour = "grey15",
-           label = "Actual: announced 18 Apr 2026, 2026-W16") +
+           label = "Actual: announced 18 Apr 2026, 2026-W15") +
   facet_wrap(~ arm, nrow = 1) +
   scale_fill_gradientn(colours = c("#3b7fb6","#7fcdbb","#d9f0a3","#fee391","#fc8d59","#d73027"),
                        name = "% of symptomatic\ncases averted") +
@@ -341,11 +341,11 @@ notes <- data.frame(item = c(
         "because the fit anchors on rho x prop_symp x infections = 8,204."),
   "FOI and rho change prior immunity / case scaling, so beta is re-fitted at each bound.",
   "Averted = baseline - scenario, both inside the window.",
-  sprintf("Campaign start week x coverage, %d x %d x 2 arms, deterministic at the central set. Three dates are tabulated: modelled pre-outbreak 2025-W40 (week %d), the transmission peak 2025-W50 (week %d), and the actual announcement 18 April 2026 = 2026-W16 (week %d). Both fold losses are measured against the pre-outbreak date. The propagated sheet covers only the pre-outbreak and actual dates, because those are the two campaign timings the engine simulates; 2025-W50 is deterministic only.", T_weeks, length(SW_COVS), WK_PRE, WK_PEAK, WK_ACT),
+  sprintf("Campaign start week x coverage, %d x %d x 2 arms, deterministic at the central set. Three dates are tabulated: modelled pre-outbreak 2025-W40 (week %d), the transmission peak 2025-W50 (week %d), and the actual announcement 18 April 2026 = 2026-W15 (week %d). Both fold losses are measured against the pre-outbreak date. The propagated sheet covers only the pre-outbreak and actual dates, because those are the two campaign timings the engine simulates; 2025-W50 is deterministic only.", T_weeks, length(SW_COVS), WK_PRE, WK_PEAK, WK_ACT),
   "Coverage on the surface is of the ELIGIBLE 18-59 group (61.5% of the population), not of the whole population.",
   sprintf("The surface y-axis is the week the campaign is DECIDED; dosing begins %d weeks later (BASE$delay), as in run_scenario and the engine.", BASE$delay),
   "Surface cells are deterministic and carry NO interval. The two marked dates are engine scenarios, so their 95%% UIs are propagated over the 1000-draw ensemble -- see intended_vs_actual_propagated. Those medians differ slightly from the deterministic cells because the engine also samples coverage, efficacy and deployment delay.",
-  "The fold loss is UNSTABLE and should not be quoted precisely: its denominator is ~0.03% of cases, so small changes in assumptions move it by a multiple. Adding the 2-week deployment delay alone takes it from ~193x to ~590x, because two weeks costs nothing pre-outbreak (99.5% of cases still ahead) but 68% of the remaining benefit at 2026-W16 (cases left after immunity fall 1,721 -> 806, and the 10-week rollout is truncated by the window end). Prefer reporting the two percentages, which are stable, and describing the loss as two to three orders of magnitude."),
+  "The fold loss is UNSTABLE and should not be quoted precisely: its denominator is ~0.05% of cases, so small changes in assumptions move it by a multiple. Adding the 2-week deployment delay alone takes it from ~123x to ~319x, because two weeks costs nothing pre-outbreak (99.5% of cases still ahead) but 62% of the remaining benefit at 2026-W15 (cases left after immunity fall 2,346 -> 1,215, and the 10-week rollout is truncated by the window end). Prefer reporting the two percentages, which are stable, and describing the loss as two to three orders of magnitude."),
   stringsAsFactors = FALSE)
 write_xlsx(list(notes = notes, base_case = base_tbl, owsa = owsa,
                 timing_coverage_surface = surface,
@@ -361,7 +361,7 @@ print(owsa |> filter(arm == "Disease + infection blocking") |>
         group_by(parameter) |> summarise(low = min(symptomatic), high = max(symptomatic),
                                          swing = high - low, .groups = "drop") |>
         arrange(desc(swing)) |> as.data.frame(), row.names = FALSE, digits = 5)
-cat("\n=== Campaign date: intended 2025-W40 vs actual 2026-W16 ===\n")
+cat("\n=== Campaign date: intended 2025-W40 vs actual 2026-W15 ===\n")
 print(intended_vs_actual |> mutate(coverage = 100*coverage,
         across(where(is.numeric), \(x) round(x, 2))) |> as.data.frame(), row.names = FALSE)
 cat("\nWrote CHIKV_ca_owsa.xlsx, CHIKV_ca_owsa.rds, 3 tornado figures",
