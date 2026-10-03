@@ -10,7 +10,7 @@
 #     infections, symptomatic, hospitalisations, deaths
 #     severity-phase counts (hospitalised / non-hospitalised / sub-acute / chronic)
 #     YLD by phase, YLL, DALYs
-#     doses delivered, and NNV = doses / burden averted at that draw's coverage
+#     doses delivered within the window, and NNV = doses delivered / burden averted
 #
 # The horizon is the 52-week observed window, 2025-W24 -> 2026-W22. Nothing is
 # projected past the surveillance data, so no transmission rate is ever assumed.
@@ -150,7 +150,7 @@ dp <- load_daly_params()
 #    Severity phases (hospitalised / non-hosp / chronic) are saved as COUNTS so a
 #    cost layer can multiply unit costs onto them later without re-running.
 # ------------------------------------------------------------
-outcome_one <- function(out, covv, hosp_j, cfr_j, le_band,
+outcome_one <- function(out, hosp_j, cfr_j, le_band,
                         dwmm, dwsv, dwch, dumm, dusv, dusb, duch, acy, aco, sby, sbo, chy, cho) {
   infections <- sum(out$new_infections[, EVAL_WIN, drop = FALSE])
   symp_age   <- rowSums(out$new_symptomatic[, EVAL_WIN, drop = FALSE])
@@ -182,7 +182,9 @@ outcome_one <- function(out, covv, hosp_j, cfr_j, le_band,
     yld_acute = unname(yld_ac), yld_subacute = unname(yld_sub),
     yld_chronic = unname(yld_chr),
     yld = yld_tot, yll = yll, daly = yld_tot + yll,
-    doses = target_pop_elig * covv)
+    # Doses actually administered within the 52-week window. A rollout that is still
+    # running when the window closes delivers fewer than coverage x eligible.
+    doses = sum(out$total_used_age))
 }
 OUTCOMES <- c("infections","symptomatic","hospitalisations","deaths",
               "n_nonhosp","n_subacute","n_chronic",
@@ -282,7 +284,7 @@ for (i in 1:N_DRAWS) {
            st <- min(s$start + delay_d[i], T_sim) }
     out <- seirv_vaccinated(T_sim, A, N, Rimm_i, I0_i, E0, E$beta[ti, ], E$sigma[ti], E$gamma[ti],
              E$rho[ti], target_age, covv, deliv_d[i], st, vi, vb, immun_delay, prop_symp = E$prop_symp[ti])
-    per_draw[[s$name]][i, ] <- outcome_one(out, covv, hosp_d[i], cfr_j, le_d[i, ],
+    per_draw[[s$name]][i, ] <- outcome_one(out, hosp_d[i], cfr_j, le_d[i, ],
                                  dwMM_d[i], dwSV_d[i], dwCH_d[i], duMM_d[i], duSV_d[i],
                                  duSB_d[i], duCH_d[i],
                                  acy_d[i], aco_d[i], sby_d[i], sbo_d[i], chy_d[i], cho_d[i])
