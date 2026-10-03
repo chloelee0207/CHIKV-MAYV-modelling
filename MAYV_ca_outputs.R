@@ -373,6 +373,8 @@ resid$red_med <- 100 - resid$med
 resid$red_lo  <- 100 - resid$hi
 resid$red_hi  <- 100 - resid$lo
 write_xlsx(list(residual_burden_pct = resid), "MAYV_ca_residual_burden.xlsx")
+# Tagged with the R0 scenario so combined_outputs.R can check it matches the other inputs.
+attr(resid_plot, "R0_scenario") <- G$R0_scenario
 saveRDS(resid_plot, "MAYV_ca_residual_burden.rds")     # for the merged CHIKV|MAYV figure
 cat("Saved MAYV_ca_residual_burden.png and .xlsx (burden as % of no vaccination;\n",
     "     deaths panel omitted -- MAYV CFR is fixed at 0).\n", sep = "")

@@ -87,6 +87,20 @@ chik <- readRDS(need1("CHIKV_ca_residual_burden.rds", "run CHIKV_ca_outputs.R"))
 mayv <- readRDS(need1("MAYV_ca_residual_burden.rds",  "run MAYV_ca_outputs.R"))
 stopifnot(!is.null(M$wk_base))                 # re-run MAYV_ca_engine.R to store curves
 
+# Only the MAYV engine results are read by scenario-tagged file name. The residual-burden,
+# OWSA and cost files are whichever scenario was run last, so check each one's stored tag
+# against MAYV_EPI_SCENARIO rather than risk mixing R0 scenarios across panels.
+check_mayv_scenario <- function(x, file) {
+  s <- if (!is.null(attr(x, "R0_scenario"))) attr(x, "R0_scenario") else x[["R0_scenario"]]
+  if (is.null(s))
+    stop(file, " records no R0 scenario -- re-run the MAYV script that writes it.")
+  if (!identical(s, MAYV_EPI_SCENARIO))
+    stop(sprintf("%s is from the '%s' R0 scenario but MAYV_EPI_SCENARIO is '%s' -- re-run the MAYV chain with R0_SCENARIO <- '%s'.",
+                 file, s, MAYV_EPI_SCENARIO, MAYV_EPI_SCENARIO))
+}
+check_mayv_scenario(M,    sprintf("MAYV_ca_engine_results_%s.rds", MAYV_EPI_SCENARIO))
+check_mayv_scenario(mayv, "MAYV_ca_residual_burden.rds")
+
 T_sim <- G$T_sim
 mayv_lab <- if (isTRUE(M$R0_sampled))
   sprintf("Mayaro (R0 %.1f-%.1f)", M$R0_lo, M$R0_hi) else
@@ -358,6 +372,7 @@ if (!all(file.exists("CHIKV_ca_owsa.rds", "MAYV_ca_owsa.rds"))) {
   cat("Skipped CHIKV_MAYV_owsa.png (run CHIKV_ca_owsa.R and MAYV_ca_owsa.R).\n")
 } else {
   CO <- readRDS("CHIKV_ca_owsa.rds"); MO <- readRDS("MAYV_ca_owsa.rds")
+  check_mayv_scenario(MO, "MAYV_ca_owsa.rds")
 
   ca <- CO$owsa; ca$val <- ca$symptomatic
   bA <- setNames(CO$base$symptomatic, CO$base$arm)
@@ -481,6 +496,7 @@ rows <- lapply(names(OUT100), function(o) {
 # healthcare cost, if the cost layer has been run
 cc <- if (file.exists("CHIKV_ca_costs.rds")) readRDS("CHIKV_ca_costs.rds") else NULL
 cm <- if (file.exists("MAYV_ca_costs.rds"))  readRDS("MAYV_ca_costs.rds")  else NULL
+if (!is.null(cm)) check_mayv_scenario(cm, "MAYV_ca_costs.rds")
 if (!is.null(cc) && !is.null(cm)) {
   K <- 1.47761 / 5.1257                                   # BRL2019 -> USD2026, as in the cost scripts
   # Costs are split into INPATIENT and OUTPATIENT rather than reported as one total.
