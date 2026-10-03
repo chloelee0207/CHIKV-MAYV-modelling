@@ -512,7 +512,7 @@ if (!is.null(cc) && !is.null(cm)) {
 
 per100k_tbl <- do.call(rbind, rows)
 p100_notes <- data.frame(item = c("Unit", "Why doses", "Why not a ratio", "Combined column",
-                                  "Deaths", "Doses", "Cost split"),
+                                  "Deaths", "Cost split", "Doses"),
   detail = c(
   "Outcomes averted per 100,000 doses administered, median (95% UI), computed per draw.",
   "Ixchiq is deployed once, so both models consume the same doses. Doses are the shared input, which makes per-dose benefit comparable across pathogens without either model being divided by the other.",
