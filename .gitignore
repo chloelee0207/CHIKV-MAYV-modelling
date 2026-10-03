@@ -39,7 +39,7 @@ Abad-Franch_seroprevalence.xlsx
 
 # ---- Orphaned input: no script reads it ----
 # Both models take their Caldas Novas denominators from population.xlsx
-# (CHIKV_ca_lhs.R, MAYV_ca_lhs.R, weekly_age_stratified.R), so this one is unused.
+# (CHIKV_ca_lhs.R, MAYV_ca_lhs.R), so this one is unused.
 population_MAYV.xlsx
 
 # ---- Excel/LibreOffice lock files ----
