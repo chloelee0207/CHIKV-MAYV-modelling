@@ -37,8 +37,10 @@ win <- rbind(data.frame(Year = 2025, week = 40:53),
 win$week_index <- seq_len(nrow(win))
 win$week_label <- sprintf("%d-W%02d", win$Year, win$week)
 stopifnot(nrow(win) == 52)
-# MMWR W01 Sundays: 2025 -> 2024-12-29, 2026 -> 2025-12-28. Use the week midpoint (+3 d).
-w01 <- ifelse(win$Year == 2025, as.Date("2024-12-29"), as.Date("2025-12-28"))
+# Epi-week 1 is the first Sun-Sat week with >= 4 days in the new year, so its Sunday is
+# 2025 -> 2024-12-29 and 2026 -> 2026-01-04 (28 Dec 2025 - 3 Jan 2026 has only 3 days in
+# 2026 and is 2025-W53). Use the week midpoint (+3 d).
+w01 <- ifelse(win$Year == 2025, as.Date("2024-12-29"), as.Date("2026-01-04"))
 win$date <- as.Date(w01, origin = "1970-01-01") + (win$week - 1) * 7 + 3
 
 # ------------------------------------------------------------
