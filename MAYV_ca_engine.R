@@ -152,7 +152,7 @@ stopifnot(start_pre >= 1, start_pre <= T_weeks, seed_week >= 1, seed_week <= T_w
 
 # ------------------------------------------------------------
 # 2. Outcome extractor: symptomatic-by-age (already vaccine-adjusted) -> all outcomes.
-#    Severity phases saved as COUNTS so a cost layer can multiply later (no re-run).
+#    Severity phases saved as COUNTS.
 # ------------------------------------------------------------
 OUTCOMES <- c("infections","reported","symptomatic","hospitalisations","deaths",
               "n_nonhosp","n_subacute","n_chronic",
@@ -356,8 +356,8 @@ for (i in 1:N_DRAWS) {
 # the high scenario only a minority of draws exceed 1% attack rate, yet the MEDIAN draw is
 # a real outbreak of several hundred symptomatic cases. So we report over all N_DRAWS.
 #
-# `outbreak` is retained as the row index used downstream (MAYV_ca_outputs.R /
-# MAYV_ca_costs.R read G$outbreak) but is now simply ALL draws.
+# `outbreak` is retained as the row index used downstream (MAYV_ca_outputs.R reads
+# G$outbreak) but is now simply ALL draws.
 outbreak   <- seq_len(N_DRAWS)
 p_outbreak <- 1
 # Diagnostic only: what share of draws would have passed the old take-off filter.

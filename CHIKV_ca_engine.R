@@ -18,10 +18,9 @@
 # a scenario pushes beyond week 52 is out of scope for all scenarios alike.
 #
 # Saves per-draw matrices and aggregated median / 95% UI to
-# CHIKV_ca_engine_results.rds. Severity-phase COUNTS are saved so the cost layer can
-# multiply unit costs on afterwards without re-running the SEIR.
+# CHIKV_ca_engine_results.rds, including severity-phase COUNTS.
 #
-# Run order:  CHIKV_ca_lhs.R  (slow, once)  ->  this file  ->  outputs / costs
+# Run order:  CHIKV_ca_lhs.R  (slow, once)  ->  this file  ->  CHIKV_ca_outputs.R
 # ============================================================
 library(dplyr); library(tidyr)
 source("ca_common.R")   # fmtq, qs, burden, load_burden_params, load_caldas_age_cases,
@@ -147,8 +146,7 @@ dp <- load_daly_params()
 
 # ------------------------------------------------------------
 # 4. Outcome extractor: one SEIR run -> all outcomes within the 52-wk window.
-#    Severity phases (hospitalised / non-hosp / chronic) are saved as COUNTS so a
-#    cost layer can multiply unit costs onto them later without re-running.
+#    Severity phases (hospitalised / non-hosp / chronic) are saved as COUNTS.
 # ------------------------------------------------------------
 outcome_one <- function(out, hosp_j, cfr_j, le_band,
                         dwmm, dwsv, dwch, dumm, dusv, dusb, duch, acy, aco, sby, sbo, chy, cho) {
@@ -268,8 +266,7 @@ doses_ontarget <- setNames(lapply(scen_names, function(x) numeric(N_DRAWS)), sce
 # Susceptible pool at t = 0, per draw. Prior immunity is age-dependent (catalytic
 # 1 - exp(-FOI * exposure_age)) and FOI is sampled, so the denominator of any attack rate
 # varies draw to draw. Recorded here so the outputs layer never has to re-derive it from
-# the ensemble -- that would reintroduce the cross-file staleness risk the costs/outputs
-# guard exists to prevent.
+# the ensemble -- that would reintroduce a cross-file staleness risk.
 sus_pool <- numeric(N_DRAWS)
 
 cat(sprintf("Running %d draws x %d scenarios...\n", N_DRAWS, length(scen)))
