@@ -18,7 +18,7 @@
 # Panel geometry. The two blocks are sized for what they have to show, NOT to line up
 # with each other: the epidemic curves get equal halves of the width, while the burden
 # blocks are only two bars wide and are inset so they do not sprawl. A therefore does not
-# share a column grid with B-D, so each block is labelled Chikungunya / Mayaro in its own
+# share a column grid with B-C, so each block is labelled Chikungunya / Mayaro in its own
 # right.
 #
 # Mayaro has no deaths row: MAYV_ZERO_DEATHS = TRUE fixes the MAYV CFR at 0, so the
@@ -38,8 +38,9 @@ if (!exists("MAYV_EPI_SCENARIO")) MAYV_EPI_SCENARIO <- "high"   # "high" R0 2.1-
 
 ARMS      <- c("Disease-blocking", "Disease + infection blocking")
 OUT_LV    <- c("Cumulative DALYs", "Cumulative deaths", "Hospitalisation cost")  # as stored in the .rds
-# Strip text for the B/C/D rows -- EDIT HERE to rename them. Must stay in OUT_LV order;
-# the .rds names above are the lookup keys and must not be changed.
+# Strip text for the B/C rows -- EDIT HERE to rename them. Must stay in OUT_LV order;
+# the .rds names above are the lookup keys and must not be changed. The third level
+# (hospitalisation cost) is still in the .rds but is not plotted.
 OUT_LAB   <- c("DALYs", "Deaths", "Hospitalisation costs")
 FILL      <- c("No vaccination" = "grey60", "Vaccination" = "#4e79a7")
 scen_cols <- c("No vaccination" = "grey55", "Disease-blocking" = "#4393c3",
@@ -51,8 +52,8 @@ scen_cols <- c("No vaccination" = "grey55", "Disease-blocking" = "#4393c3",
 # (roughly points / 2.845), because that text is drawn inside the panel as data.
 # ------------------------------------------------------------
 FS <- list(
-  panel_letter   = 15,  # the bold A / B / C / D (was 14 for A, 13 for B-D; unified)
-  disease_header = 13,  # "Chikungunya" / "Mayaro" headings above the B-D block
+  panel_letter   = 15,  # the bold A / B / C
+  disease_header = 13,  # "Chikungunya" / "Mayaro" headings above the B-C block
   block_ylab     = 13,  # rotated "Cumulative burden (% of no vaccination)"
 
   # ---- panel A, the epidemic curves
@@ -64,12 +65,12 @@ FS <- list(
   epi_annot_mayv = 4,   # the same text in the MAYV panel  (annotate scale, see above)
   epi_legend     = 11,  # legend keys under panel A
 
-  # ---- panels B, C, D, the burden bars
+  # ---- panels B and C, the burden bars
   bur_base       = 14,  # theme_bw() base for the burden blocks
   bur_axis_x     = 12,  # "No vaccination" / "Vaccination"
   bur_axis_y     = 12,  # 0% - 100%
   bur_strip_x    = 12,  # top grey strips: the vaccine arm names
-  bur_strip_y    = 12,  # right grey strips: DALYs / Deaths / Hospitalisation costs
+  bur_strip_y    = 12,  # right grey strips: DALYs / Deaths
 
   # ---- the separate tornado figure, CHIKV_MAYV_owsa.png
   owsa_base      = 14,
@@ -314,9 +315,9 @@ row_burden <- function(o, tag, strip = FALSE, x_axis = FALSE) {
   list(c = c_blk, m = m_blk)
 }
 
-# Disease names head the whole B-D block, above the panel letters. They sit on their own
-# void row rather than as titles on row B so that they read before the B, and so C and D
-# inherit them without the names being repeated three times.
+# Disease names head the whole B-C block, above the panel letters. They sit on their own
+# void row rather than as titles on row B so that they read before the B, and so C
+# inherits them without the names being repeated.
 head_lab <- function(txt) ggplot() + labs(title = txt) + theme_void() +
   theme(plot.title = element_text(face = "bold", size = FS$disease_header, hjust = .5,
                                   margin = margin(t = 0, b = 2)),
@@ -337,7 +338,7 @@ burden_rows <- (head_lab("Chikungunya") + head_lab("Mayaro") +
                (rC$c + rC$m + plot_layout(widths = c(2, 1))) +
                plot_layout(heights = c(.01, 1, 1))
 
-# One rotated y title for the whole B-D block. Put on a single row it would be taller
+# One rotated y title for the whole B-C block. Put on a single row it would be taller
 # than that row and get clipped, so it is attached to the wrapped block instead.
 with_ylab <- function(blk) wrap_elements(patchworkGrob(blk)) +
   labs(tag = YLAB) +
@@ -346,7 +347,7 @@ with_ylab <- function(blk) wrap_elements(patchworkGrob(blk)) +
 
 p_burden <- with_ylab(burden_rows)
 save_fig("combined_residual_burden.png", p_burden, width = 9.5, height = 6.4, dpi = 150)
-cat("Saved combined_residual_burden.png (B DALYs / C deaths / D healthcare cost).\n")
+cat("Saved combined_residual_burden.png (B DALYs / C deaths).\n")
 
 # ------------------------------------------------------------
 # 3. One-way sensitivity: CHIKV (A) over MAYV (B).
@@ -395,8 +396,8 @@ if (!all(file.exists("CHIKV_ca_owsa.rds", "MAYV_ca_owsa.rds"))) {
 }
 
 # ------------------------------------------------------------
-# 4. Master figure: A epidemic curves, B DALYs, C deaths, D healthcare cost.
-# The disease labels sit once, on the strips over row A; B-D inherit those columns.
+# 4. Master figure: A epidemic curves, B DALYs, C deaths.
+# The disease labels sit once, on the strips over row A; B-C inherit those columns.
 # ------------------------------------------------------------
 pA_c <- pE_c + labs(tag = "A") +
   theme(plot.tag = element_text(face = "bold", size = FS$panel_letter),
@@ -424,12 +425,12 @@ row_A <- pA_c + pA_m + plot_layout(widths = c(1, 1), guides = "collect") &
         plot.margin = margin(t = 5.5, r = 5.5, b = 2, l = 5.5))
 
 # the burden panels are two bars wide, so the block is inset rather than stretched
-row_BCD <- plot_spacer() + with_ylab(burden_rows) + plot_spacer() +
+row_BC <- plot_spacer() + with_ylab(burden_rows) + plot_spacer() +
   plot_layout(widths = c(.08, 1, .08))
 
 # Two burden rows now, so the block's share and the figure height both shrink; each row
 # keeps the same absolute height as in the three-row version.
-master <- row_A / row_BCD + plot_layout(heights = c(1.15, 2.1))
+master <- row_A / row_BC + plot_layout(heights = c(1.15, 2.1))
 
 save_fig("combined_master.png", master, width = 13, height = 11.5, dpi = 150)
 ggsave("combined_master.pdf", master, width = 13, height = 11.5)
