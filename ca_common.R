@@ -203,8 +203,12 @@ compute_age_weight <- function(inf_age_model, obs_band_prop, age_to_band) {
 
 # Age-structured weekly SEIRV with vaccination. Returns weekly age x week matrices
 # for infections and symptomatic, plus total_used_age (doses delivered per age = the
-# NNV numerator base). Two efficacy channels: VE_inf moves S->immune (infection
-# blocking); VE_block scales symptomatic among the covered (disease blocking).
+# NNV numerator base). Two efficacy channels: VE_inf moves vaccinated susceptibles out
+# of S (infection blocking); VE_block cuts the symptomatic fraction of infections in
+# vaccinated people (disease blocking).
+# Susceptibles are tracked in two pools, unvaccinated (Su) and vaccinated but still
+# infectable (Sv), with matching latent pools (Eu, Ev), so that VE_block applies only to
+# infections that actually occur in vaccinees. Both pools share one force of infection.
 seirv_vaccinated <- function(
     T_weeks, 
     A, 
@@ -226,25 +230,28 @@ seirv_vaccinated <- function(
     prop_symp = 0.5242478, 
     sub_steps = 7) {
   pmax0 <- function(x) pmax(0, x); N_total <- sum(N); dt <- 1/sub_steps
-  S <- E <- I <- R <- V <- matrix(0, A, T_weeks)
-  V_covered <- vacc_delayed <- coverage_frac <- matrix(0, A, T_weeks)
+  V_covered <- vacc_delayed <- matrix(0, A, T_weeks)
   new_infections <- new_symptomatic <- matrix(0, A, T_weeks)
   target_idx <- which(target_age == 1); target_pop <- sum(N[target_idx])
   total_supply <- target_pop * total_coverage
   weekly_dose_total <- total_supply * weekly_delivery_speed
   total_avail_age <- rep(0, A); total_avail_age[target_idx] <- total_supply * (N[target_idx]/target_pop)
   total_used_age <- rep(0, A); unvaccinated <- N
-  S_now <- pmax0(N - I0 - E0 - R_init_prop*N); E_now <- E0; I_now <- I0
-  R_now <- R_init_prop*N; V_now <- rep(0, A)
+  Su <- pmax0(N - I0 - E0 - R_init_prop*N); Sv <- rep(0, A)
+  Eu <- E0; Ev <- rep(0, A); I_now <- I0
   for (t in 1:T_weeks) {
     prev_V_covered <- if (t > 1) V_covered[, t-1] else rep(0, A)
     if (t - immun_delay >= 1) {
       effective_dose <- vacc_delayed[, t-immun_delay]
       immunized <- round(VE_inf * effective_dose)
       V_covered[, t] <- prev_V_covered + effective_dose
-    } else { immunized <- rep(0, A); V_covered[, t] <- prev_V_covered }
-    S_now <- pmax0(S_now - immunized); V_now <- V_now + immunized
-    coverage_frac[, t] <- V_covered[, t] / N
+      # vaccinated susceptibles leave Su: the immunised leave S altogether, the rest stay
+      # infectable in Sv (where VE_block protects them against disease)
+      move <- pmin(effective_dose, Su)
+      imm  <- pmin(immunized, move)
+      Su <- Su - move; Sv <- Sv + (move - imm)
+    } else V_covered[, t] <- prev_V_covered
+    S_now <- Su + Sv
     if (t >= delay && target_pop > 0) {
       rem <- weekly_dose_total
       for (a in target_idx) {
@@ -259,21 +266,19 @@ seirv_vaccinated <- function(
         }
       }
     }
-    new_I_week <- rep(0, A); beta_t <- base_beta[t]
+    new_Iu_week <- new_Iv_week <- rep(0, A); beta_t <- base_beta[t]
     for (k in 1:sub_steps) {
       foi <- beta_t * sum(I_now)/N_total
-      new_E <- foi*S_now*dt; 
-      new_I <- sigma*E_now*dt; 
+      new_Eu <- foi*Su*dt; new_Ev <- foi*Sv*dt
+      new_Iu <- sigma*Eu*dt; new_Iv <- sigma*Ev*dt
       new_R <- gamma*I_now*dt
-      S_now <- pmax0(S_now-new_E); 
-      E_now <- pmax0(E_now+new_E-new_I)
-      I_now <- pmax0(I_now+new_I-new_R); 
-      R_now <- pmax0(R_now+new_R)
-      new_I_week <- new_I_week + new_I
+      Su <- pmax0(Su-new_Eu); Sv <- pmax0(Sv-new_Ev)
+      Eu <- pmax0(Eu+new_Eu-new_Iu); Ev <- pmax0(Ev+new_Ev-new_Iv)
+      I_now <- pmax0(I_now+new_Iu+new_Iv-new_R)
+      new_Iu_week <- new_Iu_week + new_Iu; new_Iv_week <- new_Iv_week + new_Iv
     }
-    S[,t]<-S_now; E[,t]<-E_now; I[,t]<-I_now; R[,t]<-R_now; V[,t]<-V_now
-    new_infections[,t] <- new_I_week
-    new_symptomatic[,t] <- prop_symp*new_I_week*(1 - VE_block*coverage_frac[,t])
+    new_infections[,t] <- new_Iu_week + new_Iv_week
+    new_symptomatic[,t] <- prop_symp*(new_Iu_week + (1 - VE_block)*new_Iv_week)
   }
   list(new_infections=new_infections, 
        new_symptomatic=new_symptomatic,
