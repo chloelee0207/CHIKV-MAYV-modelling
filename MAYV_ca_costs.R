@@ -253,41 +253,24 @@ sh_percase <- data.frame(
   stringsAsFactors = FALSE)
 
 # ------------------------------------------------------------
-# 6. Deterministic point-estimate chain (hand-checkable, baseline at median inputs)
+# 6. Deterministic point-estimate chain (hand-checkable, baseline at median inputs).
+#    Mirrors the Monte Carlo costing above: INPATIENT care only. Outpatient care is not
+#    costed for MAYV, so the total equals the inpatient cost.
 # ------------------------------------------------------------
 M <- function(nm) P(nm)$median
-m_appt<-M(PARS[1]); m_mm<-M(PARS[2]); m_dip<-M(PARS[3]); m_ace<-M(PARS[4])
-m_tra<-M(PARS[5]); m_cod<-M(PARS[6]); m_oxy<-M(PARS[7]); m_art<-M(PARS[8])
-m_pred<-M(PARS[9]); m_ibu<-M(PARS[10]); m_ami<-M(PARS[11]); m_gab<-M(PARS[12])
-m_mild<-M(PARS[13]); m_hcq<-M(PARS[14]); m_mtx<-M(PARS[15]); m_fol<-M(PARS[16])
-m_pub<-M(PARS[17]); m_pubc<-M(PARS[18]); m_privc<-M(PARS[19])
-mpc_a <- 2*m_appt + m_mm*(m_dip+m_ace) + (1-m_mm)*((m_dip+m_ace)/2 + (m_tra+m_cod+m_oxy)/3)
-mpc_s <- 3*m_appt + m_art*m_pred + (1-m_art)*(((m_ami+m_gab)/2 + m_ibu)/2)
-mpc_c <- 3*m_appt + m_mild*m_hcq + (1-m_mild)*(m_mtx+m_fol)
-mpc_h <- m_pub*m_pubc + (1-m_pub)*m_privc
+m_pub <- M(PARS[17]); m_pubc <- M(PARS[18]); m_privc <- M(PARS[19])
+mpc_h <- m_pub*m_pubc + (1-m_pub)*m_privc                 # cost per admission
 b <- G$per_draw[["No vaccine (baseline)"]][ok, , drop = FALSE]
 B_symp <- median(b[, "symptomatic"]); B_hosp <- median(b[, "hospitalisations"])
-B_nonh <- B_symp - B_hosp
-B_psub <- median((b[, "n_subacute"] + b[, "n_chronic"]) / b[, "symptomatic"])
-B_pchr <- median(b[, "n_chronic"] / b[, "symptomatic"])
 sh_audit <- data.frame(
-  step = 1:9,
-  quantity = c("Symptomatic cases (median, all draws)", "Hospitalised", "Non-hospitalised",
-               "Share entering sub-acute", "Share entering chronic",
-               "Inpatient cost", "Outpatient acute cost", "Outpatient sub-acute cost",
-               "Outpatient chronic cost"),
-  formula = c("from engine (all draws, fixed R0)", "from engine", "symptomatic - hospitalised",
-              "(n_subacute + n_chronic) / symptomatic", "n_chronic / symptomatic",
+  step = 1:5,
+  quantity = c("Symptomatic cases (median, all draws)", "Hospitalised", "Inpatient cost",
+               "Outpatient cost (acute, sub-acute, chronic)", "TOTAL direct medical (point est.)"),
+  formula = c("from engine (all draws)", "from engine",
               sprintf("%.1f hospitalised x %.2f per admission", B_hosp, mpc_h),
-              sprintf("%.0f non-hosp x %.2f per case", B_nonh, mpc_a),
-              sprintf("%.0f x %.4f x %.2f per case", B_nonh, B_psub, mpc_s),
-              sprintf("%.0f x %.4f x %.2f per case", B_nonh, B_pchr, mpc_c)),
-  value = round(c(B_symp, B_hosp, B_nonh, B_psub, B_pchr, B_hosp*mpc_h, B_nonh*mpc_a,
-                  B_nonh*B_psub*mpc_s, B_nonh*B_pchr*mpc_c), 4),
+              "not costed for MAYV", "step 3 (inpatient only)"),
+  value = c(round(B_symp, 4), round(B_hosp, 4), round(B_hosp*mpc_h, 2), NA, round(B_hosp*mpc_h, 2)),
   stringsAsFactors = FALSE)
-sh_audit <- rbind(sh_audit, data.frame(step = 10, quantity = "TOTAL direct medical (point est.)",
-  formula = "steps 6+7+8+9", value = round(B_hosp*mpc_h + B_nonh*mpc_a +
-    B_nonh*B_psub*mpc_s + B_nonh*B_pchr*mpc_c, 2), stringsAsFactors = FALSE))
 
 
 # ------------------------------------------------------------
