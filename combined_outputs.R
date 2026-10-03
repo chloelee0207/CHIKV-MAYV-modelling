@@ -59,7 +59,7 @@ FS <- list(
   epi_base       = 12,  # theme_bw() base; anything not named below inherits from it
   epi_axis_text  = 12,  # week numbers and case counts
   epi_axis_title = 13,  # "Week (index, 1 = 2025-W24)", "Predicted symptomatic cases"
-  epi_strip      = 12,  # grey strips: "Chikungunya", "Mayaro (fixed R0 = ...)"
+  epi_strip      = 12,  # grey strips: "Chikungunya", "Mayaro (R0 ...)"
   epi_annot_chik = 4,   # in-panel "% Reduction in predicted symptomatic cases", CHIKV
   epi_annot_mayv = 4,   # the same text in the MAYV panel  (annotate scale, see above)
   epi_legend     = 11,  # legend keys under panel A
@@ -101,15 +101,13 @@ check_mayv_scenario(M,    sprintf("MAYV_ca_engine_results_%s.rds", MAYV_EPI_SCEN
 check_mayv_scenario(mayv, "MAYV_ca_residual_burden.rds")
 
 T_sim <- G$T_sim
-mayv_lab <- if (isTRUE(M$R0_sampled))
-  sprintf("Mayaro (R0 %.1f-%.1f)", M$R0_lo, M$R0_hi) else
-  sprintf("Mayaro (fixed R0 = %.2f)", M$R0_fixed)
+mayv_lab <- sprintf("Mayaro (R0 %.1f-%.1f)", M$R0_lo, M$R0_hi)
 
 # ------------------------------------------------------------
 # 1. Epidemic curves.
 # CHIKV carries both vaccine arms; MAYV is disease-blocking only, so it has two curves.
-# MAYV uses a FIXED peak R0 per scenario, so every draw is the same transmission regime
-# and ALL draws are plotted -- there is no take-off conditioning to apply.
+# MAYV samples its peak R0 within ONE scenario's range, so every draw is the same
+# transmission regime and ALL draws are plotted -- there is no take-off conditioning to apply.
 # ------------------------------------------------------------
 qband <- function(mat, rows, lab, measure) {
   q <- apply(mat[rows, , drop = FALSE], 2, quantile, c(.025, .5, .975), na.rm = TRUE)
@@ -121,7 +119,7 @@ pair <- function(mat, rho, rows, lab)
         qband(mat * rho, rows, lab, "Reported"))
 
 ch_rows <- seq_len(nrow(G$wk_symp[["No vaccine (baseline)"]]))
-mv_rows <- seq_len(M$N_DRAWS)                  # ALL draws: R0 fixed, so no conditioning
+mv_rows <- seq_len(M$N_DRAWS)                  # ALL draws: no take-off conditioning
 epi_ch <- rbind(
   pair(G$wk_symp[["No vaccine (baseline)"]],                    G$rho_i, ch_rows, "No vaccination"),
   pair(G$wk_symp[["pre-outbreak | Disease-blocking"]],          G$rho_i, ch_rows, ARMS[1]),
@@ -258,8 +256,8 @@ p_epi <- pE_c + (pE_m + guides(fill = "none", colour = "none", linetype = "none"
         legend.box = "vertical", legend.box.just = "center",
         legend.spacing.y = unit(1, "pt"))
 save_fig("CHIKV_MAYV_epicurves.png", p_epi, width = 11, height = 4.8, dpi = 130)
-cat(sprintf("Saved CHIKV_MAYV_epicurves.png (MAYV = '%s', fixed R0 = %.2f, all %d draws).\n",
-            MAYV_EPI_SCENARIO, M$R0_fixed, M$N_DRAWS))
+cat(sprintf("Saved CHIKV_MAYV_epicurves.png (MAYV = '%s', R0 %.1f-%.1f, all %d draws).\n",
+            MAYV_EPI_SCENARIO, M$R0_lo, M$R0_hi, M$N_DRAWS))
 
 # ------------------------------------------------------------
 # 2. Residual burden as a % of no vaccination.
@@ -419,7 +417,7 @@ pA_c <- pE_c + labs(tag = "A") +
 # level -- a theme(legend.position = "none") would be undone by the shared `&` theme.
 # Rebuilt rather than reused from pE_m so the master figure's strip is a plain "Mayaro":
 # in a multi-panel figure the R0 belongs in the caption, not repeated in a panel header.
-# The standalone CHIKV_MAYV_epicurves.png keeps "Mayaro (fixed R0 = x.xx)" because that
+# The standalone CHIKV_MAYV_epicurves.png keeps "Mayaro (R0 x.x-x.x)" because that
 # figure is often viewed on its own, where the scenario would otherwise be ambiguous.
 pA_m <- epicurve(epi_mv, "Mayaro", wrap_ann(ann_mv, 60), mv_dose, mv_dose + mv_len, NULL) +
   guides(fill = "none", colour = "none", linetype = "none")
