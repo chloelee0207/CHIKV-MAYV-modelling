@@ -25,7 +25,8 @@
 #     infections are never averted (Infections = 0, and Infection NNV = NA).
 #   * DEATHS = 0: no confirmed MAYV-attributable death, so CFR = 0 in the engine ->
 #     deaths and YLL are zero and DALY = YLD.
-#   * Severity/DALY parameters are BORROWED from CHIKV (upper bound), and the seasonal
+#   * Severity/DALY parameters are the CHIKV set with MAYV-specific overrides (hosp, acute
+#     duration, recovery shares, no deaths; see MAYV_ca_engine.R), and the seasonal
 #     envelope is the hybrid CHIKV-beta + dry-season envelope (2025-W24 -> 2026-W22).
 #
 # Run order: source("MAYV_ca_lhs.R"); source("MAYV_ca_engine.R"); source(this)
@@ -133,7 +134,7 @@ notes <- data.frame(
             sprintf("%.0f%%", 100*median(G$cov_d)),
             sprintf("%.1f%% mean (Kostecki et al. 2026: 4 of 12 CHIKV patients cross-neutralised MAYV; Beta(4,8), 95%% UI 10.9-61.0%%)", 100*mean(G$veb_d)),
             "Zero: no confirmed MAYV-attributable death -> CFR = 0, so deaths & YLL = 0, DALY = YLD.",
-            "BORROWED CHIKV (Hyolim Table S4) -- CHIKV-equivalent UPPER bound, not measured MAYV.",
+            "CHIKV set (Kang et al. Table S4) with MAYV-specific hospitalisation 5% (4-6%), acute duration (= infectious period), recovery shares (Halsey et al. 2015) and no deaths; disability weights and the severe, sub-acute and chronic durations are borrowed from CHIKV.",
             "Per-draw (Beta, median ~0.25).",
             "REPORTED = rho x TRUE per draw. Severe outcomes (hosp) are usually better ascertained, so their REPORTED values are conservative lower bounds.",
             "Latin-hypercube over gamma/sigma/rho/prop_symp/R0 + vaccine + severity/DALY, propagated jointly. R0 IS sampled within the scenario range, so its span IS inside these UIs and dominates them -- outbreak size is a steep convex function of R0, so the intervals are wide and right-skewed. Read the deciles, not just the median."),
