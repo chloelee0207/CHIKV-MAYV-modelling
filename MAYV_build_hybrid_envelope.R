@@ -20,7 +20,7 @@
 # stays flat (0.638 -> 0.630, -1.2%). The tail therefore carries depletion, not
 # seasonality, and cannot be read as a seasonal signal.
 #
-# Transplanting it to MAYV would be wrong twice over: the MAYV population is ~93%
+# Transplanting it to MAYV would be wrong twice over: the MAYV population is fully
 # susceptible, so there is no depletion to damp transmission, and a flat beta against
 # MAYV's higher R0 holds R_eff ~ 1 so the outbreak never resolves inside the window.
 # The rainfall dry season (dropping to ~0.12 by 2026-W22) crashes R_eff after the peak,

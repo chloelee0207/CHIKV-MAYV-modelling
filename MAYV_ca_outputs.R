@@ -20,7 +20,7 @@
 #   * NO TAKE-OFF CONDITIONING. R0 is FIXED per scenario in MAYV_ca_lhs.R (low = 1.20,
 #     high = 2.1-2.9), sampled per draw. Every figure is summarised over ALL draws
 #     (G$outbreak is every row); no take-off conditioning is applied.
-#     The 95% UIs carry natural-history / reporting / symptomatic-fraction / prior-immunity
+#     The 95% UIs carry natural-history / reporting / symptomatic-fraction
 #     / vaccine / severity-DALY uncertainty, NOT the between-setting R0 span.
 #   * ONE vaccine scenario: pre-outbreak, DISEASE-BLOCKING ONLY (VE_inf = 0), so
 #     infections are never averted (Infections = 0, and Infection NNV = NA).
@@ -140,7 +140,7 @@ notes <- data.frame(
             "BORROWED CHIKV (Hyolim Table S4) -- CHIKV-equivalent UPPER bound, not measured MAYV.",
             "Per-draw (Beta, median ~0.25).",
             "REPORTED = rho x TRUE per draw. Severe outcomes (hosp) are usually better ascertained, so their REPORTED values are conservative lower bounds.",
-            "Latin-hypercube over gamma/sigma/rho/prop_symp/prior-immunity/R0 + vaccine + severity/DALY, propagated jointly. R0 IS sampled within the scenario range, so its span IS inside these UIs and dominates them -- outbreak size is a steep convex function of R0, so the intervals are wide and right-skewed. Read the deciles, not just the median."),
+            "Latin-hypercube over gamma/sigma/rho/prop_symp/R0 + vaccine + severity/DALY, propagated jointly. R0 IS sampled within the scenario range, so its span IS inside these UIs and dominates them -- outbreak size is a steep convex function of R0, so the intervals are wide and right-skewed. Read the deciles, not just the median."),
   stringsAsFactors = FALSE)
 
 # doses actually delivered to the eligible 18-59, and dose wastage. Delivered PRE-
@@ -159,9 +159,8 @@ doses_wastage <- data.frame(
 
 # ------------------------------------------------------------
 # Attack rates for the BASELINE (no-vaccine) arm, median (95% UI).
-# Denominator is the per-draw SUSCEPTIBLE POOL at t = 0, not the total population: prior
-# immunity is sampled, so the pool varies draw to draw and is recorded by the engine
-# (sus_pool). Both numerators are given because they answer different questions and are
+# Denominator is the per-draw SUSCEPTIBLE POOL at t = 0 recorded by the engine (sus_pool);
+# with no prior immunity it equals the total population. Both numerators are given because they answer different questions and are
 # routinely confused:
 #   infections / susceptibles   -- transmission intensity; what the model's internal
 #                                  attack_pct uses, and what final-size theory refers to
@@ -179,8 +178,7 @@ attack_rates <- data.frame(
               "Infections / susceptibles (%)", "Symptomatic / susceptibles (%)",
               "Susceptible pool at t = 0", "Total population"),
   baseline = c(
-    # FLAT across ages for MAYV: one sampled seroprevalence per draw, applied to every age
-    # band. Derived as 1 - sus_pool/pop_total so it is guaranteed consistent with the
+    # 0 for MAYV (no prior immunity). Derived as 1 - sus_pool/pop_total so it is guaranteed consistent with the
     # denominator used by the two attack rates above rather than re-read from the ensemble.
     fmtq(100 * (1 - .sus / G$pop_total), 1),
     fmtq(100 * base_pd[ok, "infections"]  / .sus, 1),

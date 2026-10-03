@@ -12,14 +12,13 @@
 #
 # WHY THE INTERVALS DO NOT NARROW. Dropping those parameters does NOT tighten the 95% UIs
 # on infections or symptomatic cases, because they never entered them in the first place:
-#   * infections  comes straight out of the SEIR (R0, gamma, sigma, prior immunity, seed)
+#   * infections  comes straight out of the SEIR (R0, gamma, sigma, seed)
 #   * symptomatic = infections x prop_symp, both transmission-layer quantities
 #   * reported    = rho x symptomatic, applied after the simulation
 #   * the DALY/cost parameters enter outcome_one() only through yld_* and yll, which are
 #     OUTPUTS -- nothing feeds back into the epidemic
 # The width comes from the transmission layer alone. Against the current draws, log
-# infections correlates +0.74 with sampled R0 and -0.52 with prior immunity; prop_symp and
-# rho are ~0. Because outbreak size is a steep convex function of R0, sampling it across a
+# infections correlates +0.74 with sampled R0; prop_symp and rho are ~0. Because outbreak size is a steep convex function of R0, sampling it across a
 # range as wide as 2.1-2.9 produces a heavily right-skewed distribution -- hence the ~990x
 # ratio between the 97.5th and 2.5th percentiles. That is a property of the R0 prior, not
 # of the burden layer, and no reduction in downstream parameters can shrink it.
@@ -101,7 +100,7 @@ notes <- data.frame(
   "Transmission-derived burden only: infections, symptomatic cases, hospitalisations, deaths. Baseline, vaccinated, averted, averted per 100,000 doses.",
   "DALYs, YLD/YLL, disability weights, illness durations, remaining life-years, the recovery funnel and ALL healthcare costs. Those depend on CHIKV disease-progression parameters borrowed wholesale; there is no MAYV-specific severity or cost-of-illness evidence, so they are the CHIKV progression applied to a MAYV case count, not independent MAYV estimates.",
   "Removing those parameters does NOT tighten these intervals, because they never entered them. Infections come straight out of the SEIR; symptomatic = infections x prop_symp; reported = rho x symptomatic. The DALY/cost parameters enter only through YLD and YLL, which are outputs -- nothing feeds back into the epidemic.",
-  sprintf("The transmission layer alone. Correlation of log infections with sampled R0 is about +0.74 and with prior immunity about -0.52; prop_symp and rho are ~0. Outbreak size is a steep convex function of R0, so sampling it across the scenario range gives a heavily right-skewed distribution -- the 97.5th/2.5th percentile ratio for infections is about %.0fx.", quantile(base_pd[ok,"infections"], .975)/max(quantile(base_pd[ok,"infections"], .025), 1e-9)),
+  sprintf("The transmission layer alone. Correlation of log infections with sampled R0 is about +0.74; prop_symp and rho are ~0. Outbreak size is a steep convex function of R0, so sampling it across the scenario range gives a heavily right-skewed distribution -- the 97.5th/2.5th percentile ratio for infections is about %.0fx.", quantile(base_pd[ok,"infections"], .975)/max(quantile(base_pd[ok,"infections"], .025), 1e-9)),
   "Identically zero. No MAYV-attributable death has been confirmed, so the engine sets CFR = 0 (MAYV_ZERO_DEATHS). The deaths rows are kept as an explicit zero rather than dropped.",
   "5% (4-6%), MAYV-specific -- a separate row in disease_progression.xlsx, not the CHIKV 4% (3-5%).",
   sprintf("SAMPLED from the '%s' scenario range %.1f-%.1f (lognormal, endpoints as 2.5th/97.5th percentiles).", G$R0_scenario, G$R0_lo, G$R0_hi),

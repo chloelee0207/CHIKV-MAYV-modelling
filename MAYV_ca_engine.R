@@ -4,7 +4,7 @@
 # MAYV's own engine (the analogue of CHIKV_ca_engine.R; the CHIKV engine/LHS are
 # left untouched). ONE uncertainty propagation -> burden + DALY + NNV, consistent
 # draw-for-draw. It CONSUMES MAYV_ca_lhs_ensemble.rds (the CHIKV-beta-envelope outbreak
-# at a FIXED wet-season-PEAK R0, flat Lima-2021 immunity), and layers vaccine + severity
+# at a FIXED wet-season-PEAK R0, fully susceptible population), and layers vaccine + severity
 # + DALY draws on top.
 #
 # KEY MAYV FRAMING -- R0 SAMPLED WITHIN A SCENARIO RANGE, NO TAKE-OFF CONDITIONING.
@@ -305,9 +305,9 @@ vac_name   <- "Pre-outbreak | Disease-blocking"
 per_draw <- setNames(lapply(scen_names, function(x)
   matrix(NA_real_, N_DRAWS, length(OUTCOMES), dimnames = list(NULL, OUTCOMES))), scen_names)
 attack_base <- numeric(N_DRAWS)
-# Susceptible pool at t = 0, per draw: prior immunity is sampled, so the denominator of
-# any attack rate varies draw to draw. Stored so the outputs layer never re-derives it
-# from the ensemble (which would reintroduce a cross-file staleness risk).
+# Susceptible pool at t = 0, per draw: the whole population, as there is no prior
+# immunity. Stored so the outputs layer never re-derives it from the ensemble (which
+# would reintroduce a cross-file staleness risk).
 sus_pool <- numeric(N_DRAWS)
 wk_base <- wk_vacc <- matrix(NA_real_, N_DRAWS, T_weeks)   # weekly symptomatic (for the epicurve)
 # Dose accounting (pre-outbreak campaign, so R0-independent): doses ADMINISTERED to

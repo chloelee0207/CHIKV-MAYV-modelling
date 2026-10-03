@@ -16,19 +16,9 @@
 #     sigma   = 1 / Normal(period)   intrinsic incubation 3.0 d, 95% CrI 2.2-3.8 (Caicedo 2021)
 #     rho     ~ Beta(20, 60)         reporting rate (mean 0.25)      [hardcoded]
 #     prop_symp ~ Beta(35.84, 32.56) symptomatic fraction (med 0.524)[hardcoded]
-#     immune  ~ Lognormal            prior-immune FRACTION, FLAT across ages;
-#                                    Lima 2021 Central-West 8% (95% CI 3-18%)
 #
-# HOW IMMUNITY IS APPLIED (Route B: flat seroprevalence, NOT the CHIKV catalytic
-# FOI*age model). Each draw takes a single fraction p and sets R_init_prop=(p,...,p),
-# i.e. immune_a = p * N_a. p ~ Lognormal calibrated to Lima et al. 2021's pooled
-# CENTRAL-WEST exposure rate (8%, 95% CI 3-18%, I2=98%): the lognormal reproduces that
-# CI and its right skew. FLAT is used deliberately -- although MAYV exposure is really
-# occupational (working-age adults enter the forest), transmission here is HOMOGENEOUS
-# (foi = beta*sum(I)/N_total), so only the OVERALL p affects total infections/attack
-# rate; re-slicing a fixed p across ages changes only the AGE DISTRIBUTION of infections,
-# which matters solely for age-stratified burden (add an exposure-weight vector there).
-# p sets S(0), so it widens the ATTACK-RATE / total-infection band.
+# PRIOR IMMUNITY: none. The population is assumed fully susceptible to MAYV (S(0) = N in
+# every draw), as there is no documented MAYV circulation in Caldas Novas.
 #
 # R0 = wet-season PEAK R_eff, and it is FIXED PER SCENARIO -- NOT sampled. base_beta =
 # R0 * gamma * season, so R_eff(t) = R0*season(t)*S/N is INDEPENDENT of gamma
@@ -347,40 +337,17 @@ R0_sdlog   <- (log(R0_HI) - log(R0_LO)) / (2 * 1.96)
 R0_median  <- exp(R0_meanlog)                   # geometric centre of the range
 R0_VALUE   <- R0_median                         # name kept for downstream compatibility
 
-# Prior immunity (FLAT fraction), Lima et al. 2021 pooled CENTRAL-WEST exposure rate
-# 8% (95% CI 3-18%, I2=98%). Right-skewed -> Lognormal calibrated to the CI endpoints:
-# it reproduces [0.03,0.18] exactly (median 7.3%, mean ~8%). Swap this block for a
-# Beta/other if the evidence changes.
-imm_lo95 <- 0.03; imm_hi95 <- 0.18
-imm_meanlog <- (log(imm_lo95) + log(imm_hi95)) / 2         # median = exp(meanlog) ~ 0.073
-imm_sdlog   <- (log(imm_hi95) - log(imm_lo95)) / (2*1.96)
+# Prior immunity: none. The population is assumed FULLY SUSCEPTIBLE to MAYV, so immunity
+# is 0 in every draw and S(0) = N; Caldas Novas lies outside the Amazon basin and has no
+# documented MAYV circulation.
+imm_base <- 0
+cat("Prior immunity: 0% -- population fully susceptible\n")
 
-# BASELINE IMMUNITY SCENARIO.
-#   "naive" (default) -- the population is assumed FULLY SUSCEPTIBLE to MAYV: immunity = 0
-#     in every draw, so S(0) = N. Appropriate for a municipality outside the Amazon basin
-#     with no documented MAYV circulation: Lima's 8% is a pooled CENTRAL-WEST exposure rate
-#     across settings that include endemic ones, so applying it to Caldas Novas asserts
-#     prior transmission that has not been observed there.
-#   "lima" -- restores the sampled flat seroprevalence, logN median 7.3% (95% UI 3-18%),
-#     retained as a structural sensitivity.
-# NB with immunity = 0 the susceptible pool no longer varies between draws, so it stops
-# contributing to the outbreak-size interval. Under "lima" it was the second strongest
-# driver (r ~ -0.52 with log infections), so the bands below will narrow appreciably --
-# that is a real consequence of the assumption, not a change in the transmission model.
-if (!exists("MAYV_IMMUNITY")) MAYV_IMMUNITY <- "naive"      # "naive" | "lima"
-stopifnot(MAYV_IMMUNITY %in% c("naive", "lima"))
-imm_base <- if (MAYV_IMMUNITY == "naive") 0 else 0.08       # baseline-run value
-cat(sprintf("Baseline immunity scenario '%s': %s\n", MAYV_IMMUNITY,
-            if (MAYV_IMMUNITY == "naive") "0% -- population fully susceptible"
-            else sprintf("logN median %.1f%% (95%% UI %.0f-%.0f%%)",
-                         100*exp(imm_meanlog), 100*imm_lo95, 100*imm_hi95)))
-
-cat(sprintf("SAMPLED priors:\n  gamma     ~ logN(%.4f, %.4f) /wk -> period %.2f d (%.2f-%.2f)\n  latent    ~ %s on [%.2f, %.2f] d  -> median %.2f d\n  rho       ~ Beta(%d, %d)\n  prop_symp ~ logN(%.4f, %.4f) trunc at 1 -> median %.3f, 95%% %.3f-%.3f\n  immune    ~ logN(med %.3f, 95%% [%.2f, %.2f])\n",
+cat(sprintf("SAMPLED priors:\n  gamma     ~ logN(%.4f, %.4f) /wk -> period %.2f d (%.2f-%.2f)\n  latent    ~ %s on [%.2f, %.2f] d  -> median %.2f d\n  rho       ~ Beta(%d, %d)\n  prop_symp ~ logN(%.4f, %.4f) trunc at 1 -> median %.3f, 95%% %.3f-%.3f\n",
             g_ml, g_sl, 7/exp(g_ml), 7/qlnorm(.975, g_ml, g_sl), 7/qlnorm(.025, g_ml, g_sl),
             lat$dist, 7*lat_lo, 7*lat_hi, 7*p_m,
             rab["a"], rab["b"],
-            ps_ml, ps_sl, exp(ps_ml), qlnorm(.025, ps_ml, ps_sl), qlnorm(.975, ps_ml, ps_sl),
-            exp(imm_meanlog), imm_lo95, imm_hi95))
+            ps_ml, ps_sl, exp(ps_ml), qlnorm(.025, ps_ml, ps_sl), qlnorm(.975, ps_ml, ps_sl)))
 cat(sprintf("R0 ~ lognormal on [%.1f, %.1f] (%s scenario, %s): median %.3f\n",
             R0_LO, R0_HI, R0_SCENARIO, if (r0_is_peak) "seasonal-peak R_eff" else "annual-mean", R0_median))
 
@@ -392,13 +359,13 @@ cat(sprintf("R0 ~ lognormal on [%.1f, %.1f] (%s scenario, %s): median %.3f\n",
 # The model therefore runs close to the epidemic threshold for most of the year, which
 # is why burden is a steep function of R0 rather than a saturating one.
 # ------------------------------------------------------------
-season_mean <- mean(season); imm_med <- exp(imm_meanlog)   # lognormal median
+season_mean <- mean(season)
 cat(sprintf("Seasonality: season(t) peak %.3f, MEAN %.4f, min %.3f; %d of %d weeks above 0.5\n",
             max(season), season_mean, min(season), sum(season > 0.5), length(season)))
-cat(sprintf("Implied MEAN R0(t) = %.3f; mean R_eff at S/N = %.3f is %.3f (peak R_eff %.3f); %d of %d weeks with R_eff > 1\n",
-            R0_VALUE*season_mean, 1-imm_med, R0_VALUE*season_mean*(1-imm_med),
-            R0_VALUE*max(season)*(1-imm_med),
-            sum(R0_VALUE*season*(1-imm_med) > 1), length(season)))
+# S/N = 1 at the start (no prior immunity), so R_eff(t) = R0(t) until depletion sets in.
+cat(sprintf("Implied MEAN R0(t) = %.3f (peak %.3f); %d of %d weeks with R0(t) > 1\n",
+            R0_VALUE*season_mean, R0_VALUE*max(season),
+            sum(R0_VALUE*season > 1), length(season)))
 
 # ------------------------------------------------------------
 # 6. One forward run -> weekly reported / infections + summary scalars
@@ -443,9 +410,9 @@ gam <- qlnorm(U[,1], g_ml, g_sl)                # rate (lognormal; see above)
 sig <- 1/lat_q(U[,2])                           # sampled PERIOD -> rate (family per LAT_SPEC)
 rho <- qbeta(U[,3], rab["a"], rab["b"])
 psy <- qlnorm(U[,4]*ps_cap, ps_ml, ps_sl)       # lognormal, truncated at 1
-# U[,5] is drawn either way so the other five inputs get identical values under both
-# immunity scenarios, making the two runs directly comparable draw-for-draw.
-imm <- if (MAYV_IMMUNITY == "naive") rep(0, n) else qlnorm(U[,5], imm_meanlog, imm_sdlog)
+# Prior immunity is 0 in every draw. U[,5] is unused but still drawn, so the other
+# sampled inputs keep their values.
+imm <- rep(0, n)
 R0v <- qlnorm(U[,6], R0_meanlog, R0_sdlog)      # SAMPLED from the scenario range
 
 rep_mat <- inf_mat <- matrix(NA_real_, n, T_weeks)
@@ -546,7 +513,7 @@ write.csv(data.frame(draw = 1:n, R0 = R0v, gamma = gam, sigma = sig, rho = rho, 
 mayv_lhs_ensemble <- list(
   rep = rep_mat[ok, , drop = FALSE], inf = inf_mat[ok, , drop = FALSE],
   R0 = R0v[ok], gamma = gam[ok], sigma = sig[ok], rho = rho[ok], prop_symp = psy[ok],
-  immune_frac = imm[ok],                          # per-draw FLAT immune fraction (Rimm = rep(imm, A))
+  immune_frac = imm[ok],                          # prior immune fraction: 0 (naive population)
   base_R0 = R0_median, R0_scenario = R0_SCENARIO, r0_is_peak = r0_is_peak,
   # R0 is now SAMPLED. R0_fixed is kept (= the scenario median) so downstream labels and
   # the OWSA base case keep working; R0_sampled/R0_lo/R0_hi describe the actual prior.
@@ -556,7 +523,7 @@ mayv_lhs_ensemble <- list(
   lat_dist = lat$dist, lat_lo = lat_lo, lat_hi = lat_hi, MAYV_LATENT = MAYV_LATENT,
   ps_meanlog = ps_ml, ps_sdlog = ps_sl,
   base_gamma = g_m, base_sigma = 1/p_m, base_prop_symp = PSYMP_MED,
-  base_immune = imm_base, MAYV_IMMUNITY = MAYV_IMMUNITY,
+  base_immune = imm_base,
   season = season, N = N, A = A, age_df = age_df,
   I0_total = I0_total, E0 = E0, seed_week = seed_week,
   T_weeks = T_weeks, weeks = weeks, x_ticks = x_ticks, year_break = year_break)
