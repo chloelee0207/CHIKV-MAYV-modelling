@@ -3,9 +3,9 @@
 # ------------------------------------------------------------
 # MAYV's own engine (the analogue of CHIKV_ca_engine.R; the CHIKV engine/LHS are
 # left untouched). ONE uncertainty propagation -> burden + DALY + NNV, consistent
-# draw-for-draw. It CONSUMES MAYV_ca_lhs_ensemble.rds (the CHIKV-beta-envelope outbreak
-# at a FIXED wet-season-PEAK R0, fully susceptible population), and layers vaccine + severity
-# + DALY draws on top.
+# draw-for-draw. It CONSUMES MAYV_ca_lhs_ensemble.rds (the hybrid-envelope outbreak, with the
+# wet-season-PEAK R0 sampled per draw, fully susceptible population), and layers vaccine +
+# severity + DALY draws on top.
 #
 # KEY MAYV FRAMING -- R0 SAMPLED WITHIN A SCENARIO RANGE, NO TAKE-OFF CONDITIONING.
 # R0 is drawn per LHS row from a lognormal on the scenario's range (MAYV_ca_lhs.R:
@@ -14,10 +14,10 @@
 # is within-source uncertainty rather than a mix across settings.
 # Burden/DALY/NNV are reported over ALL draws -- no take-off filter. The legacy 1% attack
 # threshold is retained as a DIAGNOSTIC only.
-#   CAVEAT: outbreak size is a steep convex function of R0, so a range as wide as 2.1-2.9
-#   spans several orders of magnitude and the resulting distribution is heavily skewed and
-#   can be effectively two-regime. Read the per-draw deciles printed below, not just the
-#   median, and see the r0_response table in MAYV_ca_owsa.xlsx for the underlying curve.
+#   CAVEAT: outbreak size is a steep convex function of R0, so even the 2.1-2.9 range spans
+#   more than two orders of magnitude of outbreak size: the distribution is unimodal on the
+#   log scale but heavily right-skewed. Read the 95% UI, not just the median, and see the
+#   r0_response table in MAYV_ca_owsa.xlsx for the underlying curve.
 #
 # BORROWED severity/DALY (no MAYV-specific data): CHIKV disease-progression params via
 # load_burden_params()/load_daly_params() in ca_common.R -- a CHIKV-equivalent UPPER
@@ -348,22 +348,20 @@ for (i in 1:N_DRAWS) {
 # ------------------------------------------------------------
 # 5. Aggregate over ALL draws (NO take-off conditioning); averted + NNV paired per draw
 # ------------------------------------------------------------
-# R0 is now FIXED per scenario (see MAYV_ca_lhs.R), so every draw is the SAME transmission
-# regime and outbreak size is UNIMODAL -- there is no fizzle/take-off split to condition on.
-# Conditioning was only ever needed under the old sampled-R0 prior, where draws straddled
-# the epidemic threshold and the output was bimodal. Applying it now would bisect a single
-# continuous distribution at an arbitrary point and badly misreport the centre: e.g. at
-# the high scenario only a minority of draws exceed 1% attack rate, yet the MEDIAN draw is
-# a real outbreak of several hundred symptomatic cases. So we report over all N_DRAWS.
+# R0 is sampled within ONE scenario's range (see MAYV_ca_lhs.R), so every draw is the same
+# transmission regime and outbreak size is UNIMODAL on the log scale -- there is no
+# fizzle/take-off split to condition on. A take-off filter would bisect a single continuous
+# distribution at an arbitrary point and misreport its centre, so we report over all
+# N_DRAWS.
 #
-# `outbreak` is retained as the row index used downstream (MAYV_ca_outputs.R reads
-# G$outbreak) but is now simply ALL draws.
+# `outbreak` is the row index used downstream (MAYV_ca_outputs.R reads G$outbreak); it is
+# simply ALL draws.
 outbreak   <- seq_len(N_DRAWS)
 p_outbreak <- 1
 # Diagnostic only: what share of draws would have passed the old take-off filter.
 frac_over_thresh <- mean(attack_base > OUTBREAK_ATTACK_THRESH)
 cat(sprintf("\nR0 SAMPLED %.1f-%.1f (%s scenario, median %.2f) -> reporting over ALL %d draws, no conditioning.\n",
-            E$R0_lo, E$R0_hi, E$R0_scenario, E$R0_fixed, N_DRAWS))
+            E$R0_lo, E$R0_hi, E$R0_scenario, E$R0_median, N_DRAWS))
 cat(sprintf("  Diagnostic: %.1f%% of draws exceed the legacy %.1f%% attack-rate filter (NOT used to condition).\n",
             100*frac_over_thresh, OUTBREAK_ATTACK_THRESH))
 cat(sprintf("  Baseline attack rate: median %.3f%% [%.3f%%, %.3f%%]\n",
@@ -389,10 +387,10 @@ agg_averted_cond <- cbind(scenario = vac_name,             aggc(averted))
 agg_nnv_cond     <- cbind(scenario = vac_name,             aggc(nnv))
 
 # ------------------------------------------------------------
-# 6. Console summary (conditional on taking off)
+# 6. Console summary (all draws)
 # ------------------------------------------------------------
 fmtq_ <- function(v, d=0) fmtq(v[outbreak], d)
-cat("\n=== Baseline burden (median, 95% UI over all draws at fixed R0) ===\n")
+cat("\n=== Baseline burden (median, 95% UI over all draws) ===\n")
 for (o in c("infections","symptomatic","hospitalisations","deaths","daly"))
   cat(sprintf("  %-16s %s\n", o, fmtq_(base_pd[, o], if (o=="deaths") 1 else 0)))
 cat("\n=== Pre-outbreak disease-blocking vaccine, AVERTED (all draws) ===\n")
@@ -402,9 +400,9 @@ for (o in NNV_OUT) cat(sprintf("  %-16s %s\n", o, fmtq(nnv[outbreak, o], 0)))
 
 # ------------------------------------------------------------
 # 6b. Epidemic curve (CHIKV-style): symptomatic cases, baseline vs pre-outbreak
-#     disease-blocking, over ALL draws. R0 is fixed, so no take-off conditioning is
-#     applied: at low R0 the curve is correctly flat (~no outbreak) and at high R0 it
-#     shows the single transmission regime with its genuine parameter band.
+#     disease-blocking, over ALL draws (no take-off conditioning): in the low scenario
+#     the curve is correctly flat (~no outbreak) and in the high scenario it shows the
+#     single transmission regime with its parameter band.
 # ------------------------------------------------------------
 draw_set <- seq_len(N_DRAWS)
 bandq    <- function(M) apply(M[draw_set, , drop = FALSE], 2, quantile, c(.025,.5,.975), na.rm = TRUE)
@@ -418,8 +416,8 @@ roll_beg <- start_pre + median(delay_d)                            # dosing begi
 roll_end <- roll_beg + max(1, round(1 / mean(del_d))) - 0.5        # ~vaccine rollout window
 pdf_df <- data.frame(week = 1:T_weeks, b_lo=bb[1,], b_md=bb[2,], b_hi=bb[3,],
                      v_lo=bv[1,], v_md=bv[2,], v_hi=bv[3,])
-ttl <- sprintf("MAYV symptomatic cases (2025-W24 - 2026-W22) | %s scenario, fixed R0 = %.2f (all %d draws)",
-               E$R0_scenario, E$R0_fixed, N_DRAWS)
+ttl <- sprintf("MAYV symptomatic cases (2025-W24 - 2026-W22) | %s scenario, R0 %.1f-%.1f (all %d draws)",
+               E$R0_scenario, E$R0_lo, E$R0_hi, N_DRAWS)
 p_epi <- ggplot(pdf_df, aes(week)) +
   annotate("rect", xmin = roll_beg-0.5, xmax = roll_end, ymin = -Inf, ymax = Inf, fill = "#cdebc5", alpha = 0.5) +
   geom_vline(xintercept = E$year_break, linetype = "dashed", colour = "grey55") +
@@ -451,8 +449,8 @@ base_curve_plot <- function(M, draws, ytitle, ttl, fn) {
   ggsave(fn, p, width = 8, height = 4.5, dpi = 120); cat("Saved baseline (no-vaccine) plot:", fn, "\n")
 }
 base_curve_plot(wk_base, draw_set, "Predicted symptomatic cases (no vaccine)",
-  sprintf("MAYV symptomatic, NO vaccine (2025-W24 - 2026-W22) | %s scenario, fixed R0 = %.2f (all %d draws)",
-          E$R0_scenario, E$R0_fixed, N_DRAWS),
+  sprintf("MAYV symptomatic, NO vaccine (2025-W24 - 2026-W22) | %s scenario, R0 %.1f-%.1f (all %d draws)",
+          E$R0_scenario, E$R0_lo, E$R0_hi, N_DRAWS),
   sprintf("MAYV_ca_baseline_%s.png", E$R0_scenario))
 
 
@@ -495,7 +493,7 @@ saveRDS(list(
   per_draw = per_draw, averted = averted, nnv = nnv,
   attack_base = attack_base, outbreak = outbreak, p_outbreak = p_outbreak,
   sus_pool = sus_pool, pop_total = sum(N),
-  R0_fixed = E$R0_fixed, R0_sampled = TRUE, R0_lo = E$R0_lo, R0_hi = E$R0_hi,
+  R0_median = E$R0_median, R0_sampled = TRUE, R0_lo = E$R0_lo, R0_hi = E$R0_hi,
   conditioning = "none (all draws; R0 sampled within the scenario range)",
   frac_over_legacy_thresh = frac_over_thresh,
   OUTBREAK_ATTACK_THRESH = OUTBREAK_ATTACK_THRESH,
@@ -513,8 +511,8 @@ saveRDS(list(
 # Scenario-tagged copy so both R0 scenarios can coexist on disk for comparison.
 file.copy("MAYV_ca_engine_results.rds",
           sprintf("MAYV_ca_engine_results_%s.rds", E$R0_scenario), overwrite = TRUE)
-cat(sprintf("\nSaved MAYV_ca_engine_results.rds and MAYV_ca_engine_results_%s.rds\n  (per-draw + aggregates over ALL draws at fixed R0 = %.2f; severity-phase counts included).\n",
-            E$R0_scenario, E$R0_fixed))
+cat(sprintf("\nSaved MAYV_ca_engine_results.rds and MAYV_ca_engine_results_%s.rds\n  (per-draw + aggregates over ALL draws, R0 %.1f-%.1f; severity-phase counts included).\n",
+            E$R0_scenario, E$R0_lo, E$R0_hi))
 
 
 }  # end !DEFS_ONLY
