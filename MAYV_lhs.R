@@ -188,7 +188,7 @@ p_m <- sr$Median; p_sd <- sd_of(sr)            # workbook latent row (weeks); p_
 # LATENT PERIOD. Base case MAYV_LATENT = "mayv7_12": Martins et al. 2020's incubation period of 7-12 d,
 # lognormal with 7 and 12 d as the 2.5th/97.5th percentiles (median 9.17 d = 1.309 wk), which
 # is the workbook's latent row. The other LAT_SPEC entries are STRUCTURAL sensitivities --
-# competing sources, not points within one range (see MAYV_ca_owsa.R). The family matters as
+# competing sources, not points within one range (see MAYV_owsa.R). The family matters as
 # much as the bounds: over a range spanning an order of magnitude the uniform and lognormal
 # centres diverge sharply (7.5 d vs 3.7 d on 1-14), so it is recorded explicitly.
 # Latent period and R0 are partly interchangeable in setting outbreak size: a longer latent
@@ -451,7 +451,7 @@ p_rep <- ggplot(data.frame(week = weeks, lo = rb[1,], med = rb[2,], hi = rb[3,],
   theme_bw(12) + theme(plot.title = element_text(face = "bold", hjust = 0.5),
                        plot.subtitle = element_text(hjust = 0.5, size = 9),
                        panel.grid.minor = element_blank())
-ggsave("MAYV_ca_lhs_reported.png", p_rep, width = 8, height = 4.5, dpi = 120)
+ggsave("MAYV_lhs_reported.png", p_rep, width = 8, height = 4.5, dpi = 120)
 
 p_inf <- ggplot(data.frame(week = weeks, lo = ib[1,], med = ib[2,], hi = ib[3,])) +
   season_layers +
@@ -463,20 +463,20 @@ p_inf <- ggplot(data.frame(week = weeks, lo = ib[1,], med = ib[2,], hi = ib[3,])
        title = "Hypothetical MAYV outbreak: true infections, propagated 95% band") +
   theme_bw(12) + theme(plot.title = element_text(face = "bold", hjust = 0.5),
                        panel.grid.minor = element_blank())
-ggsave("MAYV_ca_lhs_infections.png", p_inf, width = 8, height = 4.5, dpi = 120)
+ggsave("MAYV_lhs_infections.png", p_inf, width = 8, height = 4.5, dpi = 120)
 
 # ------------------------------------------------------------
-# 10. Save per-draw table + ensemble (mirrors CHIKV_ca_lhs_ensemble.rds shape so a
+# 10. Save per-draw table + ensemble (mirrors CHIKV_lhs_ensemble.rds shape so a
 #     future MAYV vaccine/engine variant can iterate over these draws directly)
 # ------------------------------------------------------------
-# This script does not source ca_common.R, so DRAWS_DIR is defined here if absent.
+# This script does not source common.R, so DRAWS_DIR is defined here if absent.
 if (!exists("DRAWS_DIR")) DRAWS_DIR <- "lhs_draws"
 dir.create(DRAWS_DIR, showWarnings = FALSE)
 write.csv(data.frame(draw = 1:n, R0 = R0v, gamma = gam, sigma = sig, rho = rho, prop_symp = psy,
                      immune_frac = imm, total_infections = tot_inf, total_reported = tot_rep,
                      peak_reported_wk = peak_rep_wk, attack_pct = attack,
                      finite = (seq_len(n) %in% ok)),
-          file.path(DRAWS_DIR, "MAYV_ca_lhs_draws.csv"), row.names = FALSE)
+          file.path(DRAWS_DIR, "MAYV_lhs_draws.csv"), row.names = FALSE)
 
 mayv_lhs_ensemble <- list(
   rep = rep_mat[ok, , drop = FALSE], inf = inf_mat[ok, , drop = FALSE],
@@ -494,9 +494,9 @@ mayv_lhs_ensemble <- list(
   season = season, N = N, A = A, age_df = age_df,
   I0_total = I0_total, E0 = E0, seed_week = seed_week,
   T_weeks = T_weeks, weeks = weeks, x_ticks = x_ticks, year_break = year_break)
-saveRDS(mayv_lhs_ensemble, "MAYV_ca_lhs_ensemble.rds")
+saveRDS(mayv_lhs_ensemble, "MAYV_lhs_ensemble.rds")
 # Scenario-tagged copy, so both R0 scenarios can coexist on disk for comparison.
-saveRDS(mayv_lhs_ensemble, sprintf("MAYV_ca_lhs_ensemble_%s.rds", R0_SCENARIO))
+saveRDS(mayv_lhs_ensemble, sprintf("MAYV_lhs_ensemble_%s.rds", R0_SCENARIO))
 
-cat(sprintf("\nSaved MAYV_ca_lhs_reported.png, MAYV_ca_lhs_infections.png, MAYV_ca_lhs_draws.csv,\n  MAYV_ca_lhs_ensemble.rds and MAYV_ca_lhs_ensemble_%s.rds (R0 median %.2f)\n",
+cat(sprintf("\nSaved MAYV_lhs_reported.png, MAYV_lhs_infections.png, MAYV_lhs_draws.csv,\n  MAYV_lhs_ensemble.rds and MAYV_lhs_ensemble_%s.rds (R0 median %.2f)\n",
             R0_SCENARIO, R0_median))

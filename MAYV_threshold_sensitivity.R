@@ -1,5 +1,5 @@
 # ============================================================
-# MAYV_ca_threshold_sensitivity.R
+# MAYV_threshold_sensitivity.R
 # ------------------------------------------------------------
 # Two structural sensitivity analyses for the MAYV model, both propagated over the
 # SAME 1000-draw ensemble the main results use (gamma, sigma, rho and prop_symp per
@@ -23,13 +23,13 @@
 #      sensitive to that choice; the % averted is not. Seed SIZE is held at one
 #      infectious person throughout -- larger seeds are not a plausible base case.
 #
-# Run after: MAYV_ca_lhs.R (writes MAYV_ca_lhs_ensemble_high.rds)
-# Output:    MAYV_ca_threshold_sensitivity.xlsx
+# Run after: MAYV_lhs.R (writes MAYV_lhs_ensemble_high.rds)
+# Output:    MAYV_threshold_sensitivity.xlsx
 # ============================================================
 DEFS_ONLY <- TRUE
-suppressMessages({library(writexl); source("ca_common.R"); source("MAYV_ca_engine.R")})
+suppressMessages({library(writexl); source("common.R"); source("MAYV_engine.R")})
 
-E <- readRDS("MAYV_ca_lhs_ensemble_high.rds")
+E <- readRDS("MAYV_lhs_ensemble_high.rds")
 N <- E$N; A <- E$A; T_weeks <- E$T_weeks; ND <- length(E$gamma)
 season <- { v <- as.numeric(readRDS("caldas_hybrid_season.rds")); v / max(v) }   # peak-normalised
 target_age <- rep(0, A); target_age[4:8] <- 1
@@ -40,8 +40,8 @@ start_pre <- 17L; immun_delay <- 2                        # 2025-W40, matching C
 # reproduces the main analysis for each scenario. The seeding-week sheet does NOT: it holds
 # R0 at the high scenario's median (R0_MAIN) to isolate the effect of the seeding week,
 # whereas the main analysis also integrates over the sampled R0 range.
-Mres <- readRDS("MAYV_ca_engine_results_high.rds")
-stopifnot(!is.null(Mres$del_d))          # re-run MAYV_ca_engine.R if this fails
+Mres <- readRDS("MAYV_engine_results_high.rds")
+stopifnot(!is.null(Mres$del_d))          # re-run MAYV_engine.R if this fails
 cov_d <- Mres$cov_d; veb_d <- Mres$veb_d; del_d <- Mres$del_d; dly_d <- Mres$delay_d
 stopifnot(length(cov_d) == ND, length(veb_d) == ND, length(del_d) == ND, length(dly_d) == ND)
 
@@ -77,7 +77,7 @@ sweep_cfg <- function(R0, seed_week) {
 }
 
 # ---- 1. transmission potential: the two SAMPLED scenarios --------------------
-# R0 is drawn per LHS row from a lognormal on the scenario's range (MAYV_ca_lhs.R), so
+# R0 is drawn per LHS row from a lognormal on the scenario's range (MAYV_lhs.R), so
 # this sheet reports ONE ROW PER SCENARIO, with
 # every quantity summarised over the 1000 draws. With no prior immunity S/N = 1 at the
 # start, so R_eff = R0(draw) x season(t) and its uncertainty comes from the sampled R0.
@@ -91,8 +91,8 @@ SCEN <- list(low  = "1.1-1.3 (incidental transmission, outside Amazon basin)",
 # draws, so the two rows are each internally consistent. (one()/sweep_cfg() above close over
 # the high-scenario globals and are left alone for the seeding-week sheet.)
 scen_sampled <- function(sc) {
-  Es <- readRDS(sprintf("MAYV_ca_lhs_ensemble_%s.rds", sc))
-  Ms <- readRDS(sprintf("MAYV_ca_engine_results_%s.rds", sc))
+  Es <- readRDS(sprintf("MAYV_lhs_ensemble_%s.rds", sc))
+  Ms <- readRDS(sprintf("MAYV_engine_results_%s.rds", sc))
   stopifnot(identical(Es$R0_scenario, Ms$R0_scenario), isTRUE(Es$R0_sampled))
   nd <- length(Es$gamma)
   cv <- as.numeric(Ms$cov_d); ve <- as.numeric(Ms$veb_d)
@@ -207,7 +207,7 @@ env_summary <- data.frame(quantity = c(
 
 write_xlsx(list(transmission_potential = tp, seeding_week = sd,
                 envelope = env, envelope_summary = env_summary, notes = notes),
-           "MAYV_ca_threshold_sensitivity.xlsx")
-cat("\nWrote MAYV_ca_threshold_sensitivity.xlsx\n")
+           "MAYV_threshold_sensitivity.xlsx")
+cat("\nWrote MAYV_threshold_sensitivity.xlsx\n")
 print(tp[, c("scenario","sampled_R0","mean_R_eff","peak_R_eff","weeks_R_eff_above_1","baseline_symptomatic","averted_symptomatic")], row.names = FALSE)
 cat("\n"); print(sd[, c("seed_week","R_eff_at_seeding","baseline_symptomatic","averted_symptomatic","pct_averted")], row.names = FALSE)

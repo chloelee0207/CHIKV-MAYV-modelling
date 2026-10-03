@@ -1,5 +1,5 @@
 # ============================================================
-# CHIKV_ca_coverage_timing.R
+# CHIKV_coverage_timing.R
 # ------------------------------------------------------------
 # Symptomatic cases averted PER 100,000 DOSES, by campaign timing x vaccine coverage,
 # with 95% UIs propagated over the 1,000-draw ensemble.
@@ -14,12 +14,12 @@
 # two columns therefore move in opposite directions, which is the point of the table.
 #
 # Inputs: one engine run per coverage level, produced by
-#   for (cv in COVS) { CHIKV_FIXED_COV <- cv; source("CHIKV_ca_engine.R") }
-# Output: CHIKV_ca_coverage_timing.xlsx
+#   for (cv in COVS) { CHIKV_FIXED_COV <- cv; source("CHIKV_engine.R") }
+# Output: CHIKV_coverage_timing.xlsx
 # ============================================================
 suppressMessages(library(writexl))
 
-files <- sort(list.files(pattern = "^CHIKV_ca_engine_results_cov[0-9]+\\.rds$"))
+files <- sort(list.files(pattern = "^CHIKV_engine_results_cov[0-9]+\\.rds$"))
 if (!length(files)) stop("no fixed-coverage engine results found -- see the header.")
 
 q3   <- function(x) quantile(x, c(.5, .025, .975), na.rm = TRUE)
@@ -65,5 +65,5 @@ notes <- data.frame(item = c("Unit", "Coverage", "Why coverage is fixed", "Doses
   "The campaign week is the DECISION week; dosing begins after the sampled 1-3 week deployment delay."),
   stringsAsFactors = FALSE)
 
-write_xlsx(list(per_100k_doses = tbl, notes = notes), "CHIKV_ca_coverage_timing.xlsx")
-cat("Wrote CHIKV_ca_coverage_timing.xlsx --", nrow(tbl), "rows\n")
+write_xlsx(list(per_100k_doses = tbl, notes = notes), "CHIKV_coverage_timing.xlsx")
+cat("Wrote CHIKV_coverage_timing.xlsx --", nrow(tbl), "rows\n")

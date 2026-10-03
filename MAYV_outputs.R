@@ -1,13 +1,13 @@
 # ============================================================
-# MAYV_ca_outputs.R -- Caldas Novas MAYV presentation & export layer.
+# MAYV_outputs.R -- Caldas Novas MAYV presentation & export layer.
 # ------------------------------------------------------------
-# Reads MAYV_ca_engine_results.rds and writes THREE workbooks that mirror the CHIKV
-# outputs (CHIKV_ca_outputs.R) tab-for-tab, so the two diseases are directly
+# Reads MAYV_engine_results.rds and writes THREE workbooks that mirror the CHIKV
+# outputs (CHIKV_outputs.R) tab-for-tab, so the two diseases are directly
 # comparable:
-#   MAYV_ca_vacc_outputs.xlsx : notes, baseline_true_reported, vaccinated_true_reported,
+#   MAYV_vacc_outputs.xlsx : notes, baseline_true_reported, vaccinated_true_reported,
 #                               averted_MC_95UI, averted_per_100k_doses, scenario_totals
-#   MAYV_ca_daly_outputs.xlsx : daly_by_scenario, daly_averted
-#   MAYV_ca_nnv_outputs.xlsx  : nnv
+#   MAYV_daly_outputs.xlsx : daly_by_scenario, daly_averted
+#   MAYV_nnv_outputs.xlsx  : nnv
 #
 # TWO IMPROVEMENTS over the CHIKV workbook, per request:
 #   * averted_MC_95UI `pct_symp` now carries its 95% UI (the CHIKV excel had only the
@@ -16,7 +16,7 @@
 #
 # MAYV-SPECIFIC FRAMING (differs from CHIKV, which is fitted to a real outbreak):
 #   * NO TAKE-OFF CONDITIONING. R0 is sampled per draw within the scenario's range in
-#     MAYV_ca_lhs.R (low = 1.1-1.3, high = 2.1-2.9). Every figure is summarised over ALL
+#     MAYV_lhs.R (low = 1.1-1.3, high = 2.1-2.9). Every figure is summarised over ALL
 #     draws (G$outbreak is every row); no take-off conditioning is applied.
 #     The 95% UIs carry within-scenario R0 / natural-history / reporting /
 #     symptomatic-fraction / vaccine / severity-DALY uncertainty, NOT the span BETWEEN
@@ -26,17 +26,17 @@
 #   * DEATHS = 0: no confirmed MAYV-attributable death, so CFR = 0 in the engine ->
 #     deaths and YLL are zero and DALY = YLD.
 #   * Severity/DALY parameters are the CHIKV set with MAYV-specific overrides (hosp, acute
-#     duration, recovery shares, no deaths; see MAYV_ca_engine.R), and the seasonal
+#     duration, recovery shares, no deaths; see MAYV_engine.R), and the seasonal
 #     envelope is the hybrid CHIKV-beta + dry-season envelope (2025-W24 -> 2026-W22).
 #
-# Run order: source("MAYV_ca_lhs.R"); source("MAYV_ca_engine.R"); source(this)
+# Run order: source("MAYV_lhs.R"); source("MAYV_engine.R"); source(this)
 # ============================================================
 library(writexl)
-if (!exists("fmtq")) source("ca_common.R")   # fmtq(v, d) -> "median (lo - hi)"
+if (!exists("fmtq")) source("common.R")   # fmtq(v, d) -> "median (lo - hi)"
 
-if (!file.exists("MAYV_ca_engine_results.rds"))
-  stop("MAYV_ca_engine_results.rds not found -- run MAYV_ca_engine.R first.")
-G <- readRDS("MAYV_ca_engine_results.rds")
+if (!file.exists("MAYV_engine_results.rds"))
+  stop("MAYV_engine_results.rds not found -- run MAYV_engine.R first.")
+G <- readRDS("MAYV_engine_results.rds")
 
 ok        <- G$outbreak                                  # ALL draws (no take-off conditioning)
 rho_draw  <- G$rho_draw
@@ -61,7 +61,7 @@ av <- setNames(lapply(vac_names, function(nm)
 base_symp_ok <- base_pd[ok, "symptomatic"]
 
 # ============================================================
-# WORKBOOK 1 -- MAYV_ca_vacc_outputs.xlsx
+# WORKBOOK 1 -- MAYV_vacc_outputs.xlsx
 # ============================================================
 # baseline true-vs-reported: reported = rho x true (per-draw rho), over all draws.
 base_tbl <- do.call(rbind, lapply(outcomes, function(o) {
@@ -168,7 +168,7 @@ doses_wastage <- data.frame(
 # Computed per draw and then summarised, so the UI carries the joint uncertainty in both
 # the numerator and the susceptible denominator rather than dividing two medians.
 # ------------------------------------------------------------
-stopifnot(!is.null(G$sus_pool))          # re-run MAYV_ca_engine.R if this fails
+stopifnot(!is.null(G$sus_pool))          # re-run MAYV_engine.R if this fails
 .sus <- G$sus_pool[ok]
 attack_rates <- data.frame(
   measure = c("Baseline immunity (% of population)",
@@ -188,10 +188,10 @@ write_xlsx(list(notes = notes, baseline_true_reported = base_tbl,
                 vaccinated_true_reported = vtr, averted_MC_95UI = mc_tbl,
                 averted_per_100k_doses = mc_per100k, doses_wastage = doses_wastage,
                 scenario_totals = scenario_totals, attack_rates = attack_rates),
-           "MAYV_ca_vacc_outputs.xlsx")
+           "MAYV_vacc_outputs.xlsx")
 
 # ============================================================
-# WORKBOOK 2 -- MAYV_ca_daly_outputs.xlsx
+# WORKBOOK 2 -- MAYV_daly_outputs.xlsx
 # ============================================================
 daly_by_scenario <- do.call(rbind, lapply(scen_names, function(nm) {
   m <- G$per_draw[[nm]]
@@ -245,10 +245,10 @@ yld_by_phase <- do.call(rbind, lapply(vac_names, function(nm) {
 
 write_xlsx(list(daly_by_scenario = daly_by_scenario, daly_averted = daly_averted,
                 yld_by_phase = yld_by_phase),
-           "MAYV_ca_daly_outputs.xlsx")
+           "MAYV_daly_outputs.xlsx")
 
 # ============================================================
-# WORKBOOK 3 -- MAYV_ca_nnv_outputs.xlsx
+# WORKBOOK 3 -- MAYV_nnv_outputs.xlsx
 # ============================================================
 # NNV = doses / burden averted, per draw (all draws). Same outcome set
 # as the CHIKV NNV tab. Infection & Death are NA here (disease-blocking averts no
@@ -266,13 +266,13 @@ nnv_tbl <- do.call(rbind, lapply(vac_names, function(nm) {
                       row.names = NULL, check.names = FALSE),
            c("timing","arm", unname(nnv_outcomes)))
 }))
-write_xlsx(list(nnv = nnv_tbl), "MAYV_ca_nnv_outputs.xlsx")
+write_xlsx(list(nnv = nnv_tbl), "MAYV_nnv_outputs.xlsx")
 
 # ------------------------------------------------------------
 # Residual burden under PRE-OUTBREAK vaccination, as a % of no vaccination.
 # Two bars per panel: unvaccinated counterfactual vs vaccinated. Ratios are formed
 # per draw (scenario / baseline) and then summarised, so the UI keeps the
-# baseline-scenario pairing. Styled to match CHIKV_ca_residual_burden.png so the two
+# baseline-scenario pairing. Styled to match CHIKV_residual_burden.png so the two
 # can be merged into one figure.
 #
 # Deaths are omitted: MAYV_ZERO_DEATHS = TRUE sets the MAYV CFR to 0, so baseline
@@ -321,7 +321,7 @@ p_resid <- ggplot(resid_plot, aes(scenario, med, fill = scenario)) +
         strip.text = element_text(face = "bold", size = 9),
         panel.grid.minor = element_blank())
 print(p_resid)
-ggsave("MAYV_ca_residual_burden.png", p_resid, width = 3.6, height = 4.0, dpi = 130)
+ggsave("MAYV_residual_burden.png", p_resid, width = 3.6, height = 4.0, dpi = 130)
 # % reduction from no vaccination, the complement of the residual columns. The interval
 # BOUNDS SWAP: a draw with a high residual burden is a draw with a small reduction, so
 # red_lo is 100 - hi and red_hi is 100 - lo. Taking 100 - lo as the lower bound would
@@ -329,18 +329,18 @@ ggsave("MAYV_ca_residual_burden.png", p_resid, width = 3.6, height = 4.0, dpi = 
 resid$red_med <- 100 - resid$med
 resid$red_lo  <- 100 - resid$hi
 resid$red_hi  <- 100 - resid$lo
-write_xlsx(list(residual_burden_pct = resid), "MAYV_ca_residual_burden.xlsx")
+write_xlsx(list(residual_burden_pct = resid), "MAYV_residual_burden.xlsx")
 # Tagged with the R0 scenario so combined_outputs.R can check it matches the other inputs.
 attr(resid_plot, "R0_scenario") <- G$R0_scenario
-saveRDS(resid_plot, "MAYV_ca_residual_burden.rds")     # for the merged CHIKV|MAYV figure
-cat("Saved MAYV_ca_residual_burden.png and .xlsx (burden as % of no vaccination;\n",
+saveRDS(resid_plot, "MAYV_residual_burden.rds")     # for the merged CHIKV|MAYV figure
+cat("Saved MAYV_residual_burden.png and .xlsx (burden as % of no vaccination;\n",
     "     deaths panel omitted -- MAYV CFR is fixed at 0).\n", sep = "")
 
 # ------------------------------------------------------------
-cat("Wrote MAYV_ca_vacc_outputs.xlsx (notes, baseline_true_reported, vaccinated_true_reported,\n",
+cat("Wrote MAYV_vacc_outputs.xlsx (notes, baseline_true_reported, vaccinated_true_reported,\n",
     "     averted_MC_95UI, averted_per_100k_doses, scenario_totals)\n", sep = "")
-cat("Wrote MAYV_ca_daly_outputs.xlsx (daly_by_scenario, daly_averted, yld_by_phase)\n")
-cat("Wrote MAYV_ca_nnv_outputs.xlsx  (nnv)\n\n")
+cat("Wrote MAYV_daly_outputs.xlsx (daly_by_scenario, daly_averted, yld_by_phase)\n")
+cat("Wrote MAYV_nnv_outputs.xlsx  (nnv)\n\n")
 cat(sprintf("R0 %.1f-%.1f (median %.2f), all %d draws (no conditioning).  pct symptomatic reduced: %s\n",
             G$R0_lo, G$R0_hi, G$R0_median, G$N_DRAWS, mc_tbl$pct_symp[1]))
 print(mc_tbl, row.names = FALSE)

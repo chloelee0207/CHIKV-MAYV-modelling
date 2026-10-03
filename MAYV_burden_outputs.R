@@ -1,7 +1,7 @@
 # ============================================================
-# MAYV_ca_burden_outputs.R -- TRANSMISSION-ONLY burden workbook for Caldas Novas MAYV.
+# MAYV_burden_outputs.R -- TRANSMISSION-ONLY burden workbook for Caldas Novas MAYV.
 # ------------------------------------------------------------
-# A deliberately reduced companion to MAYV_ca_outputs.R. It reports ONLY the outcomes that
+# A deliberately reduced companion to MAYV_outputs.R. It reports ONLY the outcomes that
 # fall out of the transmission model itself:
 #     infections, symptomatic cases, hospitalisations, deaths
 # and drops everything downstream of the disease-progression parameters: DALYs, YLD/YLL,
@@ -28,15 +28,15 @@
 #   cfr     case fatality -- but MAYV_ZERO_DEATHS sets it to 0, so deaths are identically
 #           zero and the deaths rows are reported as an explicit zero rather than omitted.
 #
-# Run after: MAYV_ca_engine.R
-# Output:    MAYV_ca_burden_outputs.xlsx
+# Run after: MAYV_engine.R
+# Output:    MAYV_burden_outputs.xlsx
 # ============================================================
 suppressMessages({library(writexl)})
-if (!exists("fmtq")) source("ca_common.R")
+if (!exists("fmtq")) source("common.R")
 
-if (!file.exists("MAYV_ca_engine_results.rds"))
-  stop("MAYV_ca_engine_results.rds not found -- run MAYV_ca_engine.R first.")
-G  <- readRDS("MAYV_ca_engine_results.rds")
+if (!file.exists("MAYV_engine_results.rds"))
+  stop("MAYV_engine_results.rds not found -- run MAYV_engine.R first.")
+G  <- readRDS("MAYV_engine_results.rds")
 ok <- G$outbreak                      # ALL draws (no take-off conditioning)
 ND <- G$N_DRAWS
 rho_draw <- G$rho_draw
@@ -45,7 +45,7 @@ vac_pd   <- G$per_draw[[G$vac_name]]
 doses    <- G$target_pop_elig * as.numeric(G$cov_d)
 
 # Transmission-derived outcomes only. `reported` is carried as a separate COLUMN
-# (rho x true) rather than as its own row, matching MAYV_ca_outputs.R.
+# (rho x true) rather than as its own row, matching MAYV_outputs.R.
 OUT  <- c("infections", "symptomatic", "hospitalisations", "deaths")
 LAB  <- c(infections = "Infections", symptomatic = "Symptomatic cases",
           hospitalisations = "Hospitalisations", deaths = "Deaths")
@@ -115,8 +115,8 @@ write_xlsx(list(notes = notes,
                 averted_95UI = averted,
                 averted_per_100k_doses = per100k,
                 doses_wastage = doses_tbl),
-           "MAYV_ca_burden_outputs.xlsx")
-cat("Wrote MAYV_ca_burden_outputs.xlsx (transmission-only: no DALYs)\n")
+           "MAYV_burden_outputs.xlsx")
+cat("Wrote MAYV_burden_outputs.xlsx (transmission-only: no DALYs)\n")
 cat(sprintf("  scenario '%s', R0 sampled %.1f-%.1f, %d draws\n\n",
             G$R0_scenario, G$R0_lo, G$R0_hi, ND))
 print(baseline, row.names = FALSE)

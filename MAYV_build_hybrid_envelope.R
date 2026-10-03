@@ -2,7 +2,7 @@
 # MAYV_build_hybrid_envelope.R
 # ------------------------------------------------------------
 # Builds caldas_hybrid_season.rds -- the MAYV transmission seasonality envelope used
-# by MAYV_ca_lhs.R. It splices two sources, using each only where it is informative:
+# by MAYV_lhs.R. It splices two sources, using each only where it is informative:
 #
 #   * RISE + PEAK (2025-W24 .. 2026-W10): the FITTED Caldas Novas CHIKV beta_t
 #     (caldas_beta_season.rds) -- an empirical transmission signal for the shared
@@ -33,8 +33,8 @@
 #   caldas_beta_season.rds: idx i -> ordinal 23+i  (W24=1 .. W22=52)  covers 24..75
 #   caldas_rain_season.rds: idx i -> ordinal 39+i  (W40=1 .. W38=52)  covers 40..91
 #
-# Output: caldas_hybrid_season.rds (52-wk, mean-1) + MAYV_ca_hybrid_envelope.png
-#         and a 600-dpi copy, MAYV_ca_hybrid_envelope_600dpi.png, for the manuscript.
+# Output: caldas_hybrid_season.rds (52-wk, mean-1) + MAYV_hybrid_envelope.png
+#         and a 600-dpi copy, MAYV_hybrid_envelope_600dpi.png, for the manuscript.
 # Re-run whenever caldas_beta_season.rds or caldas_rain_season.rds changes.
 # ============================================================
 suppressMessages(library(ggplot2))
@@ -81,8 +81,8 @@ p <- ggplot(df, aes(ord, val, colour = env)) + geom_line(linewidth = 1) +
   scale_colour_manual(values = ENV_COL, name = NULL) +
   labs(x = "Week", y = "transmission envelope (mean-1)", colour = NULL) +
   theme_bw(11) + theme(legend.position = "bottom")
-ggsave("MAYV_ca_hybrid_envelope.png", p, width = 9, height = 4.6, dpi = 120)
+ggsave("MAYV_hybrid_envelope.png", p, width = 9, height = 4.6, dpi = 120)
 # 600-dpi companion for the manuscript: identical physical size and layout, so the two
 # are interchangeable in a document and only the pixel density differs.
-ggsave("MAYV_ca_hybrid_envelope_600dpi.png", p, width = 9, height = 4.6, dpi = 600)
-cat("Wrote MAYV_ca_hybrid_envelope.png and MAYV_ca_hybrid_envelope_600dpi.png\n")
+ggsave("MAYV_hybrid_envelope_600dpi.png", p, width = 9, height = 4.6, dpi = 600)
+cat("Wrote MAYV_hybrid_envelope.png and MAYV_hybrid_envelope_600dpi.png\n")

@@ -1,10 +1,10 @@
 # ============================================================
-# CHIKV_ca_owsa.R -- Caldas Novas CHIKV one-way sensitivity analysis.
+# CHIKV_owsa.R -- Caldas Novas CHIKV one-way sensitivity analysis.
 #
 # DETERMINISTIC. Every input is held at its central value and ONE parameter at a time
 # is moved to its lower and upper bound; the change in vaccine impact is the tornado.
 # This is the deterministic complement to the probabilistic (LHS) analysis in
-# CHIKV_ca_lhs.R / CHIKV_ca_engine.R, which vary everything at once.
+# CHIKV_lhs.R / CHIKV_engine.R, which vary everything at once.
 #
 # Two classes of parameter:
 #   FIT parameters (FOI, rho) change prior immunity or the case scaling, so beta must
@@ -16,13 +16,13 @@
 #   symptomatic cases averted, deaths averted, DALYs averted, and % symptomatic
 #   reduction.
 #
-# Run order:  CHIKV_ca_lhs.R (once, for the ensemble) -> this file
+# Run order:  CHIKV_lhs.R (once, for the ensemble) -> this file
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2); library(writexl)})
 
 DEFS_ONLY <- TRUE                 # load the fit machinery without the 1000-draw run
-source("CHIKV_ca_lhs.R")          # refit(), seir_baseline(), data, fixed choices
-source("ca_common.R")             # seirv_vaccinated, load_burden_params, load_daly_params
+source("CHIKV_lhs.R")          # refit(), seir_baseline(), data, fixed choices
+source("common.R")             # seirv_vaccinated, load_burden_params, load_daly_params
 
 invisible(list2env(load_burden_params(A), globalenv()))
 dp <- load_daly_params()
@@ -64,7 +64,7 @@ target_pop_elig <- sum(N[target_age == 1])
 EVAL_WIN <- seq_len(T_weeks)
 
 # ------------------------------------------------------------
-# 2. Deterministic outcome extractor (mirrors CHIKV_ca_engine.R outcome_one at
+# 2. Deterministic outcome extractor (mirrors CHIKV_engine.R outcome_one at
 #    central severity/DALY values; recovery funnel, each case counted once).
 # ------------------------------------------------------------
 mean_ab <- function(x) x$a / (x$a + x$b)
@@ -183,8 +183,8 @@ tornado <- function(outcome, xlab, file) {
                          strip.text = element_text(face = "bold"))
   ggsave(file, p, width = 11, height = 4.6, dpi = 130); p
 }
-p_symp <- tornado("symptomatic", "Symptomatic cases averted", "CHIKV_ca_owsa_symptomatic.png")
-p_daly <- tornado("daly",        "DALYs averted",                              "CHIKV_ca_owsa_daly.png")
+p_symp <- tornado("symptomatic", "Symptomatic cases averted", "CHIKV_owsa_symptomatic.png")
+p_daly <- tornado("daly",        "DALYs averted",                              "CHIKV_owsa_daly.png")
 print(p_symp)
 
 # ------------------------------------------------------------
@@ -253,8 +253,8 @@ intended_vs_actual <- surface |>
 # propagated over the 1000-draw ensemble. The fold loss is formed per draw, keeping the
 # two timings paired.
 timing_propagated <- NULL
-if (file.exists("CHIKV_ca_engine_results.rds")) {
-  Ge <- readRDS("CHIKV_ca_engine_results.rds")
+if (file.exists("CHIKV_engine_results.rds")) {
+  Ge <- readRDS("CHIKV_engine_results.rds")
   be <- Ge$per_draw[["No vaccine (baseline)"]][, "symptomatic"]
   qf <- function(x, d) sprintf("%.*f (%.*f-%.*f)", d, median(x), d,
                                quantile(x, .025), d, quantile(x, .975))
@@ -268,7 +268,7 @@ if (file.exists("CHIKV_ca_engine_results.rds")) {
                stringsAsFactors = FALSE) }))
   cat("\n=== Propagated (1000 draws), the two marked campaign dates ===\n")
   print(timing_propagated, row.names = FALSE)
-} else cat("NOTE: CHIKV_ca_engine_results.rds not found -- propagated timing sheet omitted.\n")
+} else cat("NOTE: CHIKV_engine_results.rds not found -- propagated timing sheet omitted.\n")
 
 sw_ticks <- c(1, 10, 20, 30, 40, 52)
 p_surface <- ggplot(surface, aes(100*coverage, week, fill = pct_averted)) +
@@ -291,10 +291,10 @@ p_surface <- ggplot(surface, aes(100*coverage, week, fill = pct_averted)) +
   theme_bw(11) +
   theme(strip.text = element_text(face = "bold", size = 12),
         panel.grid = element_blank(), legend.position = "right")
-ggsave("CHIKV_ca_timing_coverage.png", p_surface, width = 11, height = 5.6, dpi = 150)
-ggsave("CHIKV_ca_timing_coverage.pdf", p_surface, width = 11, height = 5.6)
+ggsave("CHIKV_timing_coverage.png", p_surface, width = 11, height = 5.6, dpi = 150)
+ggsave("CHIKV_timing_coverage.pdf", p_surface, width = 11, height = 5.6)
 # 600-dpi companion for the manuscript (same size/layout as the 150-dpi version).
-ggsave("CHIKV_ca_timing_coverage_600dpi.png", p_surface, width = 11, height = 5.6, dpi = 600)
+ggsave("CHIKV_timing_coverage_600dpi.png", p_surface, width = 11, height = 5.6, dpi = 600)
 
 # ------------------------------------------------------------
 # 7. Export
@@ -316,7 +316,7 @@ notes <- data.frame(item = c(
         "its median, as in Kang et al.; it does NOT cancel -- the fit anchors on",
         "rho x prop_symp x infections = 8,204, so a lower prop_symp puts more infections",
         "behind the same cases -- and its uncertainty is carried by the probabilistic",
-        "analysis (CHIKV_ca_lhs.R samples it per draw)."),
+        "analysis (CHIKV_lhs.R samples it per draw)."),
   "FOI and rho change prior immunity / case scaling, so beta is re-fitted at each bound.",
   "Averted = baseline - scenario, both inside the window.",
   sprintf("Campaign start week x coverage, %d x %d x 2 arms, deterministic at the central set. Three dates are tabulated: modelled pre-outbreak 2025-W40 (week %d), the transmission peak 2025-W50 (week %d), and the actual announcement 18 April 2026 = 2026-W15 (week %d). Both fold losses are measured against the pre-outbreak date. The propagated sheet covers only the pre-outbreak and actual dates, because those are the two campaign timings the engine simulates; 2025-W50 is deterministic only.", T_weeks, length(SW_COVS), WK_PRE, WK_PEAK, WK_ACT),
@@ -328,10 +328,10 @@ notes <- data.frame(item = c(
 write_xlsx(list(notes = notes, base_case = base_tbl, owsa = owsa,
                 timing_coverage_surface = surface,
                 intended_vs_actual = intended_vs_actual,
-                intended_vs_actual_propagated = timing_propagated), "CHIKV_ca_owsa.xlsx")
+                intended_vs_actual_propagated = timing_propagated), "CHIKV_owsa.xlsx")
 saveRDS(list(owsa = owsa, base = base_tbl, BASE = BASE, BOUNDS = BOUNDS,
              base_run = base_run, surface = surface,
-             intended_vs_actual = intended_vs_actual), "CHIKV_ca_owsa.rds")
+             intended_vs_actual = intended_vs_actual), "CHIKV_owsa.rds")
 
 cat("\n=== Base case, pre-outbreak rollout ===\n"); print(base_tbl, row.names = FALSE)
 cat("\n=== Swing in symptomatic cases averted (both-blocking) ===\n")
@@ -342,5 +342,5 @@ print(owsa |> filter(arm == "Disease + infection blocking") |>
 cat("\n=== Campaign date: intended 2025-W40 vs actual 2026-W15 ===\n")
 print(intended_vs_actual |> mutate(coverage = 100*coverage,
         across(where(is.numeric), \(x) round(x, 2))) |> as.data.frame(), row.names = FALSE)
-cat("\nWrote CHIKV_ca_owsa.xlsx, CHIKV_ca_owsa.rds, 2 tornado figures",
-    "and CHIKV_ca_timing_coverage.png/.pdf\n")
+cat("\nWrote CHIKV_owsa.xlsx, CHIKV_owsa.rds, 2 tornado figures",
+    "and CHIKV_timing_coverage.png/.pdf\n")

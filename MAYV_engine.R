@@ -1,14 +1,14 @@
 # ============================================================
-# MAYV_ca_engine.R -- Caldas Novas MAYV UNIFIED Monte Carlo engine.
+# MAYV_engine.R -- Caldas Novas MAYV UNIFIED Monte Carlo engine.
 # ------------------------------------------------------------
-# MAYV's own engine (the analogue of CHIKV_ca_engine.R; the CHIKV engine/LHS are
+# MAYV's own engine (the analogue of CHIKV_engine.R; the CHIKV engine/LHS are
 # left untouched). ONE uncertainty propagation -> burden + DALY + NNV, consistent
-# draw-for-draw. It CONSUMES MAYV_ca_lhs_ensemble.rds (the hybrid-envelope outbreak, with the
+# draw-for-draw. It CONSUMES MAYV_lhs_ensemble.rds (the hybrid-envelope outbreak, with the
 # wet-season-PEAK R0 sampled per draw, fully susceptible population), and layers vaccine +
 # severity + DALY draws on top.
 #
 # KEY MAYV FRAMING -- R0 SAMPLED WITHIN A SCENARIO RANGE, NO TAKE-OFF CONDITIONING.
-# R0 is drawn per LHS row from a lognormal on the scenario's range (MAYV_ca_lhs.R:
+# R0 is drawn per LHS row from a lognormal on the scenario's range (MAYV_lhs.R:
 # low = Caicedo 1.1-1.3 outside the Amazon; high = Caicedo 2.1-2.9 Amazon basin, applied to
 # Goias as a PEAK R0). Both ranges are from the same source and the same quantity, so this
 # is within-source uncertainty rather than a mix across settings.
@@ -17,10 +17,10 @@
 #   CAVEAT: outbreak size is a steep convex function of R0, so even the 2.1-2.9 range spans
 #   more than two orders of magnitude of outbreak size: the distribution is unimodal on the
 #   log scale but heavily right-skewed. Read the 95% UI, not just the median, and see the
-#   r0_response table in MAYV_ca_owsa.xlsx for the underlying curve.
+#   r0_response table in MAYV_owsa.xlsx for the underlying curve.
 #
 # SEVERITY/DALY: the CHIKV disease-progression set (load_burden_params()/load_daly_params()
-# in ca_common.R) with MAYV-specific overrides -- hospitalisation 5% (4-6%), acute duration
+# in common.R) with MAYV-specific overrides -- hospitalisation 5% (4-6%), acute duration
 # = the infectious period, recovery shares from Halsey et al. 2015, and no deaths. The
 # disability weights and the severe, sub-acute and chronic durations stay borrowed from
 # CHIKV, as MAYV has no data for them.
@@ -29,10 +29,10 @@
 # symptomatic/hosp/deaths/DALY move), pre-outbreak campaign, coverage/VE_block/delivery
 # sampled. age_weight = 1 (uniform): no observed MAYV age distribution to correct toward.
 #
-# Run order: source("MAYV_ca_lhs.R")  (ensemble, once);  source("MAYV_ca_engine.R")
+# Run order: source("MAYV_lhs.R")  (ensemble, once);  source("MAYV_engine.R")
 # ============================================================
 library(dplyr); library(ggplot2)
-source("ca_common.R")   # fmtq, load_burden_params, load_daly_params
+source("common.R")   # fmtq, load_burden_params, load_daly_params
 
 # ---- knobs --------------------------------------------------
 PHASE_MODE             <- "hosp_severity"   # YLD severity axis (matches CHIKV engine)
@@ -101,9 +101,9 @@ seirv_vaccinated_MAYV <- function(
 # ------------------------------------------------------------
 # 0. Load the MAYV LHS ensemble (transmission draws)
 # ------------------------------------------------------------
-if (!file.exists("MAYV_ca_lhs_ensemble.rds"))
-  stop("MAYV_ca_lhs_ensemble.rds not found -- run MAYV_ca_lhs.R first.")
-E <- readRDS("MAYV_ca_lhs_ensemble.rds")
+if (!file.exists("MAYV_lhs_ensemble.rds"))
+  stop("MAYV_lhs_ensemble.rds not found -- run MAYV_lhs.R first.")
+E <- readRDS("MAYV_lhs_ensemble.rds")
 N <- E$N; A <- E$A; age_df <- E$age_df; season <- E$season
 seed_week <- E$seed_week; E0 <- E$E0; I0_total <- E$I0_total
 T_weeks <- E$T_weeks; weeks <- E$weeks; x_ticks <- E$x_ticks; year_break <- E$year_break
@@ -120,7 +120,7 @@ invisible(list2env(load_burden_params(A), globalenv()))   # ps_*, hosp_*, cfr_*,
 
 # MAYV-SPECIFIC HOSPITALISATION RATE. load_burden_params() returns the CHIKV severity set,
 # whose hospitalisation row is 4% (3-6%). MAYV uses 5% (4-6%) instead. The override is
-# applied HERE rather than by editing the shared row, because CHIKV_ca_engine.R reads the
+# applied HERE rather than by editing the shared row, because CHIKV_engine.R reads the
 # same workbook through the same function -- changing that row in place would silently move
 # the CHIKV results too. The MAYV value lives in its own row, keyed by a distinct Parameter
 # name, and load_burden_params() matches names EXACTLY, so CHIKV never sees it.
@@ -164,7 +164,7 @@ NNV_OUT  <- c("reported","symptomatic","hospitalisations","deaths","daly")
 outcome_one <- function(symp_age, infections, doses, rho, hosp_j, cfr_j, le_band,
                         dwmm, dwsv, dwch, dumm, dusv, dusb, duch, acy, aco, sby, sbo, chy, cho) {
   # Age-reweight but KEEP THE TOTAL: only the age DISTRIBUTION is reweighted (matches
-  # the CHIKV engine / ca_common::burden). age_weight is uniform (=1) for MAYV.
+  # the CHIKV engine / common.R::burden). age_weight is uniform (=1) for MAYV.
   symp_w  <- symp_age * age_weight
   symp_dw <- if (sum(symp_w) > 0) symp_w * (sum(symp_age)/sum(symp_w)) else symp_age
   st <- sum(symp_dw); sy <- sum(symp_dw[young_idx]); so <- sum(symp_dw[old_idx])
@@ -200,7 +200,7 @@ outcome_one <- function(symp_age, infections, doses, rho, hosp_j, cfr_j, le_band
 # ------------------------------------------------------------
 # Everything below RUNS the propagation. Sourcing this file with DEFS_ONLY = TRUE
 # loads only the machinery above (seirv_vaccinated_MAYV, outcome extractor, severity
-# and DALY parameters, eligibility) so MAYV_ca_owsa.R can re-use it deterministically.
+# and DALY parameters, eligibility) so MAYV_owsa.R can re-use it deterministically.
 # ------------------------------------------------------------
 if (!isTRUE(DEFS_ONLY)) {
 
@@ -350,13 +350,13 @@ for (i in 1:N_DRAWS) {
 # ------------------------------------------------------------
 # 5. Aggregate over ALL draws (NO take-off conditioning); averted + NNV paired per draw
 # ------------------------------------------------------------
-# R0 is sampled within ONE scenario's range (see MAYV_ca_lhs.R), so every draw is the same
+# R0 is sampled within ONE scenario's range (see MAYV_lhs.R), so every draw is the same
 # transmission regime and outbreak size is UNIMODAL on the log scale -- there is no
 # fizzle/take-off split to condition on. A take-off filter would bisect a single continuous
 # distribution at an arbitrary point and misreport its centre, so we report over all
 # N_DRAWS.
 #
-# `outbreak` is the row index used downstream (MAYV_ca_outputs.R reads G$outbreak); it is
+# `outbreak` is the row index used downstream (MAYV_outputs.R reads G$outbreak); it is
 # simply ALL draws.
 outbreak   <- seq_len(N_DRAWS)
 p_outbreak <- 1
@@ -432,7 +432,7 @@ p_epi <- ggplot(pdf_df, aes(week)) +
   labs(x = "Week", y = "Predicted symptomatic cases", title = ttl) +
   theme_bw(12) + theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10.5),
                        panel.grid.minor = element_blank())
-epi_fn <- sprintf("MAYV_ca_symptomatic_%s.png", E$R0_scenario)
+epi_fn <- sprintf("MAYV_symptomatic_%s.png", E$R0_scenario)
 ggsave(epi_fn, p_epi, width = 8, height = 4.5, dpi = 120)
 cat(sprintf("Saved epidemic-curve plot: %s (grey = no vaccine, blue = disease-blocking)\n", epi_fn))
 
@@ -453,14 +453,14 @@ base_curve_plot <- function(M, draws, ytitle, ttl, fn) {
 base_curve_plot(wk_base, draw_set, "Predicted symptomatic cases (no vaccine)",
   sprintf("MAYV symptomatic, NO vaccine (2025-W24 - 2026-W22) | %s scenario, R0 %.1f-%.1f (all %d draws)",
           E$R0_scenario, E$R0_lo, E$R0_hi, N_DRAWS),
-  sprintf("MAYV_ca_baseline_%s.png", E$R0_scenario))
+  sprintf("MAYV_baseline_%s.png", E$R0_scenario))
 
 
 # ------------------------------------------------------------
 # 7. Save per-draw + aggregated + the outbreak index (severity-phase counts included)
 # ------------------------------------------------------------
 # ---- Stage-2 replication file: the per-draw BURDEN parameters -----------------------
-# Counterpart to MAYV_ca_lhs_draws.csv (stage 1), so the two together contain every
+# Counterpart to MAYV_lhs_draws.csv (stage 1), so the two together contain every
 # sampled input. Unlike the CHIKV engine this one does NOT resample: N_DRAWS = n_ens and
 # the loop indexes E$...[i] directly, so burden draw i always pairs with stage-1 draw i.
 # transmission_row is therefore the identity, kept so both pathogens' files have the same
@@ -483,9 +483,9 @@ base_curve_plot(wk_base, draw_set, "Predicted symptomatic cases (no vaccine)",
     mcols(le_d, "life_expectancy_band"),
     data.frame(rec_acute = v(acy_d), rec_subacute = v(sby_d), rec_chronic = v(chy_d)))
   dir.create(DRAWS_DIR, showWarnings = FALSE)
-  bd_path <- file.path(DRAWS_DIR, "MAYV_ca_burden_draws.csv")
+  bd_path <- file.path(DRAWS_DIR, "MAYV_burden_draws.csv")
   write.csv(burden_draws, bd_path, row.names = FALSE)
-  file.copy(bd_path, file.path(DRAWS_DIR, sprintf("MAYV_ca_burden_draws_%s.csv", E$R0_scenario)),
+  file.copy(bd_path, file.path(DRAWS_DIR, sprintf("MAYV_burden_draws_%s.csv", E$R0_scenario)),
             overwrite = TRUE)
   cat(sprintf("Saved %s (%d draws x %d parameters, scenario '%s').\n",
               bd_path, nrow(burden_draws), ncol(burden_draws) - 3, E$R0_scenario))
@@ -509,11 +509,11 @@ saveRDS(list(
   wk_base = wk_base, wk_vacc = wk_vacc, T_weeks = T_weeks,    # weekly symptomatic, for figures
   start_pre = start_pre, immun_delay = immun_delay, deliv_median = median(del_d),
   delay_d = delay_d, dose_start = start_pre + median(delay_d)),
-  "MAYV_ca_engine_results.rds")
+  "MAYV_engine_results.rds")
 # Scenario-tagged copy so both R0 scenarios can coexist on disk for comparison.
-file.copy("MAYV_ca_engine_results.rds",
-          sprintf("MAYV_ca_engine_results_%s.rds", E$R0_scenario), overwrite = TRUE)
-cat(sprintf("\nSaved MAYV_ca_engine_results.rds and MAYV_ca_engine_results_%s.rds\n  (per-draw + aggregates over ALL draws, R0 %.1f-%.1f; severity-phase counts included).\n",
+file.copy("MAYV_engine_results.rds",
+          sprintf("MAYV_engine_results_%s.rds", E$R0_scenario), overwrite = TRUE)
+cat(sprintf("\nSaved MAYV_engine_results.rds and MAYV_engine_results_%s.rds\n  (per-draw + aggregates over ALL draws, R0 %.1f-%.1f; severity-phase counts included).\n",
             E$R0_scenario, E$R0_lo, E$R0_hi))
 
 

@@ -25,9 +25,9 @@
 # ratio is undefined rather than zero. The facet level is kept (drop = FALSE) to hold the
 # row grid aligned, then the panel grob is deleted so no box or gridlines are drawn.
 #
-# Run order:  CHIKV_ca_engine.R -> CHIKV_ca_outputs.R
-#             MAYV_ca_engine.R  -> MAYV_ca_outputs.R
-#             (CHIKV_ca_owsa.R, MAYV_ca_owsa.R for figure 3)  ->  this file
+# Run order:  CHIKV_engine.R -> CHIKV_outputs.R
+#             MAYV_engine.R  -> MAYV_outputs.R
+#             (CHIKV_owsa.R, MAYV_owsa.R for figure 3)  ->  this file
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2); library(patchwork); library(writexl)
                   library(readxl)})
@@ -78,13 +78,13 @@ FS <- list(
 )
 
 need1 <- function(f, how) if (!file.exists(f)) stop("missing ", f, " -- ", how) else f
-G <- readRDS(need1("CHIKV_ca_engine_results.rds", "run CHIKV_ca_engine.R"))
-M <- readRDS(need1(sprintf("MAYV_ca_engine_results_%s.rds", MAYV_EPI_SCENARIO),
-                   sprintf("run MAYV_ca_lhs.R + MAYV_ca_engine.R with R0_SCENARIO <- '%s'",
+G <- readRDS(need1("CHIKV_engine_results.rds", "run CHIKV_engine.R"))
+M <- readRDS(need1(sprintf("MAYV_engine_results_%s.rds", MAYV_EPI_SCENARIO),
+                   sprintf("run MAYV_lhs.R + MAYV_engine.R with R0_SCENARIO <- '%s'",
                            MAYV_EPI_SCENARIO)))
-chik <- readRDS(need1("CHIKV_ca_residual_burden.rds", "run CHIKV_ca_outputs.R"))
-mayv <- readRDS(need1("MAYV_ca_residual_burden.rds",  "run MAYV_ca_outputs.R"))
-stopifnot(!is.null(M$wk_base))                 # re-run MAYV_ca_engine.R to store curves
+chik <- readRDS(need1("CHIKV_residual_burden.rds", "run CHIKV_outputs.R"))
+mayv <- readRDS(need1("MAYV_residual_burden.rds",  "run MAYV_outputs.R"))
+stopifnot(!is.null(M$wk_base))                 # re-run MAYV_engine.R to store curves
 
 # Only the MAYV engine results are read by scenario-tagged file name. The residual-burden
 # and OWSA files are whichever scenario was run last, so check each one's stored tag
@@ -97,8 +97,8 @@ check_mayv_scenario <- function(x, file) {
     stop(sprintf("%s is from the '%s' R0 scenario but MAYV_EPI_SCENARIO is '%s' -- re-run the MAYV chain with R0_SCENARIO <- '%s'.",
                  file, s, MAYV_EPI_SCENARIO, MAYV_EPI_SCENARIO))
 }
-check_mayv_scenario(M,    sprintf("MAYV_ca_engine_results_%s.rds", MAYV_EPI_SCENARIO))
-check_mayv_scenario(mayv, "MAYV_ca_residual_burden.rds")
+check_mayv_scenario(M,    sprintf("MAYV_engine_results_%s.rds", MAYV_EPI_SCENARIO))
+check_mayv_scenario(mayv, "MAYV_residual_burden.rds")
 
 T_sim <- G$T_sim
 mayv_lab <- sprintf("Mayaro (R0 %.1f-%.1f)", M$R0_lo, M$R0_hi)
@@ -364,11 +364,11 @@ cat("Saved combined_residual_burden.png (B DALYs / C deaths).\n")
 # MAYV has only the disease-blocking arm, so its panel occupies the left-hand column
 # with the right-hand cell left empty.
 # ------------------------------------------------------------
-if (!all(file.exists("CHIKV_ca_owsa.rds", "MAYV_ca_owsa.rds"))) {
-  cat("Skipped CHIKV_MAYV_owsa.png (run CHIKV_ca_owsa.R and MAYV_ca_owsa.R).\n")
+if (!all(file.exists("CHIKV_owsa.rds", "MAYV_owsa.rds"))) {
+  cat("Skipped CHIKV_MAYV_owsa.png (run CHIKV_owsa.R and MAYV_owsa.R).\n")
 } else {
-  CO <- readRDS("CHIKV_ca_owsa.rds"); MO <- readRDS("MAYV_ca_owsa.rds")
-  check_mayv_scenario(MO, "MAYV_ca_owsa.rds")
+  CO <- readRDS("CHIKV_owsa.rds"); MO <- readRDS("MAYV_owsa.rds")
+  check_mayv_scenario(MO, "MAYV_owsa.rds")
 
   ca <- CO$owsa; ca$val <- ca$symptomatic
   bA <- setNames(CO$base$symptomatic, CO$base$arm)
@@ -532,7 +532,7 @@ print(per100k_tbl, row.names = FALSE)
 # Means happen to be additive, and these Betas are near-symmetric, so summing the medians
 # would be within ~0.15% here -- but the interval would not be.
 # ------------------------------------------------------------
-source("ca_common.R")
+source("common.R")
 dpar <- load_daly_params()
 set.seed(20260815); N_MC <- 2e5
 rb <- function(p) rbeta(N_MC, p$a, p$b)
