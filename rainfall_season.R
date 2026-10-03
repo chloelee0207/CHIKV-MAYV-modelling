@@ -24,7 +24,6 @@
 # FORM: linear in rainfall, normalised to mean 1 (drop-in for base_beta = R0*gamma*season).
 # A saturating/optimum transform is a later refinement.
 # ============================================================
-setwd("/Users/chloelee/Documents/R/summer_project")
 suppressMessages({library(dplyr); library(ggplot2)})
 
 LAG_WEEKS <- 0                                   # rainfall -> transmission lag (weeks)
