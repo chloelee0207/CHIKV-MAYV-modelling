@@ -69,28 +69,9 @@ target_pop_elig <- sum(N[target_age == 1])
 immun_delay <- 2
 idx_of <- function(yr, wk) caldas_obs$week_index[caldas_obs$Year == yr & caldas_obs$week == wk]
 start_s1 <- idx_of(2026, 16)     # IXCHIQ real rollout
-start_s2 <- idx_of(2026, 1)      # start of 2026
-start_s3 <- idx_of(2025, 40)     # pre-outbreak
-start_s0 <- 1                    # earliest: rollout completes well before the outbreak
+start_s3 <- idx_of(2025, 40)     # pre-outbreak (primary analysis)
 
-# Reactive timing: the outbreak is taken as recognised once reported cases have been
-# sustained for TWO CONSECUTIVE WEEKS at or above a threshold, with the campaign decided
-# the following week. There is no agreed onset definition for this outbreak; a sustained
-# two-week signal is used rather than a single week so a one-off spike does not trigger it.
-# Derived from the data, not hardcoded, so it follows the series if that is revised.
-sustained_then_next <- function(thr, n_wk = 2L) {
-  ok <- observed_cases >= thr
-  run <- Reduce(function(a, b) if (b) a + 1L else 0L, ok, accumulate = TRUE)
-  i <- which(run >= n_wk)[1]
-  stopifnot(!is.na(i)); min(i + 1L, T_data)
-}
-start_r7 <- sustained_then_next(7)   # 2 wk at >= 7 cases (2025-W44/45) -> campaign 2025-W46
-
-timings <- list("earliest (2025-W24)" = start_s0, "actual rollout" = start_s1,
-                "start of 2026" = start_s2, "pre-outbreak" = start_s3,
-                "reactive (2 wk >= 7 cases)" = start_r7)
-cat(sprintf("Reactive timing: 2 consecutive weeks >= 7 cases -> campaign week %d (%d-W%02d)\n",
-            start_r7, caldas_obs$Year[start_r7], caldas_obs$week[start_r7]))
+timings <- list("actual rollout" = start_s1, "pre-outbreak" = start_s3)
 
 arm_names <- c("Disease-blocking", "Disease + infection blocking")
 
