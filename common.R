@@ -205,7 +205,9 @@ compute_age_weight <- function(inf_age_model, obs_band_prop, age_to_band) {
 # Age-structured weekly SEIRV with vaccination. Returns weekly age x week matrices
 # for infections and symptomatic, plus total_used_age (doses delivered per age = the
 # NNV numerator base). Two efficacy channels: VE_inf moves S->immune (infection
-# blocking); VE_block scales symptomatic among the covered (disease blocking).
+# blocking); VE_block scales symptomatic among the covered (disease blocking). Callers
+# use ONE channel per arm (VE_block = 0 when VE_inf > 0, as in Kang et al. 2025): the
+# symptomatic formula applies VE_block to all infections, so using both would double count.
 seirv_vaccinated <- function(
     T_weeks, 
     A, 

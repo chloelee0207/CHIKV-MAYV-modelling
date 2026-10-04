@@ -277,7 +277,14 @@ for (i in 1:N_DRAWS) {
   cfr_j  <- (hosp_d[i]*cfrH_d[i, ] + (1-hosp_d[i])*cfrN_d[i, ])[age_to_band]
   for (s in scen) {
     if (s$type == "base") { covv <- 0; vi <- 0; vb <- 0; st <- start_s3 }
-    else { covv <- cov_d[i]; vb <- ve_d[i]; vi <- if (s$type == "both") ve_d[i] else 0
+    # Disease-blocking arm: VE acts on symptoms only (VE_inf = 0, VE_block = VE).
+    # Disease + infection blocking arm: VE removes protected vaccinees from S (VE_inf = VE)
+    # and VE_block = 0, as in Kang et al. 2025 -- the infection channel already prevents
+    # their disease, and breakthrough infections get no further protection against
+    # symptoms (all-or-nothing). Applying VE_block as well would count that benefit twice.
+    else { covv <- cov_d[i]
+           vi <- if (s$type == "both") ve_d[i] else 0
+           vb <- if (s$type == "both") 0 else ve_d[i]
            st <- min(s$start + delay_d[i], T_sim) }
     out <- seirv_vaccinated(T_sim, A, N, Rimm_i, I0_i, E0, E$beta[ti, ], E$sigma[ti], E$gamma[ti],
              E$rho[ti], target_age, covv, deliv_d[i], st, vi, vb, immun_delay, prop_symp = E$prop_symp[ti])
