@@ -313,7 +313,7 @@ notes <- data.frame(item = c(
   paste(sprintf("%s [%.4g, %.4g]", names(BOUNDS), sapply(BOUNDS, `[`, 1), sapply(BOUNDS, `[`, 2)), collapse = "; "),
   paste("gamma, sigma, prop_symp. gamma is absorbed by the beta re-fit (R0 = beta/gamma",
         "against the same cases); sigma shifts peak timing not size. prop_symp is held at",
-        "its median, as in Kang et al.; it does NOT cancel -- the fit anchors on",
+        "its median, as in Kang et al. 2025; it does NOT cancel -- the fit anchors on",
         "rho x prop_symp x infections = 8,204, so a lower prop_symp puts more infections",
         "behind the same cases -- and its uncertainty is carried by the probabilistic",
         "analysis (CHIKV_lhs.R samples it per draw)."),

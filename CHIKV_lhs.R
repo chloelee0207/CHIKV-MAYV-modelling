@@ -158,12 +158,12 @@ gr<-row_for("gamma"); sr<-row_for("sigma"); rr<-row_for("reporting")
 g_m<-gr$Median; g_sd<-sd_of(gr)                 # gamma  (rate)
 p_m<-sr$Median; p_sd<-sd_of(sr)                 # latent PERIOD -> sigma = 1/period
 r_m<-rr$Median; r_sd<-sd_of(rr)
-# rho ~ Beta(20, 60): Hyolim's stated generative prior (mean 0.25, 95% ~0.162-0.350),
+# rho ~ Beta(20, 60): the generative prior stated by Kang et al. 2025 (mean 0.25, 95% ~0.162-0.350),
 # wider than the model_calibration.xlsx posterior. Point estimate uses the median 0.25.
 rab <- c(a = 20, b = 60)
 foi_med<-0.008; foi_lo<-0.003; foi_hi<-0.020                        # long-term average FOI (from serology)
 foi_mlog<-log(foi_med); foi_slog<-(log(foi_hi)-log(foi_lo))/(2*1.96)# FOI ~ Lognormal
-# prop_symp ~ Beta(35.84, 32.56): symptomatic fraction among infections (Hyolim Table S4 /
+# prop_symp ~ Beta(35.84, 32.56): symptomatic fraction among infections (Kang et al. 2025 Table S4 /
 # disease_progression.xlsx, median 0.524, 95% 0.406-0.641). Point estimate uses the median.
 ps_a <- 35.84; ps_b <- 32.56
 cat(sprintf("Samplers: gamma~N(%.3f,%.3f) latent~N(%.3f,%.3f) rho~Beta(%.1f,%.1f) FOI~logN(med %.3f, 95%%[%.3f,%.3f]) prop_symp~Beta(%.2f,%.2f)\n",

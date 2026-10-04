@@ -227,7 +227,7 @@ LAT_SPEC <- list(
   # period. A 3-11 d spread is BETWEEN-INDIVIDUAL variation in incubation time, which the
   # SEIR's exponential E->I waiting time already represents; using it as a 95% interval on
   # the mean double-counts that variation and overstates parameter uncertainty. This is the
-  # same convention the CHIKV model uses -- Hyolim's latent row is 0.60 wk (0.45-0.80), i.e.
+  # same convention the CHIKV model uses -- the Kang et al. 2025 latent row is 0.60 wk (0.45-0.80), i.e.
   # 4.2 d (3.15-5.6), drawn from "usually 2 to 6 days" while discarding the stated 1-12 d
   # range for exactly this reason. Keeping the two models on one convention also keeps the
   # MAYV/CHIKV comparison like-for-like, which is the point of the analysis.
