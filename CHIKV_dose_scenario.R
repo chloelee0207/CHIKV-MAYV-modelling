@@ -1,5 +1,5 @@
 # ============================================================
-# CHIKV_ca_dose_scenario.R
+# CHIKV_dose_scenario.R
 # ------------------------------------------------------------
 # Compares the modelled campaign against the DOSE ALLOCATION actually promised to
 # Caldas Novas: 4,670 doses, i.e. 7.11% of the eligible 18-59 group (4.37% of the total
@@ -12,15 +12,15 @@
 # uncertainty about how many doses a programme might choose to buy.
 #
 # Inputs (produce them first):
-#   CHIKV_ca_engine.R                                  -> CHIKV_ca_engine_results.rds
-#   CHIKV_DOSES <- 4670; source("CHIKV_ca_engine.R")   -> CHIKV_ca_engine_results_doses4670.rds
-# Output: CHIKV_ca_dose_scenario.xlsx
+#   CHIKV_engine.R                                  -> CHIKV_engine_results.rds
+#   CHIKV_DOSES <- 4670; source("CHIKV_engine.R")   -> CHIKV_engine_results_doses4670.rds
+# Output: CHIKV_dose_scenario.xlsx
 # ============================================================
 suppressMessages({library(writexl)})
 
 DOSES <- 4670
-f_main <- "CHIKV_ca_engine_results.rds"
-f_dose <- sprintf("CHIKV_ca_engine_results_doses%d.rds", DOSES)
+f_main <- "CHIKV_engine_results.rds"
+f_dose <- sprintf("CHIKV_engine_results_doses%d.rds", DOSES)
 for (f in c(f_main, f_dose))
   if (!file.exists(f)) stop("missing ", f, " -- see the header for how to produce it.")
 A <- readRDS(f_main); B <- readRDS(f_dose)
@@ -76,6 +76,6 @@ notes <- data.frame(item = c("Question", "Coverage", "What is still sampled", "D
   stringsAsFactors = FALSE)
 
 write_xlsx(list(by_scenario = tbl, sampled_vs_fixed = ratio, notes = notes),
-           "CHIKV_ca_dose_scenario.xlsx")
-cat("Wrote CHIKV_ca_dose_scenario.xlsx\n")
+           "CHIKV_dose_scenario.xlsx")
+cat("Wrote CHIKV_dose_scenario.xlsx\n")
 print(ratio, row.names = FALSE)

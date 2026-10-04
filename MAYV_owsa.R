@@ -1,5 +1,5 @@
 # ============================================================
-# MAYV_ca_owsa.R -- Caldas Novas MAYV one-way sensitivity analysis.
+# MAYV_owsa.R -- Caldas Novas MAYV one-way sensitivity analysis.
 #
 # DETERMINISTIC, at the scenario's MEDIAN peak R0. MAYV is not fitted to data, so no
 # re-fitting is needed: every run is a forward simulation at chosen parameter values.
@@ -23,22 +23,22 @@
 # tail) is reported as a structural sensitivity against its two pure components, not as
 # a tornado row.
 #
-# Run order:  MAYV_ca_lhs.R -> MAYV_ca_engine.R (once) -> this file
+# Run order:  MAYV_lhs.R -> MAYV_engine.R (once) -> this file
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2); library(writexl)})
 
 DEFS_ONLY <- TRUE
-source("MAYV_ca_engine.R")        # seirv_vaccinated_MAYV, outcome_one, severity/DALY params
-E <- readRDS("MAYV_ca_lhs_ensemble.rds")
-M <- readRDS("MAYV_ca_engine_results.rds")
+source("MAYV_engine.R")        # seirv_vaccinated_MAYV, outcome_one, severity/DALY params
+E <- readRDS("MAYV_lhs_ensemble.rds")
+M <- readRDS("MAYV_engine_results.rds")
 # GUARD: both files are untagged "current scenario" artefacts written by different scripts.
 # If the ensemble and the engine results come from different R0 scenarios (e.g. the engine
 # was re-run after switching R0_SCENARIO without re-running the LHS), every result below
 # would silently mix them.
 if (!identical(E$R0_scenario, M$R0_scenario))
-  stop("MAYV_ca_lhs_ensemble.rds is scenario '", E$R0_scenario,
-       "' but MAYV_ca_engine_results.rds is '", M$R0_scenario,
-       "'. Re-run MAYV_ca_lhs.R then MAYV_ca_engine.R for one scenario before this script.")
+  stop("MAYV_lhs_ensemble.rds is scenario '", E$R0_scenario,
+       "' but MAYV_engine_results.rds is '", M$R0_scenario,
+       "'. Re-run MAYV_lhs.R then MAYV_engine.R for one scenario before this script.")
 
 # Natural-history constants (defined before BASE, which uses PSYMP)
 GAMMA <- E$base_gamma; SIGMA <- E$base_sigma
@@ -258,7 +258,7 @@ p_t <- ggplot(owsa, aes(y = parameter)) +
   scale_x_continuous(labels = scales::comma) +
   labs(x = "Symptomatic cases averted", y = NULL) +
   theme_bw(11) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
-ggsave("MAYV_ca_owsa_symptomatic.png", p_t, width = 8.5, height = 4.6, dpi = 130)
+ggsave("MAYV_owsa_symptomatic.png", p_t, width = 8.5, height = 4.6, dpi = 130)
 print(p_t)
 
 # ------------------------------------------------------------
@@ -302,8 +302,8 @@ p_r0 <- ggplot(r0_response, aes(R0)) +
        subtitle = sprintf("Deterministic, median inputs; %.0f%% coverage, %.0f%% disease-blocking VE. Dotted lines = the two reported scenarios.",
                           100*BASE$cov, 100*BASE$ve)) +
   theme_bw(11) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
-ggsave("MAYV_ca_r0_response.png", p_r0, width = 8.5, height = 5, dpi = 130)
-cat("Saved MAYV_ca_r0_response.png\n")
+ggsave("MAYV_r0_response.png", p_r0, width = 8.5, height = 5, dpi = 130)
+cat("Saved MAYV_r0_response.png\n")
 
 # ------------------------------------------------------------
 # 4c. PROBABILISTIC R0 SWEEP -- median + 95% UI at each fixed peak R0.
@@ -311,7 +311,7 @@ cat("Saved MAYV_ca_r0_response.png\n")
 # ensemble at every R0 on the grid, so each row is a proper median [95% UI] carrying the
 # same uncertainty the engine propagates: gamma, sigma, rho and prop_symp
 # from the LHS ensemble, plus the engine's OWN sampled coverage / VE / deployment delay
-# (reused draw-for-draw from MAYV_ca_engine_results.rds). R0 is HELD at each grid value,
+# (reused draw-for-draw from MAYV_engine_results.rds). R0 is HELD at each grid value,
 # so a row is conditional on that R0: the row at the scenario median does NOT reproduce
 # the engine's headline, which also integrates over the sampled R0 range.
 #
@@ -393,7 +393,7 @@ if (R0_PSA_RUN) {
     `Symptomatic cases reduced (%)` = fmt3(r0_response_psa$pct_reduction_med, r0_response_psa$pct_reduction_lo,
                                            r0_response_psa$pct_reduction_hi, 1),
     check.names = FALSE, stringsAsFactors = FALSE)
-  write.csv(r0_table, "MAYV_ca_r0_response_table.csv", row.names = FALSE)
+  write.csv(r0_table, "MAYV_r0_response_table.csv", row.names = FALSE)
   cat("\n=== R0 response TABLE: median (95% UI) over ", nd, " draws ===\n", sep = "")
   print(r0_table, row.names = FALSE)
 
@@ -418,8 +418,8 @@ if (R0_PSA_RUN) {
                                   "coverage, VE, deployment delay.\nR0 is FIXED at each point, so its span is NOT inside these bands."), nd)) +
     theme_bw(11) + theme(legend.position = "bottom", panel.grid.minor = element_blank(),
                          plot.subtitle = element_text(size = 8.5))
-  ggsave("MAYV_ca_r0_response_psa.png", p_r0p, width = 9, height = 5.2, dpi = 130)
-  cat("Saved MAYV_ca_r0_response_psa.png and MAYV_ca_r0_response_table.csv\n")
+  ggsave("MAYV_r0_response_psa.png", p_r0p, width = 9, height = 5.2, dpi = 130)
+  cat("Saved MAYV_r0_response_psa.png and MAYV_r0_response_table.csv\n")
 }
 
 # ------------------------------------------------------------
@@ -431,7 +431,7 @@ notes <- data.frame(item = c("Analysis", "Base case R0", "R0 response curve", "V
   "Deterministic one-way sensitivity; MAYV is not fitted, so every run is a forward simulation.",
   sprintf("Peak R0 %.2f, the median of the '%s' scenario's sampled range %.1f-%.1f (Caicedo et al. 2021: low = 1.1-1.3 outside the Amazon basin, high = 2.1-2.9 Amazon basin applied to Goias as a peak R0). R0 is sampled within the scenario range; the two scenarios are not pooled, because published MAYV R0 estimates come from different settings and decades.",
           R0_BASE, M$R0_scenario, E$R0_lo, E$R0_hi),
-  sprintf("R0 is a tornado row over the scenario's own range. Across both scenarios outbreak size is a steep CONVEX function of R0 (%.0f -> %.0f symptomatic across R0 %.1f-%.1f), which a bar cannot show, so it is also swept as a response curve: see the r0_response sheet and MAYV_ca_r0_response.png. No take-off conditioning is applied anywhere (one scenario's R0 range -> one transmission regime, unimodal outbreak size on the log scale).",
+  sprintf("R0 is a tornado row over the scenario's own range. Across both scenarios outbreak size is a steep CONVEX function of R0 (%.0f -> %.0f symptomatic across R0 %.1f-%.1f), which a bar cannot show, so it is also swept as a response curve: see the r0_response sheet and MAYV_r0_response.png. No take-off conditioning is applied anywhere (one scenario's R0 range -> one transmission regime, unimodal outbreak size on the log scale).",
           min(r0_response$symptomatic_base), max(r0_response$symptomatic_base),
           min(R0_SWEEP), max(R0_SWEEP)),
   "Disease-blocking only (VE_inf = 0): infections are identical across arms; only symptomatic cases and downstream outcomes move.",
@@ -447,11 +447,11 @@ write_xlsx(c(list(notes = notes,
                 r0_response = r0_response),
              if (!is.null(r0_response_psa))
                list(r0_response_psa = r0_response_psa, r0_response_table = r0_table)),
-           "MAYV_ca_owsa.xlsx")
+           "MAYV_owsa.xlsx")
 saveRDS(list(owsa = owsa, struct = struct, base = base_run, BASE = BASE, BOUNDS = BOUNDS,
              R0_BASE = R0_BASE, R0_SWEEP = R0_SWEEP, r0_response = r0_response,
              r0_response_psa = r0_response_psa,
-             R0_scenario = M$R0_scenario), "MAYV_ca_owsa.rds")
+             R0_scenario = M$R0_scenario), "MAYV_owsa.rds")
 
 cat("\n=== Swing in symptomatic cases averted ===\n")
 print(owsa |> group_by(parameter) |>
@@ -459,7 +459,7 @@ print(owsa |> group_by(parameter) |>
         arrange(desc(swing)) |> as.data.frame(), row.names = FALSE, digits = 5)
 cat("\n=== Structural sensitivities (reported separately, not tornado rows) ===\n")
 print(struct, row.names = FALSE, digits = 5)
-cat("\nWrote MAYV_ca_owsa.xlsx, MAYV_ca_owsa.rds, MAYV_ca_owsa_symptomatic.png\n")
+cat("\nWrote MAYV_owsa.xlsx, MAYV_owsa.rds, MAYV_owsa_symptomatic.png\n")
 
 # ------------------------------------------------------------
 # 7. Scenario sweep: vaccine efficacy x coverage.
@@ -511,17 +511,17 @@ p_hm <- ggplot(grid_df, aes(factor(100*coverage), factor(100*ve), fill = pct)) +
   theme_bw(11) + theme(panel.grid = element_blank(),
                        plot.title = element_text(face = "bold", size = 11),
                        plot.subtitle = element_text(size = 8.5))
-ggsave("MAYV_ca_ve_coverage_heatmap.png", p_hm, width = 8.5, height = 6, dpi = 130)
+ggsave("MAYV_ve_coverage_heatmap.png", p_hm, width = 8.5, height = 6, dpi = 130)
 # 600-dpi companion for the manuscript. Same physical size and layout, so the two are
 # interchangeable in a document; only the pixel density differs.
-ggsave("MAYV_ca_ve_coverage_heatmap_600dpi.png", p_hm, width = 8.5, height = 6, dpi = 600)
+ggsave("MAYV_ve_coverage_heatmap_600dpi.png", p_hm, width = 8.5, height = 6, dpi = 600)
 print(p_hm)
 
-write_xlsx(list(ve_coverage_grid = grid_df), "MAYV_ca_ve_coverage_sweep.xlsx")
+write_xlsx(list(ve_coverage_grid = grid_df), "MAYV_ve_coverage_sweep.xlsx")
 # The base-case VE (4/12) is not on the 0.1 grid, so report the nearest cell and label it
 # with that cell's own values.
 near <- which.min(abs(grid_df$ve - BASE$ve) + abs(grid_df$coverage - BASE$cov))
 cat(sprintf("\nVE x coverage sweep: %d cells | cell nearest the base case (VE %.0f%%, cov %.0f%%) = %.2f%% averted | max (VE 100%%, cov 100%%) = %.2f%%\n",
             nrow(grid_df), 100*grid_df$ve[near], 100*grid_df$coverage[near],
             grid_df$pct[near], max(grid_df$pct)))
-cat("Saved MAYV_ca_ve_coverage_heatmap.png and MAYV_ca_ve_coverage_sweep.xlsx\n")
+cat("Saved MAYV_ve_coverage_heatmap.png and MAYV_ve_coverage_sweep.xlsx\n")

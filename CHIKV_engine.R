@@ -1,9 +1,9 @@
 # ============================================================
-# CHIKV_ca_engine.R -- Caldas Novas CHIKV Monte Carlo engine.
+# CHIKV_engine.R -- Caldas Novas CHIKV Monte Carlo engine.
 #
 # One Latin hypercube propagation from transmission through to health loss. Each of
 # N_DRAWS draws combines a re-fitted transmission trajectory resampled from
-# CHIKV_ca_lhs_ensemble.rds with vaccine efficacy, delivery, delay, sampled coverage,
+# CHIKV_lhs_ensemble.rds with vaccine efficacy, delivery, delay, sampled coverage,
 # severity, case fatality and every DALY input. That single draw is then run through
 # the SEIRV for the no-vaccine baseline and every vaccination scenario, so all
 # outcomes are mutually consistent draw for draw:
@@ -18,12 +18,12 @@
 # a scenario pushes beyond week 52 is out of scope for all scenarios alike.
 #
 # Saves per-draw matrices and aggregated median / 95% UI to
-# CHIKV_ca_engine_results.rds, including severity-phase COUNTS.
+# CHIKV_engine_results.rds, including severity-phase COUNTS.
 #
-# Run order:  CHIKV_ca_lhs.R  (slow, once)  ->  this file  ->  CHIKV_ca_outputs.R
+# Run order:  CHIKV_lhs.R  (slow, once)  ->  this file  ->  CHIKV_outputs.R
 # ============================================================
 library(dplyr); library(tidyr)
-source("ca_common.R")   # fmtq, qs, burden, load_burden_params, load_caldas_age_cases,
+source("common.R")   # fmtq, qs, burden, load_burden_params, load_caldas_age_cases,
                         # compute_age_weight, seirv_vaccinated, load_daly_params
 
 # ---- knobs --------------------------------------------------
@@ -38,9 +38,9 @@ set.seed(2030)
 # ------------------------------------------------------------
 # 0. Load the LHS ensemble
 # ------------------------------------------------------------
-if (!file.exists("CHIKV_ca_lhs_ensemble.rds"))
-  stop("CHIKV_ca_lhs_ensemble.rds not found -- run CHIKV_ca_lhs.R first.")
-E <- readRDS("CHIKV_ca_lhs_ensemble.rds")
+if (!file.exists("CHIKV_lhs_ensemble.rds"))
+  stop("CHIKV_lhs_ensemble.rds not found -- run CHIKV_lhs.R first.")
+E <- readRDS("CHIKV_lhs_ensemble.rds")
 N <- E$N; A <- E$A; age_df <- E$age_df; age_mid <- E$age_mid
 observed_cases <- E$observed_cases; caldas_obs <- E$caldas_obs
 week_1_cases <- E$week_1_cases; T_data <- E$T_weeks
@@ -342,13 +342,13 @@ for (nm in grep("pre-outbreak", vac_names, value = TRUE)) {
 # parse error in R.
 RES_FILE <- {
   if (exists("CHIKV_DOSES")) {
-    sprintf("CHIKV_ca_engine_results_doses%d.rds", CHIKV_DOSES)
+    sprintf("CHIKV_engine_results_doses%d.rds", CHIKV_DOSES)
   } else if (exists("CHIKV_FIXED_COV")) {
-    sprintf("CHIKV_ca_engine_results_cov%03d.rds", round(1000*CHIKV_FIXED_COV))
-  } else "CHIKV_ca_engine_results.rds"
+    sprintf("CHIKV_engine_results_cov%03d.rds", round(1000*CHIKV_FIXED_COV))
+  } else "CHIKV_engine_results.rds"
 }
 # ---- Stage-2 replication file: the per-draw BURDEN parameters -----------------------
-# Stage 1 (transmission) is written by CHIKV_ca_lhs.R as CHIKV_ca_lhs_draws.csv. This is
+# Stage 1 (transmission) is written by CHIKV_lhs.R as CHIKV_lhs_draws.csv. This is
 # its stage-2 counterpart, so the two files together contain every sampled input.
 # `transmission_row` is the key that joins them: it records which stage-1 draw each burden
 # draw was paired with (the engine resamples the ensemble WITH REPLACEMENT, so rows repeat
@@ -357,7 +357,7 @@ RES_FILE <- {
 # model actually uses; nextU() returns Nx1 matrices, hence as.vector().
 # Written only on the MAIN run, so a fixed-coverage or dose-constrained scenario can never
 # overwrite the file the manuscript cites.
-if (identical(RES_FILE, "CHIKV_ca_engine_results.rds")) {
+if (identical(RES_FILE, "CHIKV_engine_results.rds")) {
   mcols <- function(m, stem) setNames(as.data.frame(m), sprintf("%s_%d", stem, seq_len(ncol(m))))
   v <- as.vector
   burden_draws <- cbind(
@@ -373,7 +373,7 @@ if (identical(RES_FILE, "CHIKV_ca_engine_results.rds")) {
                rec_subacute_u40 = v(sby_d), rec_subacute_o40 = v(sbo_d),
                rec_chronic_u40 = v(chy_d), rec_chronic_o40 = v(cho_d)))
   dir.create(DRAWS_DIR, showWarnings = FALSE)
-  bd_path <- file.path(DRAWS_DIR, "CHIKV_ca_burden_draws.csv")
+  bd_path <- file.path(DRAWS_DIR, "CHIKV_burden_draws.csv")
   write.csv(burden_draws, bd_path, row.names = FALSE)
   cat(sprintf("Saved %s (%d draws x %d parameters + draw/transmission_row).\n",
               bd_path, nrow(burden_draws), ncol(burden_draws) - 2))

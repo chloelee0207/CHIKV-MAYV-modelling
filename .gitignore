@@ -32,31 +32,31 @@ Archive/
 # ---- Exploratory serology work, not part of the CHIKV/MAYV pipeline ----
 # FOI.R fitted Rsero force-of-infection models to Abad-Franch_seroprevalence.xlsx. No
 # current script sources either, so both are kept locally but off the public repo.
-# NOTE: CHIKV_ca_lhs.R hardcodes the FOI prior as 0.008 (0.003-0.020), commented
+# NOTE: CHIKV_lhs.R hardcodes the FOI prior as 0.008 (0.003-0.020), commented
 # "from serology" -- FOI.R is the derivation, so keep a local copy for the record.
 FOI.R
 Abad-Franch_seroprevalence.xlsx
 
 # ---- Orphaned input: no script reads it ----
 # Both models take their Caldas Novas denominators from population.xlsx
-# (CHIKV_ca_lhs.R, MAYV_ca_lhs.R), so this one is unused.
+# (CHIKV_lhs.R, MAYV_lhs.R), so this one is unused.
 population_MAYV.xlsx
 
 # ---- Excel/LibreOffice lock files ----
 ~$*
 
 # ---- REPLICATION data: the sampled parameter values behind the published estimates ----
-# Two stages per pathogen. Stage 1 = the transmission LHS (*_ca_lhs.R); stage 2 = the
+# Two stages per pathogen. Stage 1 = the transmission LHS (*_lhs.R); stage 2 = the
 # burden LHS drawn inside the engine. The CHIKV pair joins on `transmission_row`, since
 # that engine resamples the stage-1 ensemble with replacement; for MAYV the pairing is 1:1.
-# Scenario-tagged copies (e.g. MAYV_ca_burden_draws_high.csv) stay ignored.
+# Scenario-tagged copies (e.g. MAYV_burden_draws_high.csv) stay ignored.
 # Leading "/" anchors these to the repo root ON PURPOSE: without it the negation matches
 # the basename at any depth, which would un-ignore the stale archived copies sitting in
 # Outputs_*/ and publish snapshots that no longer match the current model.
-!/lhs_draws/CHIKV_ca_lhs_draws.csv
-!/lhs_draws/CHIKV_ca_burden_draws.csv
-!/lhs_draws/MAYV_ca_lhs_draws.csv
-!/lhs_draws/MAYV_ca_burden_draws.csv
+!/lhs_draws/CHIKV_lhs_draws.csv
+!/lhs_draws/CHIKV_burden_draws.csv
+!/lhs_draws/MAYV_lhs_draws.csv
+!/lhs_draws/MAYV_burden_draws.csv
 
 # ---- INPUT data: hand-maintained source parameters, MUST be tracked ----
 # (the *.xlsx / *.csv rules above ignore generated outputs; these are exceptions)

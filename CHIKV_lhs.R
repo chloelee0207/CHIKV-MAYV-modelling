@@ -26,7 +26,7 @@
 # than susceptibles). No goodness-of-fit cut-off is imposed, since any such threshold
 # would be arbitrary and would discard draws with entirely plausible R0.
 #
-# Exports CHIKV_ca_lhs_ensemble.rds for CHIKV_ca_engine.R.
+# Exports CHIKV_lhs_ensemble.rds for CHIKV_engine.R.
 # ============================================================
 setwd("/Users/chloelee/Documents/R/summer_project")
 if (!exists("DEFS_ONLY")) DEFS_ONLY <- FALSE   # TRUE = load definitions only (see below)
@@ -95,9 +95,9 @@ pop_2022_total <- 98622; pop_2025_total <- 106820
 N <- age_df$pop_num * (pop_2025_total/pop_2022_total)      # grow 2022 -> 2025
 A <- nrow(age_df)
 
-# Observed weekly cases: canonical 52-week loader from ca_common.R (single source of
+# Observed weekly cases: canonical 52-week loader from common.R (single source of
 # truth, shared with the fit and the age-stratified script). Window 2025-W24 -> 2026-W22.
-if (!exists("load_caldas_age_cases")) source("ca_common.R")
+if (!exists("load_caldas_age_cases")) source("common.R")
 ca_cases       <- load_caldas_age_cases()
 caldas_obs     <- ca_cases$caldas_obs
 observed_cases <- ca_cases$observed_cases
@@ -143,7 +143,7 @@ refit <- function(foi, g, s, r, ps, start) {
 # ------------------------------------------------------------
 # Everything below RUNS the propagation. Sourcing this file with DEFS_ONLY = TRUE
 # loads only the model machinery above (SEIR, make_beta_t, neg_log_lik, refit, data,
-# fixed choices) so other scripts -- e.g. CHIKV_ca_owsa.R -- can re-fit at chosen
+# fixed choices) so other scripts -- e.g. CHIKV_owsa.R -- can re-fit at chosen
 # parameter values without paying for the 1000-draw run.
 # ------------------------------------------------------------
 if (!isTRUE(DEFS_ONLY)) {
@@ -262,20 +262,20 @@ save_band <- function(file, dfp, ytitle, ttl, add_dashed=NULL, ylim=NULL){
   if(!is.null(ylim))       g <- g + coord_cartesian(ylim=ylim)
   ggsave(file, g, width=7.5, height=4.4, dpi=110)
 }
-save_band("CHIKV_ca_prop_beta.png", data.frame(week=weeks, lo=bb[1,], med=bb[2,], hi=bb[3,]),
+save_band("CHIKV_prop_beta.png", data.frame(week=weeks, lo=bb[1,], med=bb[2,], hi=bb[3,]),
           expression(beta[t]), "Beta(t) with 95% band",
           data.frame(week=weeks, y=base$beta))
 # Same band, y-axis capped at 4. The full version runs to ~8 because the upper band
 # explodes in the last weeks (7 of 52 weeks exceed 4), which flattens the median curve
 # and the peak. Clipped here so the shape is readable; the full-range version above keeps
 # the excursion visible.
-save_band("CHIKV_ca_prop_beta_zoom.png", data.frame(week=weeks, lo=bb[1,], med=bb[2,], hi=bb[3,]),
+save_band("CHIKV_prop_beta_zoom.png", data.frame(week=weeks, lo=bb[1,], med=bb[2,], hi=bb[3,]),
           expression(beta[t]), "Beta(t) with 95% band", data.frame(week=weeks, y=base$beta),
           ylim = c(0, 4))
-save_band("CHIKV_ca_prop_R0.png", data.frame(week=weeks, lo=r0b[1,], med=r0b[2,], hi=r0b[3,]),
+save_band("CHIKV_prop_R0.png", data.frame(week=weeks, lo=r0b[1,], med=r0b[2,], hi=r0b[3,]),
           "R0(t) = beta/gamma", "R0(t) with 95% band vs baseline (dashed)",
           data.frame(week=weeks, y=base$beta/0.54))
-ggsave("CHIKV_ca_prop_infections.png",
+ggsave("CHIKV_prop_infections.png",
   ggplot(data.frame(week=weeks, lo=ib[1,], med=ib[2,], hi=ib[3,], rep=pb[2,], obs=observed_cases)) +
     geom_ribbon(aes(week, ymin=lo, ymax=hi), fill="#a8d1e7", alpha=.5) +
     geom_line(aes(week, med), colour="#3182bd", linewidth=1) +
@@ -291,20 +291,20 @@ write.csv(data.frame(draw=1:n, FOI=foi, gamma=gam, sigma=sig, rho=rho, prop_symp
                      immune_pct=immune, R0_peak=R0peak, attack_pct=attack, total_reported=totrep,
                      loglik=loglik, AIC=aic_d, BIC=bic_d,
                      feasible=(seq_len(n) %in% ok)),
-          file.path(DRAWS_DIR, "CHIKV_ca_lhs_draws.csv"), row.names=FALSE)
-cat("\nSaved CHIKV_ca_prop_beta.png, CHIKV_ca_prop_beta_zoom.png, CHIKV_ca_prop_R0.png,",
-    "CHIKV_ca_prop_infections.png,", file.path(DRAWS_DIR, "CHIKV_ca_lhs_draws.csv"), "\n")
+          file.path(DRAWS_DIR, "CHIKV_lhs_draws.csv"), row.names=FALSE)
+cat("\nSaved CHIKV_prop_beta.png, CHIKV_prop_beta_zoom.png, CHIKV_prop_R0.png,",
+    "CHIKV_prop_infections.png,", file.path(DRAWS_DIR, "CHIKV_lhs_draws.csv"), "\n")
 
 # ------------------------------------------------------------
 # 9. Export the feasible-draw ensemble for the engine.
-#    CHIKV_ca_engine.R loads this RDS instead of re-running the 1000 refits. It is
+#    CHIKV_engine.R loads this RDS instead of re-running the 1000 refits. It is
 #    self-contained (per-draw beta + N, age structure, observed cases, seed inputs)
 #    and carries all five calibration uncertainties (FOI -> immunity, gamma, sigma,
 #    rho ~ Beta(20,60), prop_symp); the engine iterates over these draws and layers
 #    vaccine-parameter draws on top. The point estimate uses the median inputs
 #    (rho 0.25). The engine recomputes immunity per draw from foi
 #    using the SAME truncated exposure vector exported here.
-ca_lhs_ensemble <- list(
+lhs_ensemble <- list(
   beta   = beta_mat[ok, , drop = FALSE],       # n_ok x T_weeks fitted beta_t per draw
   gamma  = gam[ok], sigma = sig[ok], rho = rho[ok], foi = foi[ok], prop_symp = psy[ok],
   base_beta = base$beta, base_rho = rho_pt, base_foi = foi_med,
@@ -315,15 +315,15 @@ ca_lhs_ensemble <- list(
   T_weeks = T_weeks, observed_cases = observed_cases,
   caldas_obs = caldas_obs, weeks = weeks, x_ticks = x_ticks, year_break = year_break
 )
-saveRDS(ca_lhs_ensemble, "CHIKV_ca_lhs_ensemble.rds")
+saveRDS(lhs_ensemble, "CHIKV_lhs_ensemble.rds")
 
-# Mean-1 seasonal transmission envelope from the point-estimate fit. MAYV_ca_lhs.R
+# Mean-1 seasonal transmission envelope from the point-estimate fit. MAYV_lhs.R
 # consumes this as its seasonal shape (MAYV has no case data of its own to fit).
 season_mean1 <- base$beta / mean(base$beta)
 stopifnot(length(season_mean1) == T_weeks, abs(mean(season_mean1) - 1) < 1e-6)
 saveRDS(season_mean1, "caldas_beta_season.rds")
 cat("Saved caldas_beta_season.rds (mean-1 beta envelope for the MAYV chain).\n")
-cat(sprintf("Saved CHIKV_ca_lhs_ensemble.rds (%d of %d draws retained).\n",
+cat(sprintf("Saved CHIKV_lhs_ensemble.rds (%d of %d draws retained).\n",
             length(ok), n))
 
 
