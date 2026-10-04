@@ -28,7 +28,6 @@
 #
 # Exports CHIKV_lhs_ensemble.rds for CHIKV_engine.R.
 # ============================================================
-setwd("/Users/chloelee/Documents/R/summer_project")
 if (!exists("DEFS_ONLY")) DEFS_ONLY <- FALSE   # TRUE = load definitions only (see below)
 suppressMessages({library(readxl); library(dplyr); library(tidyr); library(ggplot2); library(splines)})
 

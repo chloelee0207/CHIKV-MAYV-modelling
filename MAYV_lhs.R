@@ -76,7 +76,6 @@
 #   * single index case seeded at the WINDOW OPEN (2025-W24, seed_week = 1), matching the
 #     CHIKV engine (infection present from t = 1) so the MAYV outbreak rises with CHIKV.
 # ============================================================
-setwd("/Users/chloelee/Documents/R/summer_project")
 suppressMessages({library(readxl); library(dplyr); library(tidyr); library(ggplot2)})
 
 # ------------------------------------------------------------
