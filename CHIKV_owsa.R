@@ -125,7 +125,8 @@ run_scenario <- function(p) {
   ob   <- outcomes_det(base, aw)
   list(base = ob,
        disb = ob - outcomes_det(sim(p$cov, 0,    p$ve), aw),   # averted, disease-blocking
-       both = ob - outcomes_det(sim(p$cov, p$ve, p$ve), aw))   # averted, + infection-blocking
+       both = ob - outcomes_det(sim(p$cov, p$ve, 0), aw))      # averted, + infection-blocking
+                                                                # (VE_block = 0: see CHIKV_engine.R)
 }
 
 # ------------------------------------------------------------
@@ -227,7 +228,7 @@ cat(sprintf("Scenario surface: %d start weeks x %d coverage levels x 2 arms...\n
 surface <- do.call(rbind, lapply(SW_WEEKS, function(w) do.call(rbind, lapply(SW_COVS, function(cv)
   data.frame(week = w, coverage = cv, arm = factor(SW_ARMS, levels = SW_ARMS),
              pct_averted = 100 * (SW_BASE - c(sw_sim(cv, w, 0, BASE$ve),
-                                              sw_sim(cv, w, BASE$ve, BASE$ve))) / SW_BASE,
+                                              sw_sim(cv, w, BASE$ve, 0))) / SW_BASE,
              stringsAsFactors = FALSE)))))
 surface$epi_week <- sprintf("%d-W%02d", caldas_obs$Year[surface$week],
                             caldas_obs$week[surface$week])
@@ -313,7 +314,7 @@ notes <- data.frame(item = c(
   paste(sprintf("%s [%.4g, %.4g]", names(BOUNDS), sapply(BOUNDS, `[`, 1), sapply(BOUNDS, `[`, 2)), collapse = "; "),
   paste("gamma, sigma, prop_symp. gamma is absorbed by the beta re-fit (R0 = beta/gamma",
         "against the same cases); sigma shifts peak timing not size. prop_symp is held at",
-        "its median, as in Kang et al.; it does NOT cancel -- the fit anchors on",
+        "its median, as in Kang et al. 2025; it does NOT cancel -- the fit anchors on",
         "rho x prop_symp x infections = 8,204, so a lower prop_symp puts more infections",
         "behind the same cases -- and its uncertainty is carried by the probabilistic",
         "analysis (CHIKV_lhs.R samples it per draw)."),

@@ -8,8 +8,10 @@
 # future weeks (mid-2026). This suits a HYPOTHETICAL MAYV outbreak: we pair it with
 # the typical seasonal rhythm, not one year's realised weather.
 #
-# WINDOW: 2025-W40 -> 2026-W38 (52 epi weeks; 2025 carries an epi-week 53, so
-# 2025-W40..W53 = 14 wks and 2026-W01..W38 = 38 wks).
+# WINDOW: 2025-W24 -> 2026-W22, the model window (52 epi weeks; 2025 carries an epi-week
+# 53, so 2025-W24..W53 = 30 wks and 2026-W01..W22 = 22 wks). Index i is the same week as
+# index i of every other envelope, so the series can be used directly as a 52-week
+# envelope (MAYV_owsa.R's pure-rainfall structural row does exactly that).
 #
 # LAG: envelope = normalised rainfall shifted by LAG_WEEKS. Set to 0 by DEFAULT.
 # Justification (see the CHIKV timing analysis): the envelope IS beta, and comparing
@@ -24,16 +26,15 @@
 # FORM: linear in rainfall, normalised to mean 1 (drop-in for base_beta = R0*gamma*season).
 # A saturating/optimum transform is a later refinement.
 # ============================================================
-setwd("/Users/chloelee/Documents/R/summer_project")
 suppressMessages({library(dplyr); library(ggplot2)})
 
 LAG_WEEKS <- 0                                   # rainfall -> transmission lag (weeks)
 
 # ------------------------------------------------------------
-# 1. Window: 52 epi weeks 2025-W40 -> 2026-W38, with MMWR-Sunday midpoints
+# 1. Window: 52 epi weeks 2025-W24 -> 2026-W22, with MMWR-Sunday midpoints
 # ------------------------------------------------------------
-win <- rbind(data.frame(Year = 2025, week = 40:53),
-             data.frame(Year = 2026, week = 1:38))
+win <- rbind(data.frame(Year = 2025, week = 24:53),
+             data.frame(Year = 2026, week = 1:22))
 win$week_index <- seq_len(nrow(win))
 win$week_label <- sprintf("%d-W%02d", win$Year, win$week)
 stopifnot(nrow(win) == 52)
@@ -73,8 +74,8 @@ saveRDS(season, "caldas_rain_season.rds")
 write.csv(win[, c("week_index", "week_label", "rain", "season")],
           "caldas_rain_season.csv", row.names = FALSE)
 
-year_break <- 14.5   # between 2025-W53 (idx 14) and 2026-W01 (idx 15)
-tick_idx   <- c(5, 10, 15, 22, 34, 46)
+year_break <- 30.5   # between 2025-W53 (idx 30) and 2026-W01 (idx 31)
+tick_idx   <- c(7, 17, 27, 40, 50)
 x_ticks    <- data.frame(week_index = tick_idx, week_label = win$week_label[tick_idx])
 p <- ggplot(win, aes(week_index, season)) +
   annotate("rect", xmin = min(which(season >= 1)) - 0.5, xmax = max(which(season >= 1)) + 0.5,

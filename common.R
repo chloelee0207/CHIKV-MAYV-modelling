@@ -8,7 +8,7 @@
 #   week_to_index()       calendar (year, epi-week) -> within-window index
 #   fmtq()                "median (2.5% - 97.5%)" formatter for MC draws
 #   burden()              summarise an SEIR run -> infections/symp/hosp/deaths
-#   load_burden_params()  read disease_progression.xlsx (Hyolim Table S4) and
+#   load_burden_params()  read disease_progression.xlsx (Kang et al. 2025 Table S4) and
 #                         return the Beta(alpha,beta) severity parameters
 # ============================================================
 library(readxl)
@@ -62,7 +62,7 @@ burden <- function(out, hr = hosp_rate, cv = cfr_vec, w = age_weight) {
     deaths           = sum(symp_dw * cv))
 }
 
-# Read the disease-progression Beta(alpha, beta) hyperparameters (Hyolim Table S4,
+# Read the disease-progression Beta(alpha, beta) hyperparameters (Kang et al. 2025 Table S4,
 # disease_progression.xlsx) and return the severity parameters used by burden() and
 # the Monte Carlo draws. `A` is the number of model age groups (for the age->band
 # length check). Returns a named list; the caller typically unpacks it into globals:
@@ -205,7 +205,9 @@ compute_age_weight <- function(inf_age_model, obs_band_prop, age_to_band) {
 # Age-structured weekly SEIRV with vaccination. Returns weekly age x week matrices
 # for infections and symptomatic, plus total_used_age (doses delivered per age = the
 # NNV numerator base). Two efficacy channels: VE_inf moves S->immune (infection
-# blocking); VE_block scales symptomatic among the covered (disease blocking).
+# blocking); VE_block scales symptomatic among the covered (disease blocking). Callers
+# use ONE channel per arm (VE_block = 0 when VE_inf > 0, as in Kang et al. 2025): the
+# symptomatic formula applies VE_block to all infections, so using both would double count.
 seirv_vaccinated <- function(
     T_weeks, 
     A, 
@@ -317,7 +319,7 @@ load_daly_params <- function(dp_path = "disease_progression.xlsx",
   p90_o <- beta_ab("Probability of recovery within 90 days after acute period", "> 40")
   # The five recovery rows are MARGINAL proportions of one cohort, not conditional
   # probabilities: they sum to 1 in each age group. So the chronic proportion is
-  # the SUM of the 6m/12m/30m rows (0.287 / 0.378 at the means), matching Hyolim's chr_prop -- NOT
+  # the SUM of the 6m/12m/30m rows (0.287 / 0.378 at the means), matching chr_prop in Kang et al. 2025 -- NOT
   # a survival cascade (1-p14)(1-p90). Source: O'Driscoll et al. 2021 IJID.
   p6_y  <- beta_ab("Probability of recovery within 6 months after sub-acute period", "< 40")
   p6_o  <- beta_ab("Probability of recovery within 6 months after sub-acute period", "> 40")

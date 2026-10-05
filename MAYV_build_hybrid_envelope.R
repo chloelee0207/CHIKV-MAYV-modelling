@@ -29,9 +29,11 @@
 # outbreak peaks and ~98% resolves (only the deep dry-season trough past W22 is cut off).
 #
 # Ordinal-week bookkeeping (handles the 2025-W53 leap week):
-#   2025 W24..W53 = 24..53 ; 2026 W01..W38 = 54..91
+#   2025 W24..W53 = 24..53 ; 2026 W01..W22 = 54..75
 #   caldas_beta_season.rds: idx i -> ordinal 23+i  (W24=1 .. W22=52)  covers 24..75
-#   caldas_rain_season.rds: idx i -> ordinal 39+i  (W40=1 .. W38=52)  covers 40..91
+#   caldas_rain_season.rds: idx i -> ordinal 23+i  (W24=1 .. W22=52)  covers 24..75
+# The rainfall series is rescaled to meet beta at the join, so its own normalisation
+# cancels and only its SHAPE after 2026-W10 enters the hybrid.
 #
 # Output: caldas_hybrid_season.rds (52-wk, mean-1) + MAYV_hybrid_envelope.png
 #         and a 600-dpi copy, MAYV_hybrid_envelope_600dpi.png, for the manuscript.
@@ -40,9 +42,9 @@
 suppressMessages(library(ggplot2))
 
 beta <- readRDS("caldas_beta_season.rds")   # 2025-W24 .. 2026-W22
-rain <- readRDS("caldas_rain_season.rds")   # 2025-W40 .. 2026-W38
+rain <- readRDS("caldas_rain_season.rds")   # 2025-W24 .. 2026-W22
 b_at <- function(o) beta[o - 23]            # valid ordinal 24..75
-r_at <- function(o) rain[o - 39]            # valid ordinal 40..91
+r_at <- function(o) rain[o - 23]            # valid ordinal 24..75
 
 TRANS <- 63                                 # join at 2026-W10 (beta data-constrained up to here)
 ords  <- 24:75                              # hybrid window 2025-W24 -> 2026-W22 (52 weeks, CHIKV-aligned)
@@ -70,14 +72,14 @@ names(ENV_COL) <- c(LAB_BETA, LAB_HYB, LAB_RAIN)
 
 df <- rbind(
   data.frame(ord = 24:75, val = beta,   env = LAB_BETA),
-  data.frame(ord = 40:91, val = rain,   env = LAB_RAIN),
+  data.frame(ord = 24:75, val = rain,   env = LAB_RAIN),
   data.frame(ord = ords,  val = hybrid, env = LAB_HYB))
 df$env <- factor(df$env, levels = names(ENV_COL))          # legend order, not alphabetical
 p <- ggplot(df, aes(ord, val, colour = env)) + geom_line(linewidth = 1) +
   geom_vline(xintercept = TRANS, linetype = "dashed", colour = "grey50") +
   annotate("text", x = TRANS, y = Inf, label = "join\n2026-W10", vjust = 1.2, size = 3) +
-  scale_x_continuous(breaks = c(24, 40, 50, 54, 63, 75, 91),
-                     labels = wk_lab(c(24, 40, 50, 54, 63, 75, 91))) +
+  scale_x_continuous(breaks = c(24, 40, 50, 54, 63, 75),
+                     labels = wk_lab(c(24, 40, 50, 54, 63, 75))) +
   scale_colour_manual(values = ENV_COL, name = NULL) +
   labs(x = "Week", y = "transmission envelope (mean-1)", colour = NULL) +
   theme_bw(11) + theme(legend.position = "bottom")

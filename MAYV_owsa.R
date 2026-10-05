@@ -88,8 +88,7 @@ BASE <- list(R0 = R0_BASE, imm = IMM_BASE, rho = 0.25, ve = 4/12,
 # structural_sensitivity sheet instead:
 #   envelope -- a model-structure choice between the pure CHIKV beta shape, the pure
 #               rainfall shape and the hybrid. "Lower" and "upper" are meaningless for
-#               a categorical choice, and the rainfall arm additionally peaks before the
-#               campaign completes, so a single bar would conflate size with timing.
+#               a categorical choice.
 #   prop_symp -- the MAYV-specific median (base) vs the CHIKV value 52.4%. Two competing
 #               ASSUMPTIONS, not a range on one quantity. It is also a pure multiplier:
 #               it never enters transmission, so infections and the attack rate are
@@ -435,7 +434,8 @@ notes <- data.frame(item = c("Analysis", "Base case R0", "R0 response curve", "V
           min(r0_response$symptomatic_base), max(r0_response$symptomatic_base),
           min(R0_SWEEP), max(R0_SWEEP)),
   "Disease-blocking only (VE_inf = 0): infections are identical across arms; only symptomatic cases and downstream outcomes move.",
-  "Inherited from the CHIKV fit (hybrid = CHIKV beta rise + climatological dry-season tail). Reported as a structural sensitivity. NB the pure-rainfall envelope peaks at week 16, before the campaign completes (~week 29), so its low averted burden reflects timing as well as epidemic size.",
+  sprintf("Inherited from the CHIKV fit (hybrid = CHIKV beta rise + climatological dry-season tail). Reported as a structural sensitivity. The pure-rainfall envelope peaks at week %d (index 1 = 2025-W24); the pre-outbreak campaign starts dosing at week %d and completes at about week %d.",
+          which.max(env_of("rain")), start_pre + BASE$delay, start_pre + BASE$delay + round(1/BASE$deliv)),
   "gamma and prop_symp (as in the CHIKV OWSA; prop_symp has a structural row instead). Also the reporting rate: MAYV is not fitted, so rho does not enter the transmission model at all -- it converts true cases to reported cases after the simulation and has exactly zero effect on true burden averted. (In the CHIKV OWSA rho ranks third, because there it works backwards from the observed 8,204 cases to infer the size of the true epidemic.)",
   sprintf("52 weeks, 2025-W24 -> 2026-W22 (indices %d-%d).", min(EVAL_WIN), max(EVAL_WIN))),
   stringsAsFactors = FALSE)
