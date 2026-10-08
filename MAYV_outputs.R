@@ -293,8 +293,10 @@ add_res <- function(outcome, scen, v) res_rows[[length(res_rows)+1]] <<- data.fr
 # Deaths are omitted: MAYV_ZERO_DEATHS = TRUE fixes the CFR at 0, so 0/0 is undefined.
 # The blank Mayaro deaths cell in the merged figure is drawn by combined_outputs.R.
 resid_outcomes <- list(
-  list(lab = "Cumulative DALYs", col = "daly"))
-PLOT_OUTCOMES <- c("Cumulative DALYs")
+  list(lab = "Cumulative symptomatic cases", col = "symptomatic"),
+  list(lab = "Cumulative hospitalisations",  col = "hospitalisations"),
+  list(lab = "Cumulative DALYs",             col = "daly"))
+PLOT_OUTCOMES <- sapply(resid_outcomes, `[[`, "lab")
 nm <- vac_names[1]
 for (o in resid_outcomes) {
   v <- pct_of_base(G$per_draw[[nm]][ok, o$col], base_pd[ok, o$col])
@@ -321,7 +323,7 @@ p_resid <- ggplot(resid_plot, aes(scenario, med, fill = scenario)) +
         strip.text = element_text(face = "bold", size = 9),
         panel.grid.minor = element_blank())
 print(p_resid)
-ggsave("MAYV_residual_burden.png", p_resid, width = 3.6, height = 4.0, dpi = 130)
+ggsave("MAYV_residual_burden.png", p_resid, width = 3.6, height = 8.0, dpi = 130)
 # % reduction from no vaccination, the complement of the residual columns. The interval
 # BOUNDS SWAP: a draw with a high residual burden is a draw with a small reduction, so
 # red_lo is 100 - hi and red_hi is 100 - lo. Taking 100 - lo as the lower bound would
