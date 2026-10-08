@@ -554,9 +554,11 @@ add_res <- function(outcome, scen, arm, v) res_rows[[length(res_rows)+1]] <<- da
 
 # outcome label -> per-draw burden column in the engine results
 resid_outcomes <- list(
-  list(lab = "Cumulative DALYs",  col = "daly"),
-  list(lab = "Cumulative deaths", col = "deaths"))
-PLOT_OUTCOMES <- c("Cumulative DALYs", "Cumulative deaths")
+  list(lab = "Cumulative symptomatic cases", col = "symptomatic"),
+  list(lab = "Cumulative hospitalisations",  col = "hospitalisations"),
+  list(lab = "Cumulative DALYs",             col = "daly"),
+  list(lab = "Cumulative deaths",            col = "deaths"))
+PLOT_OUTCOMES <- sapply(resid_outcomes, `[[`, "lab")
 bl <- bmat[["No vaccine (baseline)"]]
 for (arm in arm_names) {
   nm <- paste0(RESID_TIMING, " | ", arm)
@@ -586,7 +588,7 @@ p_resid <- ggplot(resid_plot, aes(scenario, med, fill = scenario)) +
         strip.text = element_text(face = "bold", size = 9),
         panel.grid.minor = element_blank())
 print(p_resid)
-ggsave("CHIKV_residual_burden.png", p_resid, width = 6.4, height = 4.8, dpi = 130)
+ggsave("CHIKV_residual_burden.png", p_resid, width = 6.4, height = 8.6, dpi = 130)
 # % reduction from no vaccination, the complement of the residual columns. The interval
 # BOUNDS SWAP: a draw with a high residual burden is a draw with a small reduction, so
 # red_lo is 100 - hi and red_hi is 100 - lo. Taking 100 - lo as the lower bound would
