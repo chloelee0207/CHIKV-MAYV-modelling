@@ -9,7 +9,7 @@
 #   1. CHIKV_MAYV_epicurves.png       epidemic curves, side by side
 #   2. combined_residual_burden.png   burden as % of no vaccination
 #   3. CHIKV_MAYV_owsa.png            tornado, CHIKV over MAYV
-#   4. combined_master.png            A epicurves / B DALYs / C deaths
+#   4. combined_master.png            A epicurves / B symptomatic / C hospitalisations / D DALYs / E deaths
 #   5. combined_per_100k_doses.xlsx   benefit per 100,000 doses, CHIKV beside MAYV
 #
 # Pure presentation: reads the .rds files the model scripts write and does no SEIR or
@@ -18,7 +18,7 @@
 # Panel geometry. The two blocks are sized for what they have to show, NOT to line up
 # with each other: the epidemic curves get equal halves of the width, while the burden
 # blocks are only two bars wide and are inset so they do not sprawl. A therefore does not
-# share a column grid with B-C, so each block is labelled Chikungunya / Mayaro in its own
+# share a column grid with B-E, so each block is labelled Chikungunya / Mayaro in its own
 # right.
 #
 # Mayaro has no deaths row: MAYV_ZERO_DEATHS = TRUE fixes the MAYV CFR at 0, so the
@@ -37,10 +37,11 @@ suppressMessages({library(dplyr); library(ggplot2); library(patchwork); library(
 if (!exists("MAYV_EPI_SCENARIO")) MAYV_EPI_SCENARIO <- "high"   # "high" R0 2.1-2.9 | "low" R0 1.1-1.3
 
 ARMS      <- c("Disease-blocking", "Disease + infection blocking")
-OUT_LV    <- c("Cumulative DALYs", "Cumulative deaths")  # as stored in the .rds
-# Strip text for the B/C rows -- EDIT HERE to rename them. Must stay in OUT_LV order;
+OUT_LV    <- c("Cumulative symptomatic cases", "Cumulative hospitalisations",
+               "Cumulative DALYs", "Cumulative deaths")       # as stored in the .rds
+# Strip text for the B-E rows -- EDIT HERE to rename them. Must stay in OUT_LV order;
 # the .rds names above are the lookup keys and must not be changed.
-OUT_LAB   <- c("DALYs", "Deaths")
+OUT_LAB   <- c("Symptomatic cases", "Hospitalisations", "DALYs", "Deaths")
 FILL      <- c("No vaccination" = "grey60", "Vaccination" = "#4e79a7")
 scen_cols <- c("No vaccination" = "grey55", "Disease-blocking" = "#4393c3",
                "Disease + infection blocking" = "#d6604d")
@@ -52,7 +53,7 @@ scen_cols <- c("No vaccination" = "grey55", "Disease-blocking" = "#4393c3",
 # ------------------------------------------------------------
 FS <- list(
   panel_letter   = 15,  # the bold A / B / C
-  disease_header = 13,  # "Chikungunya" / "Mayaro" headings above the B-C block
+  disease_header = 13,  # "Chikungunya" / "Mayaro" headings above the B-E block
   block_ylab     = 13,  # rotated "Cumulative burden (% of no vaccination)"
 
   # ---- panel A, the epidemic curves
@@ -281,7 +282,7 @@ burden <- function(d, strip, ylab, x_axis, y_axis, tag, row_strip = FALSE) {
     theme_bw(FS$bur_base) +
     theme(plot.tag = element_text(face = "bold", size = FS$panel_letter),
           plot.tag.position = c(0, 1),
-          # top margin gives each panel letter its own band, so B, C and D stay legible
+          # top margin gives each panel letter its own band, so the B-E letters stay legible
           # instead of being squeezed against the row above
           plot.margin = margin(t = 22, r = 5.5, b = 5.5, l = 5.5),
           axis.text.x  = if (x_axis) element_text(size = FS$bur_axis_x) else element_blank(),
@@ -291,7 +292,7 @@ burden <- function(d, strip, ylab, x_axis, y_axis, tag, row_strip = FALSE) {
           strip.text.x = if (is.null(strip)) element_blank()
                          else element_text(face = "bold", size = FS$bur_strip_x),
           # the outcome strip rides on the RIGHT-hand (MAYV) block only, so it sits at
-          # the far edge of the figure and cannot collide with the B/C/D letters
+          # the far edge of the figure and cannot collide with the B-E letters
           strip.text.y = if (row_strip) element_text(face = "bold", size = FS$bur_strip_y,
                                                     angle = -90)
                          else element_blank(),
@@ -321,13 +322,13 @@ blank_row <- function(o) {
 row_burden <- function(o, tag, strip = FALSE, x_axis = FALSE) {
   st <- if (strip) TRUE else NULL
   c_blk <- burden(one_row(chik, o), st, NULL, x_axis, TRUE, tag)
-  m_blk <- if (o == OUT_LAB[2]) blank_row(o)                          # MAYV CFR is 0
+  m_blk <- if (o == "Deaths") blank_row(o)                            # MAYV CFR is 0
            else burden(one_row(mayv, o), st, NULL, x_axis, FALSE, NULL, row_strip = TRUE)
   list(c = c_blk, m = m_blk)
 }
 
-# Disease names head the whole B-C block, above the panel letters. They sit on their own
-# void row rather than as titles on row B so that they read before the B, and so C
+# Disease names head the whole B-E block, above the panel letters. They sit on their own
+# void row rather than as titles on row B so that they read before the B, and so C-E
 # inherits them without the names being repeated.
 head_lab <- function(txt) ggplot() + labs(title = txt) + theme_void() +
   theme(plot.title = element_text(face = "bold", size = FS$disease_header, hjust = .5,
@@ -336,19 +337,21 @@ head_lab <- function(txt) ggplot() + labs(title = txt) + theme_void() +
 
 YLAB <- "Cumulative burden (% of no vaccination)"
 # Deaths is the bottom row and carries the x-axis. Mayaro has no Deaths panel (CFR = 0),
-# so its only panel, DALYs, needs its own x-axis labels or that column would have none.
+# so its last panel, DALYs, needs its own x-axis labels or that column would have none.
 rB <- row_burden(OUT_LAB[1], "B", strip = TRUE)
-rB$m <- burden(one_row(mayv, OUT_LAB[1]), TRUE, NULL, TRUE, FALSE, NULL, row_strip = TRUE)
-rC <- row_burden(OUT_LAB[2], "C", x_axis = TRUE)
+rC <- row_burden(OUT_LAB[2], "C")
+rD <- row_burden(OUT_LAB[3], "D")
+rD$m <- burden(one_row(mayv, OUT_LAB[3]), NULL, NULL, TRUE, FALSE, NULL, row_strip = TRUE)
+rE <- row_burden(OUT_LAB[4], "E", x_axis = TRUE)
 
-# standalone version of the burden figure, two outcomes stacked
+# standalone version of the burden figure, four outcomes stacked
+pair_row <- function(r) r$c + r$m + plot_layout(widths = c(2, 1))
 burden_rows <- (head_lab("Chikungunya") + head_lab("Mayaro") +
                   plot_layout(widths = c(2, 1))) /
-               (rB$c + rB$m + plot_layout(widths = c(2, 1))) /
-               (rC$c + rC$m + plot_layout(widths = c(2, 1))) +
-               plot_layout(heights = c(.01, 1, 1))
+               pair_row(rB) / pair_row(rC) / pair_row(rD) / pair_row(rE) +
+               plot_layout(heights = c(.01, 1, 1, 1, 1))
 
-# One rotated y title for the whole B-C block. Put on a single row it would be taller
+# One rotated y title for the whole B-E block. Put on a single row it would be taller
 # than that row and get clipped, so it is attached to the wrapped block instead.
 with_ylab <- function(blk) wrap_elements(patchworkGrob(blk)) +
   labs(tag = YLAB) +
@@ -356,8 +359,8 @@ with_ylab <- function(blk) wrap_elements(patchworkGrob(blk)) +
         plot.margin = margin(t = 0, r = 0, b = 0, l = 0))
 
 p_burden <- with_ylab(burden_rows)
-save_fig("combined_residual_burden.png", p_burden, width = 9.5, height = 6.4, dpi = 150)
-cat("Saved combined_residual_burden.png (B DALYs / C deaths).\n")
+save_fig("combined_residual_burden.png", p_burden, width = 9.5, height = 11.5, dpi = 150)
+cat("Saved combined_residual_burden.png (B symptomatic / C hospitalisations / D DALYs / E deaths).\n")
 
 # ------------------------------------------------------------
 # 3. One-way sensitivity: CHIKV (A) over MAYV (B).
@@ -407,8 +410,9 @@ if (!all(file.exists("CHIKV_owsa.rds", "MAYV_owsa.rds"))) {
 }
 
 # ------------------------------------------------------------
-# 4. Master figure: A epidemic curves, B DALYs, C deaths.
-# The disease labels sit once, on the strips over row A; B-C inherit those columns.
+# 4. Master figure: A epidemic curves, B symptomatic cases, C hospitalisations,
+# D DALYs, E deaths. The disease labels sit once, on the strips over row A; B-E inherit
+# those columns.
 # ------------------------------------------------------------
 pA_c <- pE_c + labs(tag = "A") +
   theme(plot.tag = element_text(face = "bold", size = FS$panel_letter),
@@ -436,16 +440,14 @@ row_A <- pA_c + pA_m + plot_layout(widths = c(1, 1), guides = "collect") &
         plot.margin = margin(t = 5.5, r = 5.5, b = 2, l = 5.5))
 
 # the burden panels are two bars wide, so the block is inset rather than stretched
-row_BC <- plot_spacer() + with_ylab(burden_rows) + plot_spacer() +
+row_BE <- plot_spacer() + with_ylab(burden_rows) + plot_spacer() +
   plot_layout(widths = c(.08, 1, .08))
 
-# Two burden rows now, so the block's share and the figure height both shrink; each row
-# keeps the same absolute height as in the three-row version.
-master <- row_A / row_BC + plot_layout(heights = c(1.15, 2.1))
+master <- row_A / row_BE + plot_layout(heights = c(1.15, 3.6))
 
-save_fig("combined_master.png", master, width = 13, height = 11.5, dpi = 150)
-ggsave("combined_master.pdf", master, width = 13, height = 11.5)
-cat("Saved combined_master.png / .pdf (A epicurves, B DALYs, C deaths).\n")
+save_fig("combined_master.png", master, width = 13, height = 16.5, dpi = 150)
+ggsave("combined_master.pdf", master, width = 13, height = 16.5)
+cat("Saved combined_master.png / .pdf (A epicurves, B symptomatic, C hospitalisations, D DALYs, E deaths).\n")
 
 
 # ------------------------------------------------------------
