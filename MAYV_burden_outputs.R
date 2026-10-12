@@ -98,7 +98,7 @@ notes <- data.frame(
            "R0", "Reported", "Draws", "Conditioning"),
   detail = c(
   "Transmission-derived burden only: infections, symptomatic cases, hospitalisations, deaths. Baseline, vaccinated, averted, averted per 100,000 doses.",
-  "DALYs, YLD/YLL, disability weights, illness durations, remaining life-years and the recovery funnel. MAYV evidence for those is thin: the disability weights and most durations are borrowed from CHIKV, and the MAYV recovery shares rest on one 16-patient series (Halsey et al. 2015).",
+  "DALYs, YLD/YLL, disability weights, illness durations, remaining life-years and the recovery funnel. MAYV evidence for those is thin: the disability weights and most durations are borrowed from CHIKV, and the MAYV recovery shares rest on one 16-patient series (Halsey et al. 2013).",
   "Removing those parameters does NOT tighten these intervals, because they never entered them. Infections come straight out of the SEIR; symptomatic = infections x prop_symp; reported = rho x symptomatic. The DALY parameters enter only through YLD and YLL, which are outputs -- nothing feeds back into the epidemic.",
   sprintf("The transmission layer alone. Correlation of log infections with sampled R0 is about +0.74; prop_symp and rho are ~0. Outbreak size is a steep convex function of R0, so sampling it across the scenario range gives a heavily right-skewed distribution -- the 97.5th/2.5th percentile ratio for infections is about %.0fx.", quantile(base_pd[ok,"infections"], .975)/max(quantile(base_pd[ok,"infections"], .025), 1e-9)),
   "Identically zero. No MAYV-attributable death has been confirmed, so the engine sets CFR = 0 (MAYV_ZERO_DEATHS). The deaths rows are kept as an explicit zero rather than dropped.",

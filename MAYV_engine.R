@@ -21,7 +21,7 @@
 #
 # SEVERITY/DALY: the CHIKV disease-progression set (load_burden_params()/load_daly_params()
 # in common.R) with MAYV-specific overrides -- hospitalisation 5% (4-6%), acute duration
-# = the infectious period, recovery shares from Halsey et al. 2015, and no deaths. The
+# = the infectious period, recovery shares from Halsey et al. 2013, and no deaths. The
 # disability weights and the severe, sub-acute and chronic durations stay borrowed from
 # CHIKV, as MAYV has no data for them.
 #
@@ -265,7 +265,7 @@ duSV_d <- qlnorm(nextU(), dp$du_sev$m, dp$du_sev$s)   # severe: borrowed from CH
 duSB_d <- qlnorm(nextU(), dp$du_sub$m, dp$du_sub$s)   # sub-acute duration (chronic DW applied)
 duCH_d <- qlnorm(nextU(), dp$du_chr$m, dp$du_chr$s)
 le_d   <- qlnorm(nextU(9), matrix(dp$le$m, N_DRAWS, 9, byrow=TRUE), matrix(dp$le$s, N_DRAWS, 9, byrow=TRUE))
-# ---- MAYV-SPECIFIC recovery shares, from Halsey et al. 2015 (Peru, n = 16) -----------
+# ---- MAYV-SPECIFIC recovery shares, from Halsey et al. 2013 (Peru, n = 16) -----------
 # Arthralgia prevalence: 15/16 at the acute visit, 11/16 at 3 months. Taking the visits as
 # a partition of one cohort gives counts 1 / 4 / 11 of 16 for acute, sub-acute and chronic,
 # sampled as Dirichlet(1, 4, 11) so the three shares stay correlated and sum to 1 in every
