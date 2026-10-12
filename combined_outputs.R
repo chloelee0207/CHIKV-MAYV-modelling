@@ -9,7 +9,7 @@
 #   1. CHIKV_MAYV_epicurves.png       epidemic curves, side by side
 #   2. combined_residual_burden.png   burden as % of no vaccination
 #   3. CHIKV_MAYV_owsa.png            tornado, CHIKV over MAYV
-#   4. combined_master.png            A epicurves / B symptomatic / C hospitalisations / D DALYs / E deaths
+#   4. combined_master.pdf            A epicurves / B symptomatic / C hospitalisations / D DALYs / E deaths
 #   5. combined_per_100k_doses.xlsx   benefit per 100,000 doses, CHIKV beside MAYV
 #
 # Pure presentation: reads the .rds files the model scripts write and does no SEIR or
@@ -41,41 +41,45 @@ OUT_LV    <- c("Cumulative symptomatic cases", "Cumulative hospitalisations",
                "Cumulative DALYs", "Cumulative deaths")       # as stored in the .rds
 # Strip text for the B-E rows -- EDIT HERE to rename them. Must stay in OUT_LV order;
 # the .rds names above are the lookup keys and must not be changed.
-OUT_LAB   <- c("Symptomatic cases", "Hospitalisations", "DALYs", "Deaths")
+OUT_LAB   <- c("Symptomatic\ncases", "Hospitalisations", "DALYs", "Deaths")
 FILL      <- c("No vaccination" = "grey60", "Vaccination" = "#4e79a7")
 scen_cols <- c("No vaccination" = "grey55", "Disease-blocking" = "#4393c3",
                "Disease + infection blocking" = "#d6604d")
 
 # ------------------------------------------------------------
 # FONT SIZES -- every text size in the combined figures, in one place. Tune here.
+# The figures are drawn at their PRINTED size (FIG_W = 190 mm, Elsevier's full page
+# width), so these are the sizes on the page: nothing is shrunk afterwards. Elsevier asks
+# for at least 7 pt (6 pt for sub/superscripts), so nothing below is smaller than 7 pt.
 # All values are points EXCEPT epi_annot_*, which is the annotate()/geom_text() scale
-# (roughly points / 2.845), because that text is drawn inside the panel as data.
+# in mm (points / 2.845), because that text is drawn inside the panel as data.
 # ------------------------------------------------------------
+FIG_W <- 190 / 25.4                      # 190 mm, full page width, in inches
 FS <- list(
-  panel_letter   = 15,  # the bold A / B / C
-  disease_header = 13,  # "Chikungunya" / "Mayaro" headings above the B-E block
-  block_ylab     = 13,  # rotated "Cumulative burden (% of no vaccination)"
+  panel_letter   = 10,  # the bold A / B / C ...
+  disease_header = 9,   # "Chikungunya" / "Mayaro" headings above the B-E block
+  block_ylab     = 8,   # rotated "Cumulative burden (% of no vaccination)"
 
   # ---- panel A, the epidemic curves
-  epi_base       = 12,  # theme_bw() base; anything not named below inherits from it
-  epi_axis_text  = 12,  # week numbers and case counts
-  epi_axis_title = 13,  # "Week (index, 1 = 2025-W24)", "Predicted symptomatic cases"
-  epi_strip      = 12,  # grey strips: "Chikungunya", "Mayaro (R0 ...)"
-  epi_annot_chik = 4,   # in-panel "% Reduction in predicted symptomatic cases", CHIKV
-  epi_annot_mayv = 4,   # the same text in the MAYV panel  (annotate scale, see above)
-  epi_legend     = 11,  # legend keys under panel A
+  epi_base       = 8,   # theme_bw() base; anything not named below inherits from it
+  epi_axis_text  = 7,   # week numbers and case counts
+  epi_axis_title = 8,   # "Week (index, 1 = 2025-W24)", "Predicted symptomatic cases"
+  epi_strip      = 8,   # grey strips: "Chikungunya", "Mayaro (R0 ...)"
+  epi_annot_chik = 2.5, # in-panel "% Reduction in predicted symptomatic cases" (~7.1 pt)
+  epi_annot_mayv = 2.5, # the same text in the MAYV panel  (annotate scale, see above)
+  epi_legend     = 7,   # legend keys under panel A
 
-  # ---- panels B and C, the burden bars
-  bur_base       = 14,  # theme_bw() base for the burden blocks
-  bur_axis_x     = 12,  # "No vaccination" / "Vaccination"
-  bur_axis_y     = 12,  # 0% - 100%
-  bur_strip_x    = 12,  # top grey strips: the vaccine arm names
-  bur_strip_y    = 12,  # right grey strips: DALYs / Deaths
+  # ---- panels B-E, the burden bars
+  bur_base       = 8,   # theme_bw() base for the burden blocks
+  bur_axis_x     = 7,   # "No vaccination" / "Vaccination"
+  bur_axis_y     = 7,   # 0% - 100%
+  bur_strip_x    = 7.5, # top grey strips: the vaccine arm names
+  bur_strip_y    = 7.5, # right grey strips: outcome names
 
   # ---- the separate tornado figure, CHIKV_MAYV_owsa.png
-  owsa_base      = 14,
-  owsa_title     = 12,
-  owsa_strip     = 10
+  owsa_base      = 9,   # theme_bw() base: axis and legend text are 0.8 x this = 7.2 pt
+  owsa_title     = 9,
+  owsa_strip     = 8
 )
 
 need1 <- function(f, how) if (!file.exists(f)) stop("missing ", f, " -- ", how) else f
@@ -151,21 +155,27 @@ mv_dose <- if (!is.null(M$dose_start))   M$dose_start            else ch_dose
 mv_len  <- if (!is.null(M$deliv_median)) round(1/M$deliv_median) else 10
 
 # ------------------------------------------------------------
-# Figure saving. Every manuscript figure is written TWICE:
-#   <name>.png         screen resolution, for drafting and quick review
-#   <name>_600dpi.png  600 dpi, for submission
-# Both are kept deliberately: a Word document with several 600-dpi images gets very large,
-# so the screen-resolution copy is the fallback if the .docx becomes unwieldy. The figures
-# are identical in physical size (inches) and layout -- only the pixel density differs, so
-# they are interchangeable in the document.
+# Figure saving. Figures are drawn at their printed width (FIG_W). The main-text figure,
+# combined_master, is written as a vector PDF (Elsevier: "vector drawings -> EPS/PDF,
+# embed the font"); cairo_pdf embeds the fonts. Supplementary figures are PNGs at
+# 1000 dpi, Elsevier's minimum for bitmapped line art (7,480 px at full page width).
 # ------------------------------------------------------------
-DPI_PUB <- 600
+DPI_SUPP <- 1000
 save_fig <- function(file, plot, width, height, dpi) {
   ggsave(file, plot, width = width, height = height, dpi = dpi)
-  hi <- sub("[.]png$", "_600dpi.png", file)
-  ggsave(hi, plot, width = width, height = height, dpi = DPI_PUB)
-  cat(sprintf("  saved %s (%d dpi, %.1f MB) and %s (%d dpi, %.1f MB)\n",
-              file, dpi, file.size(file)/1e6, hi, DPI_PUB, file.size(hi)/1e6))
+  cat(sprintf("  saved %s (%.2f x %.2f in, %d dpi, %.1f MB)\n",
+              file, width, height, dpi, file.size(file)/1e6))
+  invisible(NULL)
+}
+save_pdf <- function(file, plot, width, height) {
+  # cairo_pdf embeds the fonts. Without Cairo, R falls back to its basic pdf() device,
+  # which neither embeds fonts nor keeps hyphens (it prints "-" as a minus sign), so
+  # stop rather than write a PDF that fails the journal's requirements. On macOS, Cairo
+  # needs XQuartz (https://www.xquartz.org); Windows and Linux builds include it.
+  if (!isTRUE(capabilities("cairo")))
+    stop("combined_master.pdf needs R's Cairo graphics (on macOS install XQuartz, then restart R).")
+  ggsave(file, plot, width = width, height = height, device = cairo_pdf)
+  cat(sprintf("  saved %s (%.2f x %.2f in, vector)\n", file, width, height))
   invisible(NULL)
 }
 
@@ -256,7 +266,7 @@ p_epi <- pE_c + (pE_m + guides(fill = "none", colour = "none", linetype = "none"
   theme(legend.position = "bottom", legend.justification = "center",
         legend.box = "vertical", legend.box.just = "center",
         legend.spacing.y = unit(1, "pt"))
-save_fig("CHIKV_MAYV_epicurves.png", p_epi, width = 11, height = 4.8, dpi = 130)
+save_fig("CHIKV_MAYV_epicurves.png", p_epi, width = FIG_W, height = 3.4, dpi = 300)
 cat(sprintf("Saved CHIKV_MAYV_epicurves.png (MAYV = '%s', R0 %.1f-%.1f, all %d draws).\n",
             MAYV_EPI_SCENARIO, M$R0_lo, M$R0_hi, M$N_DRAWS))
 
@@ -281,10 +291,10 @@ burden <- function(d, strip, ylab, x_axis, y_axis, tag, row_strip = FALSE) {
     labs(tag = tag, x = NULL, y = ylab) +
     theme_bw(FS$bur_base) +
     theme(plot.tag = element_text(face = "bold", size = FS$panel_letter),
-          plot.tag.position = c(0, 1),
-          # top margin gives each panel letter its own band, so the B-E letters stay legible
-          # instead of being squeezed against the row above
-          plot.margin = margin(t = 22, r = 5.5, b = 5.5, l = 5.5),
+          # the letter gets its own margin band (ggplot2 >= 3.5), so it cannot sit on the
+          # y-axis labels however the fonts are measured
+          plot.tag.position = "topleft", plot.tag.location = "margin",
+          plot.margin = margin(t = 4, r = 5.5, b = 4, l = 2),
           axis.text.x  = if (x_axis) element_text(size = FS$bur_axis_x) else element_blank(),
           axis.ticks.x = if (x_axis) element_line() else element_blank(),
           axis.text.y  = if (y_axis) element_text(size = FS$bur_axis_y) else element_blank(),
@@ -359,7 +369,7 @@ with_ylab <- function(blk) wrap_elements(patchworkGrob(blk)) +
         plot.margin = margin(t = 0, r = 0, b = 0, l = 0))
 
 p_burden <- with_ylab(burden_rows)
-save_fig("combined_residual_burden.png", p_burden, width = 9.5, height = 11.5, dpi = 150)
+save_fig("combined_residual_burden.png", p_burden, width = FIG_W, height = 7.0, dpi = 300)
 cat("Saved combined_residual_burden.png (B symptomatic / C hospitalisations / D DALYs / E deaths).\n")
 
 # ------------------------------------------------------------
@@ -390,7 +400,7 @@ if (!all(file.exists("CHIKV_owsa.rds", "MAYV_owsa.rds"))) {
     ggplot(d, aes(y = parameter)) +
       geom_vline(data = bl, aes(xintercept = base), linetype = "dashed", colour = "grey45") +
       geom_segment(aes(x = base, xend = val, yend = parameter, colour = bound),
-                   linewidth = 5.5, alpha = .85) +
+                   linewidth = 3.2, alpha = .85) +
       facet_wrap(~ arm, nrow = 1, scales = "free_x") +
       scale_colour_manual(values = c(lower = "#d6604d", upper = "#4393c3"),
                           labels = c(lower = "Lower", upper = "Upper"), name = "Bound") +
@@ -399,13 +409,14 @@ if (!all(file.exists("CHIKV_owsa.rds", "MAYV_owsa.rds"))) {
       theme_bw(FS$owsa_base) +
       theme(text = element_text(size = FS$owsa_base),
             legend.position = if (legend) "bottom" else "none",
+            axis.text = element_text(size = 7.2), legend.text = element_text(size = 7.2),
             plot.title = element_text(face = "bold", size = FS$owsa_title),
             strip.text = element_text(face = "bold", size = FS$owsa_strip),
             panel.grid.minor = element_blank())
   }
   g <- tor(ca, blA, "A   Chikungunya", FALSE) + tor(mb, blB, "B   Mayaro", TRUE) +
     plot_layout(design = "AA\nB#", heights = c(1, 1.05))   # A spans, B is left column only
-  save_fig("CHIKV_MAYV_owsa.png", g, width = 11, height = 8.4, dpi = 130)
+  save_fig("CHIKV_MAYV_owsa.png", g, width = FIG_W, height = 6.2, dpi = DPI_SUPP)
   cat("Saved CHIKV_MAYV_owsa.png (A = CHIKV, B = MAYV).\n")
 }
 
@@ -445,9 +456,8 @@ row_BE <- plot_spacer() + with_ylab(burden_rows) + plot_spacer() +
 
 master <- row_A / row_BE + plot_layout(heights = c(1.15, 3.6))
 
-save_fig("combined_master.png", master, width = 13, height = 16.5, dpi = 150)
-ggsave("combined_master.pdf", master, width = 13, height = 16.5)
-cat("Saved combined_master.png / .pdf (A epicurves, B symptomatic, C hospitalisations, D DALYs, E deaths).\n")
+save_pdf("combined_master.pdf", master, width = FIG_W, height = 9.3)
+cat("Saved combined_master.pdf (A epicurves, B symptomatic, C hospitalisations, D DALYs, E deaths).\n")
 
 
 # ------------------------------------------------------------
