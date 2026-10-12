@@ -35,8 +35,7 @@
 # The rainfall series is rescaled to meet beta at the join, so its own normalisation
 # cancels and only its SHAPE after 2026-W10 enters the hybrid.
 #
-# Output: caldas_hybrid_season.rds (52-wk, mean-1) + MAYV_hybrid_envelope.png
-#         and a 600-dpi copy, MAYV_hybrid_envelope_600dpi.png, for the manuscript.
+# Output: caldas_hybrid_season.rds (52-wk, mean-1) + MAYV_hybrid_envelope.png (Fig S4)
 # Re-run whenever caldas_beta_season.rds or caldas_rain_season.rds changes.
 # ============================================================
 suppressMessages(library(ggplot2))
@@ -75,16 +74,16 @@ df <- rbind(
   data.frame(ord = 24:75, val = rain,   env = LAB_RAIN),
   data.frame(ord = ords,  val = hybrid, env = LAB_HYB))
 df$env <- factor(df$env, levels = names(ENV_COL))          # legend order, not alphabetical
-p <- ggplot(df, aes(ord, val, colour = env)) + geom_line(linewidth = 1) +
+p <- ggplot(df, aes(ord, val, colour = env)) + geom_line(linewidth = .7) +
   geom_vline(xintercept = TRANS, linetype = "dashed", colour = "grey50") +
-  annotate("text", x = TRANS, y = Inf, label = "join\n2026-W10", vjust = 1.2, size = 3) +
+  annotate("text", x = TRANS, y = Inf, label = "join\n2026-W10", vjust = 1.2, size = 2.5) +
   scale_x_continuous(breaks = c(24, 40, 50, 54, 63, 75),
                      labels = wk_lab(c(24, 40, 50, 54, 63, 75))) +
   scale_colour_manual(values = ENV_COL, name = NULL) +
   labs(x = "Week", y = "transmission envelope (mean-1)", colour = NULL) +
-  theme_bw(11) + theme(legend.position = "bottom")
-ggsave("MAYV_hybrid_envelope.png", p, width = 9, height = 4.6, dpi = 120)
-# 600-dpi companion for the manuscript: identical physical size and layout, so the two
-# are interchangeable in a document and only the pixel density differs.
-ggsave("MAYV_hybrid_envelope_600dpi.png", p, width = 9, height = 4.6, dpi = 600)
-cat("Wrote MAYV_hybrid_envelope.png and MAYV_hybrid_envelope_600dpi.png\n")
+  theme_bw(9) + theme(legend.position = "bottom", legend.text = element_text(size = 7.2))
+# Supplementary figure (Fig S4), drawn at its printed size (190 mm, Elsevier's full page
+# width; theme_bw(9) puts axis and legend text at 7.2 pt) and saved as a PNG at 1000 dpi,
+# Elsevier's minimum for bitmapped line art.
+ggsave("MAYV_hybrid_envelope.png", p, width = 190 / 25.4, height = 3.6, dpi = 1000)
+cat("Wrote MAYV_hybrid_envelope.png\n")
