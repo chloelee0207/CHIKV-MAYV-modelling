@@ -287,21 +287,23 @@ print(transform(r0_response, infections_base = round(infections_base),
 
 scen_pts <- subset(r0_response, R0 %in% round(R0_MARKS, 10))
 p_r0 <- ggplot(r0_response, aes(R0)) +
-  geom_line(aes(y = pmax(symptomatic_base, 0.5), colour = "Baseline symptomatic"), linewidth = 1) +
-  geom_line(aes(y = pmax(averted, 0.5),          colour = "Averted by vaccine"),   linewidth = 1) +
-  geom_point(data = scen_pts, aes(y = pmax(symptomatic_base, 0.5)), size = 2.6, colour = "#c0392b") +
+  geom_line(aes(y = pmax(symptomatic_base, 0.5), colour = "Baseline symptomatic"), linewidth = .7) +
+  geom_line(aes(y = pmax(averted, 0.5),          colour = "Averted by vaccine"),   linewidth = .7) +
+  geom_point(data = scen_pts, aes(y = pmax(symptomatic_base, 0.5)), size = 1.8, colour = "#c0392b") +
   geom_vline(xintercept = unname(R0_MARKS), linetype = "dotted", colour = "grey40") +
-  annotate("text", x = R0_MARKS["low"],  y = Inf, label = sprintf("low\n%.2f",  R0_MARKS["low"]),  vjust = 1.3, size = 3, colour = "grey30") +
-  annotate("text", x = R0_MARKS["high"], y = Inf, label = sprintf("high\n%.2f", R0_MARKS["high"]), vjust = 1.3, size = 3, colour = "grey30") +
+  annotate("text", x = R0_MARKS["low"],  y = Inf, label = sprintf("low\n%.2f",  R0_MARKS["low"]),  vjust = 1.3, size = 2.5, colour = "grey30") +
+  annotate("text", x = R0_MARKS["high"], y = Inf, label = sprintf("high\n%.2f", R0_MARKS["high"]), vjust = 1.3, size = 2.5, colour = "grey30") +
   scale_y_log10(labels = scales::comma) +
   scale_colour_manual(values = c("Baseline symptomatic" = "#c0392b",
                                  "Averted by vaccine"   = "#2c7fb8"), name = NULL) +
-  labs(x = "Wet-season peak R0 (fixed)", y = "Symptomatic cases (log scale)",
-       title = "MAYV: outbreak size and vaccine impact vs fixed peak R0",
-       subtitle = sprintf("Deterministic, median inputs; %.0f%% coverage, %.0f%% disease-blocking VE. Dotted lines = the two reported scenarios.",
-                          100*BASE$cov, 100*BASE$ve)) +
-  theme_bw(11) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
-ggsave("MAYV_r0_response.png", p_r0, width = 8.5, height = 5, dpi = 130)
+  # No title on the figure: Elsevier puts the title in the caption. The caption should say
+  # this is deterministic at median inputs, with the base-case coverage and VE, and that the
+  # dotted lines mark the two scenario medians.
+  labs(x = "Wet-season peak R0", y = "Symptomatic cases (log scale)") +
+  theme_bw(9) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
+# Supplementary figure, drawn at its printed size (190 mm, Elsevier's full page width;
+# theme_bw(9) puts axis and legend text at 7.2 pt) and saved at 1000 dpi.
+ggsave("MAYV_r0_response.png", p_r0, width = 190 / 25.4, height = 3.8, dpi = 1000)
 cat("Saved MAYV_r0_response.png\n")
 
 # ------------------------------------------------------------
@@ -402,22 +404,23 @@ if (R0_PSA_RUN) {
                     fill = "Baseline symptomatic"), alpha = .22) +
     geom_ribbon(aes(ymin = pmax(averted_lo, .5), ymax = pmax(averted_hi, .5),
                     fill = "Averted by vaccine"), alpha = .22) +
-    geom_line(aes(y = pmax(symptomatic_med, .5), colour = "Baseline symptomatic"), linewidth = 1) +
-    geom_line(aes(y = pmax(averted_med, .5),     colour = "Averted by vaccine"),   linewidth = 1) +
+    geom_line(aes(y = pmax(symptomatic_med, .5), colour = "Baseline symptomatic"), linewidth = .7) +
+    geom_line(aes(y = pmax(averted_med, .5),     colour = "Averted by vaccine"),   linewidth = .7) +
     geom_vline(xintercept = unname(R0_MARKS), linetype = "dotted", colour = "grey40") +
-    annotate("text", x = R0_MARKS["low"],  y = Inf, label = sprintf("low\n%.2f",  R0_MARKS["low"]),  vjust = 1.3, size = 3, colour = "grey30") +
-    annotate("text", x = R0_MARKS["high"], y = Inf, label = sprintf("high\n%.2f", R0_MARKS["high"]), vjust = 1.3, size = 3, colour = "grey30") +
+    annotate("text", x = R0_MARKS["low"],  y = Inf, label = sprintf("low\n%.2f",  R0_MARKS["low"]),  vjust = 1.3, size = 2.5, colour = "grey30") +
+    annotate("text", x = R0_MARKS["high"], y = Inf, label = sprintf("high\n%.2f", R0_MARKS["high"]), vjust = 1.3, size = 2.5, colour = "grey30") +
     scale_y_log10(labels = scales::comma) +
     scale_colour_manual(values = c("Baseline symptomatic" = "#c0392b",
                                    "Averted by vaccine"   = "#2c7fb8"), name = NULL,
                         aesthetics = c("colour", "fill")) +
-    labs(x = "Wet-season peak R0 (fixed)", y = "Symptomatic cases (log scale)",
-         title = "MAYV: outbreak size and vaccine impact vs fixed peak R0",
-         subtitle = sprintf(paste("Median and 95%% UI over %d draws: gamma, sigma, rho, prop_symp,",
-                                  "coverage, VE, deployment delay.\nR0 is FIXED at each point, so its span is NOT inside these bands."), nd)) +
-    theme_bw(11) + theme(legend.position = "bottom", panel.grid.minor = element_blank(),
-                         plot.subtitle = element_text(size = 8.5))
-  ggsave("MAYV_r0_response_psa.png", p_r0p, width = 9, height = 5.2, dpi = 130)
+    # No title on the figure (Elsevier puts it in the caption). The caption should say the
+    # bands are the median and 95% UI over the draws (gamma, sigma, rho, prop_symp,
+    # coverage, VE, deployment delay) with R0 held at each value, so the R0 span is not
+    # inside the bands.
+    labs(x = "Wet-season peak R0", y = "Symptomatic cases (log scale)") +
+    theme_bw(9) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
+  # Supplementary figure at its printed size (190 mm), 1000 dpi.
+  ggsave("MAYV_r0_response_psa.png", p_r0p, width = 190 / 25.4, height = 3.8, dpi = 1000)
   cat("Saved MAYV_r0_response_psa.png and MAYV_r0_response_table.csv\n")
 }
 
@@ -501,20 +504,14 @@ grid_df <- do.call(rbind, lapply(seq_along(COV_GRID), function(j) {
 
 p_hm <- ggplot(grid_df, aes(factor(100*coverage), factor(100*ve), fill = pct)) +
   geom_tile(colour = "white", linewidth = .4) +
-  geom_text(aes(label = sprintf("%.1f", pct)), size = 4.0, colour = "grey15") +
+  geom_text(aes(label = sprintf("%.1f", pct)), size = 2.5, colour = "grey15") +
   scale_fill_distiller(palette = "Spectral", name = "% of total\nsymptomatic\ncases averted") +
   labs(x = "Vaccine coverage (% of eligible population aged 18-59)",
        y = "Vaccine efficacy (%)") +
-       # title = sprintf("MAYV: %% of symptomatic cases averted, by VE x coverage (fixed peak R0 = %.2f)", BASE$R0),
-       # subtitle = paste("Disease-blocking only, so the grid is EXACT, not interpolated. Near-invariant to R0:",
-       #                  "the reduction is ~VE x coverage x (share of cases in the eligible 18-59 group).")) +
-  theme_bw(11) + theme(panel.grid = element_blank(),
-                       plot.title = element_text(face = "bold", size = 11),
-                       plot.subtitle = element_text(size = 8.5))
-ggsave("MAYV_ve_coverage_heatmap.png", p_hm, width = 8.5, height = 6, dpi = 130)
-# 600-dpi companion for the manuscript. Same physical size and layout, so the two are
-# interchangeable in a document; only the pixel density differs.
-ggsave("MAYV_ve_coverage_heatmap_600dpi.png", p_hm, width = 8.5, height = 6, dpi = 600)
+  theme_bw(9) + theme(panel.grid = element_blank())
+# Supplementary figure, drawn at its printed size (190 mm, Elsevier's full page width;
+# cell labels 2.5 mm = 7.1 pt, axis text 7.2 pt) and saved at 1000 dpi.
+ggsave("MAYV_ve_coverage_heatmap.png", p_hm, width = 190 / 25.4, height = 5.0, dpi = 1000)
 print(p_hm)
 
 write_xlsx(list(ve_coverage_grid = grid_df), "MAYV_ve_coverage_sweep.xlsx")
