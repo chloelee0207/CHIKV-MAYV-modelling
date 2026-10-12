@@ -535,7 +535,7 @@ print(per100k_tbl, row.names = FALSE)
 #                and 30 m rows of O'Driscoll et al. 2021, whose five rows are MARGINAL
 #                shares of one cohort (they sum to 1.000 age-wise) and are renormalised
 #                to sum to exactly 1, as in the engines.
-#   Mayaro       11/16 with arthralgia at the 3-month visit (Halsey et al. 2015), the
+#   Mayaro       11/16 with arthralgia at the 3-month visit (Halsey et al. 2013), the
 #                third component of Dirichlet(1, 4, 11); its exact marginal is Beta(11, 5).
 #
 # Summed PER DRAW, never by adding medians: medians are not additive, and adding the three
@@ -570,7 +570,7 @@ chronic_tbl <- data.frame(
                    "Beta(11, 5), the chronic margin of Dirichlet(1, 4, 11)"),
   source = c("O'Driscoll et al. 2021 IJID (pooled cohorts)",
              "O'Driscoll et al. 2021 IJID (pooled cohorts)",
-             "Halsey et al. 2015 (Peru, n = 16)"),
+             "Halsey et al. 2013 (Peru, n = 16)"),
   stringsAsFactors = FALSE)
 
 # Full three-phase partition, for readers who want to see that the rows sum to 1.
