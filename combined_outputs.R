@@ -41,7 +41,7 @@ OUT_LV    <- c("Cumulative symptomatic cases", "Cumulative hospitalisations",
                "Cumulative DALYs", "Cumulative deaths")       # as stored in the .rds
 # Strip text for the B-E rows -- EDIT HERE to rename them. Must stay in OUT_LV order;
 # the .rds names above are the lookup keys and must not be changed.
-OUT_LAB   <- c("Symptomatic cases", "Hospitalisations", "DALYs", "Deaths")
+OUT_LAB   <- c("Symptomatic\ncases", "Hospitalisations", "DALYs", "Deaths")
 FILL      <- c("No vaccination" = "grey60", "Vaccination" = "#4e79a7")
 scen_cols <- c("No vaccination" = "grey55", "Disease-blocking" = "#4393c3",
                "Disease + infection blocking" = "#d6604d")
@@ -291,10 +291,10 @@ burden <- function(d, strip, ylab, x_axis, y_axis, tag, row_strip = FALSE) {
     labs(tag = tag, x = NULL, y = ylab) +
     theme_bw(FS$bur_base) +
     theme(plot.tag = element_text(face = "bold", size = FS$panel_letter),
-          plot.tag.position = c(0, 1),
-          # top margin gives each panel letter its own band, so the B-E letters stay legible
-          # instead of being squeezed against the row above
-          plot.margin = margin(t = 22, r = 5.5, b = 5.5, l = 5.5),
+          # the letter gets its own margin band (ggplot2 >= 3.5), so it cannot sit on the
+          # y-axis labels however the fonts are measured
+          plot.tag.position = "topleft", plot.tag.location = "margin",
+          plot.margin = margin(t = 4, r = 5.5, b = 4, l = 2),
           axis.text.x  = if (x_axis) element_text(size = FS$bur_axis_x) else element_blank(),
           axis.ticks.x = if (x_axis) element_line() else element_blank(),
           axis.text.y  = if (y_axis) element_text(size = FS$bur_axis_y) else element_blank(),
@@ -456,7 +456,7 @@ row_BE <- plot_spacer() + with_ylab(burden_rows) + plot_spacer() +
 
 master <- row_A / row_BE + plot_layout(heights = c(1.15, 3.6))
 
-save_pdf("combined_master.pdf", master, width = FIG_W, height = 8.8)
+save_pdf("combined_master.pdf", master, width = FIG_W, height = 9.3)
 cat("Saved combined_master.pdf (A epicurves, B symptomatic, C hospitalisations, D DALYs, E deaths).\n")
 
 
