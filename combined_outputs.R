@@ -168,6 +168,12 @@ save_fig <- function(file, plot, width, height, dpi) {
   invisible(NULL)
 }
 save_pdf <- function(file, plot, width, height) {
+  # cairo_pdf embeds the fonts. Without Cairo, R falls back to its basic pdf() device,
+  # which neither embeds fonts nor keeps hyphens (it prints "-" as a minus sign), so
+  # stop rather than write a PDF that fails the journal's requirements. On macOS, Cairo
+  # needs XQuartz (https://www.xquartz.org); Windows and Linux builds include it.
+  if (!isTRUE(capabilities("cairo")))
+    stop("combined_master.pdf needs R's Cairo graphics (on macOS install XQuartz, then restart R).")
   ggsave(file, plot, width = width, height = height, device = cairo_pdf)
   cat(sprintf("  saved %s (%.2f x %.2f in, vector)\n", file, width, height))
   invisible(NULL)
