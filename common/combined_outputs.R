@@ -31,6 +31,7 @@
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2); library(patchwork); library(writexl)
                   library(readxl)})
+dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
 
 # Which MAYV scenario to show. Reads the scenario-TAGGED results file so the figures
 # never depend on which scenario happened to run last.
@@ -83,12 +84,12 @@ FS <- list(
 )
 
 need1 <- function(f, how) if (!file.exists(f)) stop("missing ", f, " -- ", how) else f
-G <- readRDS(need1("CHIKV_engine_results.rds", "run CHIKV_engine.R"))
-M <- readRDS(need1(sprintf("MAYV_engine_results_%s.rds", MAYV_EPI_SCENARIO),
+G <- readRDS(need1("outputs/CHIKV_engine_results.rds", "run CHIKV_engine.R"))
+M <- readRDS(need1(sprintf("outputs/MAYV_engine_results_%s.rds", MAYV_EPI_SCENARIO),
                    sprintf("run MAYV_lhs.R + MAYV_engine.R with R0_SCENARIO <- '%s'",
                            MAYV_EPI_SCENARIO)))
-chik <- readRDS(need1("CHIKV_residual_burden.rds", "run CHIKV_outputs.R"))
-mayv <- readRDS(need1("MAYV_residual_burden.rds",  "run MAYV_outputs.R"))
+chik <- readRDS(need1("outputs/CHIKV_residual_burden.rds", "run CHIKV_outputs.R"))
+mayv <- readRDS(need1("outputs/MAYV_residual_burden.rds",  "run MAYV_outputs.R"))
 stopifnot(!is.null(M$wk_base))                 # re-run MAYV_engine.R to store curves
 
 # Only the MAYV engine results are read by scenario-tagged file name. The residual-burden
@@ -102,8 +103,8 @@ check_mayv_scenario <- function(x, file) {
     stop(sprintf("%s is from the '%s' R0 scenario but MAYV_EPI_SCENARIO is '%s' -- re-run the MAYV chain with R0_SCENARIO <- '%s'.",
                  file, s, MAYV_EPI_SCENARIO, MAYV_EPI_SCENARIO))
 }
-check_mayv_scenario(M,    sprintf("MAYV_engine_results_%s.rds", MAYV_EPI_SCENARIO))
-check_mayv_scenario(mayv, "MAYV_residual_burden.rds")
+check_mayv_scenario(M,    sprintf("outputs/MAYV_engine_results_%s.rds", MAYV_EPI_SCENARIO))
+check_mayv_scenario(mayv, "outputs/MAYV_residual_burden.rds")
 
 T_sim <- G$T_sim
 mayv_lab <- sprintf("Mayaro (R0 %.1f-%.1f)", M$R0_lo, M$R0_hi)
@@ -266,7 +267,7 @@ p_epi <- pE_c + (pE_m + guides(fill = "none", colour = "none", linetype = "none"
   theme(legend.position = "bottom", legend.justification = "center",
         legend.box = "vertical", legend.box.just = "center",
         legend.spacing.y = unit(1, "pt"))
-save_fig("CHIKV_MAYV_epicurves.png", p_epi, width = FIG_W, height = 3.4, dpi = 300)
+save_fig("outputs/CHIKV_MAYV_epicurves.png", p_epi, width = FIG_W, height = 3.4, dpi = 300)
 cat(sprintf("Saved CHIKV_MAYV_epicurves.png (MAYV = '%s', R0 %.1f-%.1f, all %d draws).\n",
             MAYV_EPI_SCENARIO, M$R0_lo, M$R0_hi, M$N_DRAWS))
 
@@ -369,7 +370,7 @@ with_ylab <- function(blk) wrap_elements(patchworkGrob(blk)) +
         plot.margin = margin(t = 0, r = 0, b = 0, l = 0))
 
 p_burden <- with_ylab(burden_rows)
-save_fig("combined_residual_burden.png", p_burden, width = FIG_W, height = 7.0, dpi = 300)
+save_fig("outputs/combined_residual_burden.png", p_burden, width = FIG_W, height = 7.0, dpi = 300)
 cat("Saved combined_residual_burden.png (B symptomatic / C hospitalisations / D DALYs / E deaths).\n")
 
 # ------------------------------------------------------------
@@ -377,11 +378,11 @@ cat("Saved combined_residual_burden.png (B symptomatic / C hospitalisations / D 
 # MAYV has only the disease-blocking arm, so its panel occupies the left-hand column
 # with the right-hand cell left empty.
 # ------------------------------------------------------------
-if (!all(file.exists("CHIKV_owsa.rds", "MAYV_owsa.rds"))) {
+if (!all(file.exists("outputs/CHIKV_owsa.rds", "outputs/MAYV_owsa.rds"))) {
   cat("Skipped CHIKV_MAYV_owsa.png (run CHIKV_owsa.R and MAYV_owsa.R).\n")
 } else {
-  CO <- readRDS("CHIKV_owsa.rds"); MO <- readRDS("MAYV_owsa.rds")
-  check_mayv_scenario(MO, "MAYV_owsa.rds")
+  CO <- readRDS("outputs/CHIKV_owsa.rds"); MO <- readRDS("outputs/MAYV_owsa.rds")
+  check_mayv_scenario(MO, "outputs/MAYV_owsa.rds")
 
   ca <- CO$owsa; ca$val <- ca$symptomatic
   bA <- setNames(CO$base$symptomatic, CO$base$arm)
@@ -416,7 +417,7 @@ if (!all(file.exists("CHIKV_owsa.rds", "MAYV_owsa.rds"))) {
   }
   g <- tor(ca, blA, "A   Chikungunya", FALSE) + tor(mb, blB, "B   Mayaro", TRUE) +
     plot_layout(design = "AA\nB#", heights = c(1, 1.05))   # A spans, B is left column only
-  save_fig("CHIKV_MAYV_owsa.png", g, width = FIG_W, height = 6.2, dpi = DPI_SUPP)
+  save_fig("outputs/CHIKV_MAYV_owsa.png", g, width = FIG_W, height = 6.2, dpi = DPI_SUPP)
   cat("Saved CHIKV_MAYV_owsa.png (A = CHIKV, B = MAYV).\n")
 }
 
@@ -456,7 +457,7 @@ row_BE <- plot_spacer() + with_ylab(burden_rows) + plot_spacer() +
 
 master <- row_A / row_BE + plot_layout(heights = c(1.15, 3.6))
 
-save_pdf("combined_master.pdf", master, width = FIG_W, height = 9.3)
+save_pdf("outputs/combined_master.pdf", master, width = FIG_W, height = 9.3)
 cat("Saved combined_master.pdf (A epicurves, B symptomatic, C hospitalisations, D DALYs, E deaths).\n")
 
 
@@ -516,7 +517,7 @@ p100_notes <- data.frame(item = c("Unit", "Why doses", "Why not a ratio", "Combi
           100*abs(median(mv_db[,"doses"])/median(ch_db[,"doses"]) - 1))),
   stringsAsFactors = FALSE)
 writexl::write_xlsx(list(averted_per_100k_doses = per100k_tbl, notes = p100_notes),
-                    "combined_per_100k_doses.xlsx")
+                    "outputs/combined_per_100k_doses.xlsx")
 cat("Saved combined_per_100k_doses.xlsx (CHIKV beside MAYV, per 100,000 doses).\n")
 print(per100k_tbl, row.names = FALSE)
 
@@ -544,7 +545,7 @@ print(per100k_tbl, row.names = FALSE)
 # Means happen to be additive, and these Betas are near-symmetric, so summing the medians
 # would be within ~0.15% here -- but the interval would not be.
 # ------------------------------------------------------------
-source("common.R")
+source("common/common.R")
 dpar <- load_daly_params()
 set.seed(20260815); N_MC <- 2e5
 rb <- function(p) rbeta(N_MC, p$a, p$b)
@@ -601,7 +602,7 @@ chronic_notes <- data.frame(item = c(
 write_xlsx(list(still_symptomatic_3m = chronic_tbl,
                 full_partition       = partition_tbl,
                 notes                = chronic_notes),
-           "combined_chronic_share.xlsx")
+           "outputs/combined_chronic_share.xlsx")
 cat("\nSaved combined_chronic_share.xlsx (proportion still symptomatic at 3 months).\n")
 print(chronic_tbl[, 1:3], row.names = FALSE)
 cat("\nFull partition:\n"); print(partition_tbl, row.names = FALSE)

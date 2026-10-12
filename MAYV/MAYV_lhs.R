@@ -77,6 +77,7 @@
 #     CHIKV engine (infection present from t = 1) so the MAYV outbreak rises with CHIKV.
 # ============================================================
 suppressMessages({library(readxl); library(dplyr); library(tidyr); library(ggplot2)})
+dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
 
 # ------------------------------------------------------------
 # 1. SEIR forward simulator (seeded at seed_week)
@@ -109,7 +110,7 @@ seir_baseline_MAYV <- function(
 # 2. Population (Caldas Novas), grown 2022 -> 2025
 #    (no prior immunity, so the whole population is susceptible)
 # ------------------------------------------------------------
-age_df <- read_excel("population.xlsx", sheet = "prop_immune")
+age_df <- read_excel("data/population.xlsx", sheet = "prop_immune")
 age_df <- as.data.frame(age_df[tolower(age_df$municipality) == "caldas novas", ])
 stopifnot(nrow(age_df) > 0)
 A <- nrow(age_df)
@@ -131,7 +132,7 @@ T_weeks <- 52   # 2025-W24 -> 2026-W22, aligned with the CHIKV chain
 # resolves inside the window. The rainfall dry season (deep trough, min ~0.04) crashes
 # R_eff after the peak so the outbreak collapses -- for the same reason CHIKV's own
 # outbreak does. So each source is used only where it is informative.
-season_mean1 <- readRDS("caldas_hybrid_season.rds")
+season_mean1 <- readRDS("outputs/caldas_hybrid_season.rds")
 stopifnot(length(season_mean1) == T_weeks, abs(mean(season_mean1) - 1) < 1e-6)
 # R0 INTERPRETATION. r0_is_peak = TRUE: R0 is the SEASONAL-PEAK R_eff (rescale envelope
 # so max = 1; yearly-avg R0 = R0*mean = ~0.58*R0). FALSE: R0 is the ANNUAL-MEAN (envelope
@@ -160,7 +161,7 @@ seed_week <- if (exists("MAYV_SEED")) MAYV_SEED else 1     # seed week index; 1 
 # ------------------------------------------------------------
 # 5. Priors / samplers
 # ------------------------------------------------------------
-cal <- as.data.frame(read_excel("model_calibration.xlsx", sheet = 1))
+cal <- as.data.frame(read_excel("data/model_calibration.xlsx", sheet = 1))
 cal <- cal[cal$Group == "MAYV" & !is.na(cal$Median), ]
 row_for <- function(k) cal[grepl(k, cal$Parameter, ignore.case = TRUE), ][1, ]
 sd_of   <- function(r) (r[["95% UI upper"]] - r[["95% UI lower"]]) / (2*1.96)
@@ -450,7 +451,7 @@ p_rep <- ggplot(data.frame(week = weeks, lo = rb[1,], med = rb[2,], hi = rb[3,],
   theme_bw(12) + theme(plot.title = element_text(face = "bold", hjust = 0.5),
                        plot.subtitle = element_text(hjust = 0.5, size = 9),
                        panel.grid.minor = element_blank())
-ggsave("MAYV_lhs_reported.png", p_rep, width = 8, height = 4.5, dpi = 120)
+ggsave("outputs/MAYV_lhs_reported.png", p_rep, width = 8, height = 4.5, dpi = 120)
 
 p_inf <- ggplot(data.frame(week = weeks, lo = ib[1,], med = ib[2,], hi = ib[3,])) +
   season_layers +
@@ -462,15 +463,15 @@ p_inf <- ggplot(data.frame(week = weeks, lo = ib[1,], med = ib[2,], hi = ib[3,])
        title = "Hypothetical MAYV outbreak: true infections, propagated 95% band") +
   theme_bw(12) + theme(plot.title = element_text(face = "bold", hjust = 0.5),
                        panel.grid.minor = element_blank())
-ggsave("MAYV_lhs_infections.png", p_inf, width = 8, height = 4.5, dpi = 120)
+ggsave("outputs/MAYV_lhs_infections.png", p_inf, width = 8, height = 4.5, dpi = 120)
 
 # ------------------------------------------------------------
 # 10. Save per-draw table + ensemble (mirrors CHIKV_lhs_ensemble.rds shape so a
 #     future MAYV vaccine/engine variant can iterate over these draws directly)
 # ------------------------------------------------------------
 # This script does not source common.R, so DRAWS_DIR is defined here if absent.
-if (!exists("DRAWS_DIR")) DRAWS_DIR <- "lhs_draws"
-dir.create(DRAWS_DIR, showWarnings = FALSE)
+if (!exists("DRAWS_DIR")) DRAWS_DIR <- "outputs/lhs_draws"
+dir.create(DRAWS_DIR, recursive = TRUE, showWarnings = FALSE)
 write.csv(data.frame(draw = 1:n, R0 = R0v, gamma = gam, sigma = sig, rho = rho, prop_symp = psy,
                      immune_frac = imm, total_infections = tot_inf, total_reported = tot_rep,
                      peak_reported_wk = peak_rep_wk, attack_pct = attack,
@@ -493,9 +494,9 @@ mayv_lhs_ensemble <- list(
   season = season, N = N, A = A, age_df = age_df,
   I0_total = I0_total, E0 = E0, seed_week = seed_week,
   T_weeks = T_weeks, weeks = weeks, x_ticks = x_ticks, year_break = year_break)
-saveRDS(mayv_lhs_ensemble, "MAYV_lhs_ensemble.rds")
+saveRDS(mayv_lhs_ensemble, "outputs/MAYV_lhs_ensemble.rds")
 # Scenario-tagged copy, so both R0 scenarios can coexist on disk for comparison.
-saveRDS(mayv_lhs_ensemble, sprintf("MAYV_lhs_ensemble_%s.rds", R0_SCENARIO))
+saveRDS(mayv_lhs_ensemble, sprintf("outputs/MAYV_lhs_ensemble_%s.rds", R0_SCENARIO))
 
 cat(sprintf("\nSaved MAYV_lhs_reported.png, MAYV_lhs_infections.png, MAYV_lhs_draws.csv,\n  MAYV_lhs_ensemble.rds and MAYV_lhs_ensemble_%s.rds (R0 median %.2f)\n",
             R0_SCENARIO, R0_median))

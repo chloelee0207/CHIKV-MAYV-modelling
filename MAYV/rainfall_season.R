@@ -27,6 +27,7 @@
 # A saturating/optimum transform is a later refinement.
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2)})
+dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
 
 LAG_WEEKS <- 0                                   # rainfall -> transmission lag (weeks)
 
@@ -47,7 +48,7 @@ win$date <- as.Date(w01, origin = "1970-01-01") + (win$week - 1) * 7 + 3
 # ------------------------------------------------------------
 # 2. Climatological rainfall grid (rfh_avg by dekad-of-year), spanning the window
 # ------------------------------------------------------------
-r <- read.csv("rainfall_caldas.csv"); r$date <- as.Date(r$date)
+r <- read.csv("data/rainfall_caldas.csv"); r$date <- as.Date(r$date)
 r$md <- format(r$date, "%m-%d")
 clim <- r %>% group_by(md) %>% summarise(rfh_avg = first(rfh_avg), .groups = "drop")
 # Place each dekad-of-year at its ~mid-date in 2025 and 2026 (margin covers the window
@@ -70,9 +71,9 @@ cat(sprintf("Rainfall envelope: lag %d wk | peak %s | range [%.2f, %.2f] | mean 
 # ------------------------------------------------------------
 # 4. Save (drop-in for the old caldas_beta_season.rds) + diagnostic plot
 # ------------------------------------------------------------
-saveRDS(season, "caldas_rain_season.rds")
+saveRDS(season, "outputs/caldas_rain_season.rds")
 write.csv(win[, c("week_index", "week_label", "rain", "season")],
-          "caldas_rain_season.csv", row.names = FALSE)
+          "outputs/caldas_rain_season.csv", row.names = FALSE)
 
 year_break <- 30.5   # between 2025-W53 (idx 30) and 2026-W01 (idx 31)
 tick_idx   <- c(7, 17, 27, 40, 50)
@@ -90,6 +91,6 @@ p <- ggplot(win, aes(week_index, season)) +
   theme_bw(12) + theme(plot.title = element_text(face = "bold", hjust = 0.5),
                        plot.subtitle = element_text(hjust = 0.5, size = 9),
                        panel.grid.minor = element_blank())
-ggsave("caldas_rain_season.png", p, width = 8, height = 4.2, dpi = 120)
+ggsave("outputs/caldas_rain_season.png", p, width = 8, height = 4.2, dpi = 120)
 cat("Saved caldas_rain_season.rds, caldas_rain_season.csv, caldas_rain_season.png\n")
 print(win[, c("week_index", "week_label", "rain", "season")], row.names = FALSE)

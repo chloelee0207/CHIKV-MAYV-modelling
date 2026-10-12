@@ -28,9 +28,9 @@
 suppressMessages({library(dplyr); library(ggplot2); library(writexl)})
 
 DEFS_ONLY <- TRUE
-source("MAYV_engine.R")        # seirv_vaccinated_MAYV, outcome_one, severity/DALY params
-E <- readRDS("MAYV_lhs_ensemble.rds")
-M <- readRDS("MAYV_engine_results.rds")
+source("MAYV/MAYV_engine.R")        # seirv_vaccinated_MAYV, outcome_one, severity/DALY params
+E <- readRDS("outputs/MAYV_lhs_ensemble.rds")
+M <- readRDS("outputs/MAYV_engine_results.rds")
 # GUARD: both files are untagged "current scenario" artefacts written by different scripts.
 # If the ensemble and the engine results come from different R0 scenarios (e.g. the engine
 # was re-run after switching R0_SCENARIO without re-running the LHS), every result below
@@ -116,9 +116,9 @@ PAR_LAB <- c(R0 = "R0", latent = "Latent period",
 # Seasonal envelopes: hybrid (base) vs its two pure components, each peak-normalised
 env_of <- function(tag) {
   v <- switch(tag,
-    hybrid = readRDS("caldas_hybrid_season.rds"),
-    beta   = readRDS("caldas_beta_season.rds"),
-    rain   = { r <- readRDS("caldas_rain_season.rds"); r / mean(r) })
+    hybrid = readRDS("outputs/caldas_hybrid_season.rds"),
+    beta   = readRDS("outputs/caldas_beta_season.rds"),
+    rain   = { r <- readRDS("outputs/caldas_rain_season.rds"); r / mean(r) })
   v <- as.numeric(v); stopifnot(length(v) == T_weeks)
   v / max(v)                                       # r0_is_peak = TRUE
 }
@@ -257,7 +257,7 @@ p_t <- ggplot(owsa, aes(y = parameter)) +
   scale_x_continuous(labels = scales::comma) +
   labs(x = "Symptomatic cases averted", y = NULL) +
   theme_bw(11) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
-ggsave("MAYV_owsa_symptomatic.png", p_t, width = 8.5, height = 4.6, dpi = 130)
+ggsave("outputs/MAYV_owsa_symptomatic.png", p_t, width = 8.5, height = 4.6, dpi = 130)
 print(p_t)
 
 # ------------------------------------------------------------
@@ -303,7 +303,7 @@ p_r0 <- ggplot(r0_response, aes(R0)) +
   theme_bw(9) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
 # Supplementary figure, drawn at its printed size (190 mm, Elsevier's full page width;
 # theme_bw(9) puts axis and legend text at 7.2 pt) and saved at 1000 dpi.
-ggsave("MAYV_r0_response.png", p_r0, width = 190 / 25.4, height = 3.8, dpi = 1000)
+ggsave("outputs/MAYV_r0_response.png", p_r0, width = 190 / 25.4, height = 3.8, dpi = 1000)
 cat("Saved MAYV_r0_response.png\n")
 
 # ------------------------------------------------------------
@@ -394,7 +394,7 @@ if (R0_PSA_RUN) {
     `Symptomatic cases reduced (%)` = fmt3(r0_response_psa$pct_reduction_med, r0_response_psa$pct_reduction_lo,
                                            r0_response_psa$pct_reduction_hi, 1),
     check.names = FALSE, stringsAsFactors = FALSE)
-  write.csv(r0_table, "MAYV_r0_response_table.csv", row.names = FALSE)
+  write.csv(r0_table, "outputs/MAYV_r0_response_table.csv", row.names = FALSE)
   cat("\n=== R0 response TABLE: median (95% UI) over ", nd, " draws ===\n", sep = "")
   print(r0_table, row.names = FALSE)
 
@@ -420,7 +420,7 @@ if (R0_PSA_RUN) {
     labs(x = "Wet-season peak R0", y = "Symptomatic cases (log scale)") +
     theme_bw(9) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
   # Supplementary figure at its printed size (190 mm), 1000 dpi.
-  ggsave("MAYV_r0_response_psa.png", p_r0p, width = 190 / 25.4, height = 3.8, dpi = 1000)
+  ggsave("outputs/MAYV_r0_response_psa.png", p_r0p, width = 190 / 25.4, height = 3.8, dpi = 1000)
   cat("Saved MAYV_r0_response_psa.png and MAYV_r0_response_table.csv\n")
 }
 
@@ -450,11 +450,11 @@ write_xlsx(c(list(notes = notes,
                 r0_response = r0_response),
              if (!is.null(r0_response_psa))
                list(r0_response_psa = r0_response_psa, r0_response_table = r0_table)),
-           "MAYV_owsa.xlsx")
+           "outputs/MAYV_owsa.xlsx")
 saveRDS(list(owsa = owsa, struct = struct, base = base_run, BASE = BASE, BOUNDS = BOUNDS,
              R0_BASE = R0_BASE, R0_SWEEP = R0_SWEEP, r0_response = r0_response,
              r0_response_psa = r0_response_psa,
-             R0_scenario = M$R0_scenario), "MAYV_owsa.rds")
+             R0_scenario = M$R0_scenario), "outputs/MAYV_owsa.rds")
 
 cat("\n=== Swing in symptomatic cases averted ===\n")
 print(owsa |> group_by(parameter) |>
@@ -511,10 +511,10 @@ p_hm <- ggplot(grid_df, aes(factor(100*coverage), factor(100*ve), fill = pct)) +
   theme_bw(9) + theme(panel.grid = element_blank())
 # Supplementary figure, drawn at its printed size (190 mm, Elsevier's full page width;
 # cell labels 2.5 mm = 7.1 pt, axis text 7.2 pt) and saved at 1000 dpi.
-ggsave("MAYV_ve_coverage_heatmap.png", p_hm, width = 190 / 25.4, height = 5.0, dpi = 1000)
+ggsave("outputs/MAYV_ve_coverage_heatmap.png", p_hm, width = 190 / 25.4, height = 5.0, dpi = 1000)
 print(p_hm)
 
-write_xlsx(list(ve_coverage_grid = grid_df), "MAYV_ve_coverage_sweep.xlsx")
+write_xlsx(list(ve_coverage_grid = grid_df), "outputs/MAYV_ve_coverage_sweep.xlsx")
 # The base-case VE (4/12) is not on the 0.1 grid, so report the nearest cell and label it
 # with that cell's own values.
 near <- which.min(abs(grid_df$ve - BASE$ve) + abs(grid_df$coverage - BASE$cov))

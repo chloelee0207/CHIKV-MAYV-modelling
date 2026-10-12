@@ -85,7 +85,7 @@ neg_log_lik <- function(params, observed, T_weeks, df, A, N, R_init_prop, I0,
 # ------------------------------------------------------------
 normalize <- function(x) tolower(gsub("[áàâã]","a",gsub("[éèê]","e",gsub("[íì]","i",
               gsub("[óòôõ]","o",gsub("[úù]","u",gsub("ç","c",x)))))))
-age_df <- read_excel("population.xlsx", sheet="prop_immune")
+age_df <- read_excel("data/population.xlsx", sheet="prop_immune")
 age_df <- as.data.frame(age_df[normalize(age_df$municipality)==normalize("Caldas Novas"),])
 age_mid <- age_df$age_midpoint
 EXPOSURE_CAP <- 12                        # years since CHIKV entered Brazil (2014)
@@ -96,7 +96,7 @@ A <- nrow(age_df)
 
 # Observed weekly cases: canonical 52-week loader from common.R (single source of
 # truth, shared with the fit and the age-stratified script). Window 2025-W24 -> 2026-W22.
-if (!exists("load_caldas_age_cases")) source("common.R")
+if (!exists("load_caldas_age_cases")) source("common/common.R")
 ca_cases       <- load_caldas_age_cases()
 caldas_obs     <- ca_cases$caldas_obs
 observed_cases <- ca_cases$observed_cases
@@ -150,7 +150,7 @@ if (!isTRUE(DEFS_ONLY)) {
 # ------------------------------------------------------------
 # 5. Samplers: gamma/sigma/rho from model_calibration.xlsx, FOI from its 95% UI
 # ------------------------------------------------------------
-cal <- as.data.frame(read_excel("model_calibration.xlsx", sheet=1))
+cal <- as.data.frame(read_excel("data/model_calibration.xlsx", sheet=1))
 cal <- cal[cal$Group=="CHIKV" & !is.na(cal$Median),]
 row_for <- function(k) cal[grepl(k, cal$Parameter, ignore.case=TRUE),][1,]
 sd_of   <- function(r) (r[["95% UI upper"]]-r[["95% UI lower"]])/(2*1.96)
@@ -261,20 +261,20 @@ save_band <- function(file, dfp, ytitle, ttl, add_dashed=NULL, ylim=NULL){
   if(!is.null(ylim))       g <- g + coord_cartesian(ylim=ylim)
   ggsave(file, g, width=7.5, height=4.4, dpi=110)
 }
-save_band("CHIKV_prop_beta.png", data.frame(week=weeks, lo=bb[1,], med=bb[2,], hi=bb[3,]),
+save_band("outputs/CHIKV_prop_beta.png", data.frame(week=weeks, lo=bb[1,], med=bb[2,], hi=bb[3,]),
           expression(beta[t]), "Beta(t) with 95% band",
           data.frame(week=weeks, y=base$beta))
 # Same band, y-axis capped at 4. The full version runs to ~8 because the upper band
 # explodes in the last weeks (7 of 52 weeks exceed 4), which flattens the median curve
 # and the peak. Clipped here so the shape is readable; the full-range version above keeps
 # the excursion visible.
-save_band("CHIKV_prop_beta_zoom.png", data.frame(week=weeks, lo=bb[1,], med=bb[2,], hi=bb[3,]),
+save_band("outputs/CHIKV_prop_beta_zoom.png", data.frame(week=weeks, lo=bb[1,], med=bb[2,], hi=bb[3,]),
           expression(beta[t]), "Beta(t) with 95% band", data.frame(week=weeks, y=base$beta),
           ylim = c(0, 4))
-save_band("CHIKV_prop_R0.png", data.frame(week=weeks, lo=r0b[1,], med=r0b[2,], hi=r0b[3,]),
+save_band("outputs/CHIKV_prop_R0.png", data.frame(week=weeks, lo=r0b[1,], med=r0b[2,], hi=r0b[3,]),
           "R0(t) = beta/gamma", "R0(t) with 95% band vs baseline (dashed)",
           data.frame(week=weeks, y=base$beta/0.54))
-ggsave("CHIKV_prop_infections.png",
+ggsave("outputs/CHIKV_prop_infections.png",
   ggplot(data.frame(week=weeks, lo=ib[1,], med=ib[2,], hi=ib[3,], rep=pb[2,], obs=observed_cases)) +
     geom_ribbon(aes(week, ymin=lo, ymax=hi), fill="#a8d1e7", alpha=.5) +
     geom_line(aes(week, med), colour="#3182bd", linewidth=1) +
@@ -285,7 +285,7 @@ ggsave("CHIKV_prop_infections.png",
 
 # loglik/AIC/BIC are saved per draw as well as summarised above, so the fit criterion can
 # be audited -- e.g. what retaining the sets that fail it would do to the reported fit.
-dir.create(DRAWS_DIR, showWarnings = FALSE)
+dir.create(DRAWS_DIR, recursive = TRUE, showWarnings = FALSE)
 write.csv(data.frame(draw=1:n, FOI=foi, gamma=gam, sigma=sig, rho=rho, prop_symp=psy,
                      immune_pct=immune, R0_peak=R0peak, attack_pct=attack, total_reported=totrep,
                      loglik=loglik, AIC=aic_d, BIC=bic_d,
@@ -314,13 +314,13 @@ lhs_ensemble <- list(
   T_weeks = T_weeks, observed_cases = observed_cases,
   caldas_obs = caldas_obs, weeks = weeks, x_ticks = x_ticks, year_break = year_break
 )
-saveRDS(lhs_ensemble, "CHIKV_lhs_ensemble.rds")
+saveRDS(lhs_ensemble, "outputs/CHIKV_lhs_ensemble.rds")
 
 # Mean-1 seasonal transmission envelope from the point-estimate fit. MAYV_lhs.R
 # consumes this as its seasonal shape (MAYV has no case data of its own to fit).
 season_mean1 <- base$beta / mean(base$beta)
 stopifnot(length(season_mean1) == T_weeks, abs(mean(season_mean1) - 1) < 1e-6)
-saveRDS(season_mean1, "caldas_beta_season.rds")
+saveRDS(season_mean1, "outputs/caldas_beta_season.rds")
 cat("Saved caldas_beta_season.rds (mean-1 beta envelope for the MAYV chain).\n")
 cat(sprintf("Saved CHIKV_lhs_ensemble.rds (%d of %d draws retained).\n",
             length(ok), n))

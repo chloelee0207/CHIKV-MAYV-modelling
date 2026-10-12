@@ -32,11 +32,11 @@
 # Run order: source("MAYV_lhs.R"); source("MAYV_engine.R"); source(this)
 # ============================================================
 library(writexl)
-if (!exists("fmtq")) source("common.R")   # fmtq(v, d) -> "median (lo - hi)"
+if (!exists("fmtq")) source("common/common.R")   # fmtq(v, d) -> "median (lo - hi)"
 
-if (!file.exists("MAYV_engine_results.rds"))
+if (!file.exists("outputs/MAYV_engine_results.rds"))
   stop("MAYV_engine_results.rds not found -- run MAYV_engine.R first.")
-G <- readRDS("MAYV_engine_results.rds")
+G <- readRDS("outputs/MAYV_engine_results.rds")
 
 ok        <- G$outbreak                                  # ALL draws (no take-off conditioning)
 rho_draw  <- G$rho_draw
@@ -188,7 +188,7 @@ write_xlsx(list(notes = notes, baseline_true_reported = base_tbl,
                 vaccinated_true_reported = vtr, averted_MC_95UI = mc_tbl,
                 averted_per_100k_doses = mc_per100k, doses_wastage = doses_wastage,
                 scenario_totals = scenario_totals, attack_rates = attack_rates),
-           "MAYV_vacc_outputs.xlsx")
+           "outputs/MAYV_vacc_outputs.xlsx")
 
 # ============================================================
 # WORKBOOK 2 -- MAYV_daly_outputs.xlsx
@@ -245,7 +245,7 @@ yld_by_phase <- do.call(rbind, lapply(vac_names, function(nm) {
 
 write_xlsx(list(daly_by_scenario = daly_by_scenario, daly_averted = daly_averted,
                 yld_by_phase = yld_by_phase),
-           "MAYV_daly_outputs.xlsx")
+           "outputs/MAYV_daly_outputs.xlsx")
 
 # ============================================================
 # WORKBOOK 3 -- MAYV_nnv_outputs.xlsx
@@ -266,7 +266,7 @@ nnv_tbl <- do.call(rbind, lapply(vac_names, function(nm) {
                       row.names = NULL, check.names = FALSE),
            c("timing","arm", unname(nnv_outcomes)))
 }))
-write_xlsx(list(nnv = nnv_tbl), "MAYV_nnv_outputs.xlsx")
+write_xlsx(list(nnv = nnv_tbl), "outputs/MAYV_nnv_outputs.xlsx")
 
 # ------------------------------------------------------------
 # Residual burden under PRE-OUTBREAK vaccination, as a % of no vaccination.
@@ -323,7 +323,7 @@ p_resid <- ggplot(resid_plot, aes(scenario, med, fill = scenario)) +
         strip.text = element_text(face = "bold", size = 9),
         panel.grid.minor = element_blank())
 print(p_resid)
-ggsave("MAYV_residual_burden.png", p_resid, width = 3.6, height = 8.0, dpi = 130)
+ggsave("outputs/MAYV_residual_burden.png", p_resid, width = 3.6, height = 8.0, dpi = 130)
 # % reduction from no vaccination, the complement of the residual columns. The interval
 # BOUNDS SWAP: a draw with a high residual burden is a draw with a small reduction, so
 # red_lo is 100 - hi and red_hi is 100 - lo. Taking 100 - lo as the lower bound would
@@ -331,10 +331,10 @@ ggsave("MAYV_residual_burden.png", p_resid, width = 3.6, height = 8.0, dpi = 130
 resid$red_med <- 100 - resid$med
 resid$red_lo  <- 100 - resid$hi
 resid$red_hi  <- 100 - resid$lo
-write_xlsx(list(residual_burden_pct = resid), "MAYV_residual_burden.xlsx")
+write_xlsx(list(residual_burden_pct = resid), "outputs/MAYV_residual_burden.xlsx")
 # Tagged with the R0 scenario so combined_outputs.R can check it matches the other inputs.
 attr(resid_plot, "R0_scenario") <- G$R0_scenario
-saveRDS(resid_plot, "MAYV_residual_burden.rds")     # for the merged CHIKV|MAYV figure
+saveRDS(resid_plot, "outputs/MAYV_residual_burden.rds")     # for the merged CHIKV|MAYV figure
 cat("Saved MAYV_residual_burden.png and .xlsx (burden as % of no vaccination;\n",
     "     deaths panel omitted -- MAYV CFR is fixed at 0).\n", sep = "")
 

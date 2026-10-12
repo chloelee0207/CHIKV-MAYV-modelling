@@ -11,11 +11,11 @@
 #             Cross-pathogen figures (CHIKV beside MAYV) live in combined_outputs.R.
 # ============================================================
 library(dplyr); library(tidyr); library(ggplot2); library(writexl); library(patchwork)
-if (!exists("fmtq")) source("common.R")
+if (!exists("fmtq")) source("common/common.R")
 
-if (!file.exists("CHIKV_engine_results.rds"))
+if (!file.exists("outputs/CHIKV_engine_results.rds"))
   stop("CHIKV_engine_results.rds not found -- run CHIKV_engine.R first.")
-G <- readRDS("CHIKV_engine_results.rds")
+G <- readRDS("outputs/CHIKV_engine_results.rds")
 bmat <- G$per_draw; wk_symp <- G$wk_symp; wk_inf <- G$wk_inf; rho_i <- G$rho_i
 scen_names <- G$scen_names; vac_names <- G$vac_names
 timings <- G$timings; T_sim <- G$T_sim; T_data <- G$T_data
@@ -98,7 +98,7 @@ weekly_reported <- data.frame(
   pred_median = round(rq[2, ], 1),
   pred_lo     = round(rq[1, ], 1),
   pred_hi     = round(rq[3, ], 1))
-write.csv(weekly_reported, "CHIKV_vacc_weekly_reported.csv", row.names = FALSE)
+write.csv(weekly_reported, "outputs/CHIKV_vacc_weekly_reported.csv", row.names = FALSE)
 
 # ------------------------------------------------------------
 # 2. Excel workbook
@@ -200,7 +200,7 @@ sheets <- list(notes = notes, baseline_true_reported = base_tbl,
                scenario_totals = scenario_totals, weekly_reported = weekly_reported,
                burden_audit = G$burden_audit, burden_audit_by_age = G$burden_audit_by_age,
                attack_rates = attack_rates)
-write_xlsx(sheets, "CHIKV_vacc_outputs.xlsx")
+write_xlsx(sheets, "outputs/CHIKV_vacc_outputs.xlsx")
 cat("Wrote CHIKV_vacc_outputs.xlsx  (sheets:", paste(names(sheets), collapse=", "), ")\n")
 
 # ------------------------------------------------------------
@@ -248,7 +248,7 @@ make_epicurve <- function(tn) {
 }
 for (tn in names(timings)) {
   p <- make_epicurve(tn); print(p)
-  ggsave(sprintf("CHIKV_vacc_epicurve_%s.png", gsub("[^a-z0-9]+","_",tolower(tn))), p, width=8, height=5, dpi=120)
+  ggsave(sprintf("outputs/CHIKV_vacc_epicurve_%s.png", gsub("[^a-z0-9]+","_",tolower(tn))), p, width=8, height=5, dpi=120)
 }
 
 # ------------------------------------------------------------
@@ -275,7 +275,7 @@ p_bar <- ggplot(mc_long, aes(timing, med, fill=arm)) +
   theme_bw(11) + theme(plot.title=element_text(face="bold", hjust=.5),
                        axis.text.x=element_text(angle=30, hjust=1, size=8),
                        legend.position="bottom", panel.grid.minor=element_blank())
-print(p_bar); ggsave("CHIKV_vacc_averted_mc.png", p_bar, width=10, height=4.2, dpi=120)
+print(p_bar); ggsave("outputs/CHIKV_vacc_averted_mc.png", p_bar, width=10, height=4.2, dpi=120)
 
 # ------------------------------------------------------------
 # 5. Figure (c): baseline observed vs predicted reported cases.
@@ -293,7 +293,7 @@ p_fit <- ggplot(pred, aes(week, med)) +
        title = "Caldas Novas CHIKV: observed vs predicted reported cases (no vaccine)",
        caption = "Dots = observed; line = median, band = 95% UI over LHS draws; dashed = year boundary") +
   theme_bw(11) + theme(plot.title = element_text(face = "bold"), panel.grid.minor = element_blank())
-print(p_fit); ggsave("CHIKV_vacc_fit_observed.png", p_fit, width = 9, height = 5, dpi = 120)
+print(p_fit); ggsave("outputs/CHIKV_vacc_fit_observed.png", p_fit, width = 9, height = 5, dpi = 120)
 
 # ------------------------------------------------------------
 # 5b. Two-panel fit figure: (a) reported cases, (b) inferred infections.
@@ -320,7 +320,7 @@ infd <- data.frame(week = 1:T_sim, lo = iq[1, ], med = iq[2, ], hi = iq[3, ])
 # engine's exact t_idx is recoverable and panel A becomes draw-for-draw consistent with
 # the other two. Falls back to the raw ensemble if that ever stops being true.
 BETA_CAP <- 4                     # see below
-E_lhs <- readRDS("CHIKV_lhs_ensemble.rds")
+E_lhs <- readRDS("outputs/CHIKV_lhs_ensemble.rds")
 t_idx <- match(rho_i, E_lhs$rho)
 if (anyNA(t_idx)) { warning("t_idx not recoverable from rho_i; using the raw LHS ensemble.")
                     beta_draws <- E_lhs$beta } else beta_draws <- E_lhs$beta[t_idx, ]
@@ -389,7 +389,7 @@ p_ab <- pA + pB + pC +
         legend.position = "bottom", legend.justification = "center")
 
 # Supplementary figure: a PNG at 1000 dpi, Elsevier's minimum for bitmapped line art.
-ggsave("CHIKV_fit_cases_infections.png", p_ab, width = FIG_W, height = 5.85, dpi = 1000)
+ggsave("outputs/CHIKV_fit_cases_infections.png", p_ab, width = FIG_W, height = 5.85, dpi = 1000)
 cat(sprintf(paste0("Saved CHIKV_fit_cases_infections.png -- peak beta %.2f (week %d), ",
                    "peak reported %s (week %d), peak infections %s (week %d); ",
                    "%d of %d weeks clipped by the beta cap of %g.\n"),
@@ -456,7 +456,7 @@ yld_by_phase <- do.call(rbind, lapply(vac_names, function(nm) {
 
 write_xlsx(list(daly_by_scenario = daly_by_scenario, daly_averted = daly_averted,
                 yld_by_phase = yld_by_phase),
-           "CHIKV_daly_outputs.xlsx")
+           "outputs/CHIKV_daly_outputs.xlsx")
 
 # (a) baseline DALY composition
 comp <- data.frame(component = factor(c("YLD (acute)","YLD (sub-acute)","YLD (chronic)","YLL"),
@@ -469,7 +469,7 @@ p_comp <- ggplot(comp, aes("Baseline", value, fill = component)) +
   scale_y_continuous(labels = scales::comma) +
   labs(x = NULL, y = "DALYs (median)", title = "Caldas Novas CHIKV: baseline DALY composition (no vaccine)") +
   theme_bw(11) + theme(plot.title = element_text(face = "bold"), panel.grid.minor = element_blank())
-print(p_comp); ggsave("CHIKV_daly_composition.png", p_comp, width = 5.5, height = 5, dpi = 120)
+print(p_comp); ggsave("outputs/CHIKV_daly_composition.png", p_comp, width = 5.5, height = 5, dpi = 120)
 
 # (b) DALYs averted by timing x arm
 dav_long <- do.call(rbind, lapply(vac_names, function(nm) {
@@ -491,7 +491,7 @@ p_dav <- ggplot(dav_long, aes(timing, med, fill = arm)) +
   theme_bw(11) + theme(plot.title = element_text(face="bold", hjust=.5),
                        axis.text.x = element_text(angle = 20, hjust = 1),
                        legend.position = "bottom", panel.grid.minor = element_blank())
-print(p_dav); ggsave("CHIKV_daly_averted.png", p_dav, width = 8, height = 4.5, dpi = 120)
+print(p_dav); ggsave("outputs/CHIKV_daly_averted.png", p_dav, width = 8, height = 4.5, dpi = 120)
 
 # ------------------------------------------------------------
 # 7. Number Needed to Vaccinate: workbook + figure (pre-outbreak rollout).
@@ -507,7 +507,7 @@ nnv_tbl <- do.call(rbind, lapply(vac_names, function(nm) {
   data.frame(timing = sub(" \\|.*","",nm), arm = sub(".*\\| ","",nm), vals,
              row.names = NULL, check.names = FALSE)
 }))
-write_xlsx(list(nnv = nnv_tbl), "CHIKV_nnv_outputs.xlsx")
+write_xlsx(list(nnv = nnv_tbl), "outputs/CHIKV_nnv_outputs.xlsx")
 
 focus_names <- grep("pre-outbreak", vac_names, value = TRUE)
 nnv_plt <- do.call(rbind, lapply(focus_names, function(nm) {
@@ -531,7 +531,7 @@ p_nnv <- ggplot(nnv_plt, aes(arm, med, fill = arm)) +
   theme_bw(11) + theme(plot.title = element_text(face = "bold"),
         axis.text.x = element_blank(), axis.ticks.x = element_blank(),
         legend.position = "bottom", panel.grid.minor = element_blank())
-print(p_nnv); ggsave("CHIKV_nnv.png", p_nnv, width = 11, height = 4.6, dpi = 120)
+print(p_nnv); ggsave("outputs/CHIKV_nnv.png", p_nnv, width = 11, height = 4.6, dpi = 120)
 
 # ------------------------------------------------------------
 # 8. Residual burden under PRE-OUTBREAK vaccination (2025-W40), as a % of no
@@ -585,7 +585,7 @@ p_resid <- ggplot(resid_plot, aes(scenario, med, fill = scenario)) +
         strip.text = element_text(face = "bold", size = 9),
         panel.grid.minor = element_blank())
 print(p_resid)
-ggsave("CHIKV_residual_burden.png", p_resid, width = 6.4, height = 8.6, dpi = 130)
+ggsave("outputs/CHIKV_residual_burden.png", p_resid, width = 6.4, height = 8.6, dpi = 130)
 # % reduction from no vaccination, the complement of the residual columns. The interval
 # BOUNDS SWAP: a draw with a high residual burden is a draw with a small reduction, so
 # red_lo is 100 - hi and red_hi is 100 - lo. Taking 100 - lo as the lower bound would
@@ -593,8 +593,8 @@ ggsave("CHIKV_residual_burden.png", p_resid, width = 6.4, height = 8.6, dpi = 13
 resid$red_med <- 100 - resid$med
 resid$red_lo  <- 100 - resid$hi
 resid$red_hi  <- 100 - resid$lo
-write_xlsx(list(residual_burden_pct = resid), "CHIKV_residual_burden.xlsx")
-saveRDS(resid_plot, "CHIKV_residual_burden.rds")     # for the merged CHIKV|MAYV figure
+write_xlsx(list(residual_burden_pct = resid), "outputs/CHIKV_residual_burden.xlsx")
+saveRDS(resid_plot, "outputs/CHIKV_residual_burden.rds")     # for the merged CHIKV|MAYV figure
 cat("Saved CHIKV_residual_burden.png and .xlsx (pre-outbreak vaccination, 2025-W40,\n",
     "     burden as % of no vaccination).\n", sep = "")
 

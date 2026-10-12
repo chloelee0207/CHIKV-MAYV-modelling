@@ -13,6 +13,7 @@
 # ============================================================
 library(readxl)
 suppressMessages({library(dplyr); library(tidyr)})
+dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
 
 # Calendar -> within-window index for the 2025-W24 -> 2026-W22 fit window.
 # The 2025 epi calendar has a Semana 53, so 2025 contributes 30 weeks (W24..W53):
@@ -43,7 +44,7 @@ if (!exists("age_weight")) age_weight <- 1
 # with the manuscript). Kept in one place so the repo root stays readable. Writers call
 # dir.create() immediately before saving: git cannot track an empty directory, so the
 # folder must be created on demand rather than committed and relied upon.
-DRAWS_DIR <- "lhs_draws"
+DRAWS_DIR <- "outputs/lhs_draws"
 
 # Burden extractor: infections, symptomatic, hospitalisations, deaths.
 # hr (hosp rate) and cv (CFR-by-age) default to the means but accept per-draw values.
@@ -69,7 +70,7 @@ burden <- function(out, hr = hosp_rate, cv = cfr_vec, w = age_weight) {
 #     list2env(load_burden_params(A), globalenv())
 # so downstream code can reference ps_a, hosp_a, cfr_vec, age_to_band, ... directly.
 load_burden_params <- function(A,
-                               dp_path  = "disease_progression.xlsx",
+                               dp_path  = "data/disease_progression.xlsx",
                                dp_sheet = "disease_progression") {
   dp <- read_excel(dp_path, sheet = dp_sheet)
   names(dp)[1:10] <- c("parameter", "group", "median", "ui_lo", "ui_hi",
@@ -136,7 +137,7 @@ load_burden_params <- function(A,
 #   obs_band_prop   observed case proportion across the 9 decadal CFR bands (length 9)
 #   age_levels      the ca_combined age-group labels, in order
 # ------------------------------------------------------------
-load_caldas_age_cases <- function(path = "weekly_case.xlsx", sheet = "ca_combined") {
+load_caldas_age_cases <- function(path = "data/weekly_case.xlsx", sheet = "ca_combined") {
   age_levels <- c("<1 Ano", "1-4", "5-9", "10-14", "15-19",
                   "20-39", "40-59", "60-64", "65-69", "70-79", "80 e +")
   ca_long <- read_excel(path, sheet = sheet) |>
@@ -289,7 +290,7 @@ seirv_vaccinated <- function(
 # disease_progression.xlsx: disability weights (Beta), illness durations (Lognormal),
 # remaining life-years by decadal band (Lognormal), and 14d/90d recovery probabilities
 # by age class (Beta). Returns a named list of the a/b or m/s (+ median) hyperparams.
-load_daly_params <- function(dp_path = "disease_progression.xlsx",
+load_daly_params <- function(dp_path = "data/disease_progression.xlsx",
                              dp_sheet = "disease_progression") {
   dp <- read_excel(dp_path, sheet = dp_sheet)
   names(dp)[1:10] <- c("parameter","group","median","ui_lo","ui_hi","dist","p1","v1","p2","v2")
