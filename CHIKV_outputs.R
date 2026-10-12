@@ -330,16 +330,18 @@ betd <- data.frame(week = 1:T_sim, lo = bq[1, ], med = bq[2, ], hi = bq[3, ])
 FIT_LINE <- "#2166ac"; FIT_BAND <- "#4393c3"
 LAB_FIT  <- "Model fit (median, 95% UI)"; LAB_OBS <- "Observed reported cases"
 
-# Font sizes, in points -- EDIT HERE. Set to the theme_bw(11) defaults this script's other
-# figures inherit, so this panel pair matches them rather than defining its own scale.
-FS_AB <- list(base = 11, axis_title = 11, axis_text = 9, legend = 9, tag = 13)
+# Font sizes, in points -- EDIT HERE. This is a supplementary figure, drawn at its printed
+# size (190 mm wide, Elsevier's full page width), so these are the sizes on the page;
+# Elsevier asks for at least 7 pt.
+FIG_W <- 190 / 25.4
+FS_AB <- list(base = 8, axis_title = 8, axis_text = 7, legend = 7, tag = 10)
 
 # Shared skeleton so the two panels cannot drift apart in scale, grid or year marker.
 fit_panel <- function(d, ytitle) {
   ggplot(d, aes(week, med)) +
     geom_vline(xintercept = year_break, linetype = "dashed", colour = "grey60") +
     geom_ribbon(aes(ymin = lo, ymax = hi), fill = FIT_BAND, alpha = .20) +
-    geom_line(aes(colour = LAB_FIT), linewidth = .9) +
+    geom_line(aes(colour = LAB_FIT), linewidth = .6) +
     scale_x_continuous(breaks = x_breaks, labels = x_labs) +
     scale_y_continuous(labels = scales::comma, expand = expansion(mult = c(.02, .06))) +
     scale_colour_manual(values = setNames(FIT_LINE, LAB_FIT), name = NULL) +
@@ -370,7 +372,7 @@ pA <- fit_panel(betd, expression(paste("Weekly transmission rate ", beta[t]))) +
   coord_cartesian(ylim = c(0, BETA_CAP)) + guides(colour = "none")
 pB <- fit_panel(pred, "Weekly no. of reported cases") +
   geom_point(data = obs, aes(week, cases, shape = LAB_OBS), inherit.aes = FALSE,
-             size = 1.4, colour = "grey15") +
+             size = .9, colour = "grey15") +
   scale_shape_manual(values = setNames(16, LAB_OBS), name = NULL)
 # A and C carry no observed data and repeat B's fit encoding, so their keys are suppressed
 # and the single collected legend serves all three.
@@ -386,14 +388,9 @@ p_ab <- pA + pB + pC +
   theme(plot.tag = element_text(face = "bold", size = FS_AB$tag),
         legend.position = "bottom", legend.justification = "center")
 
-# 11 x 8.6 keeps each panel close to the plot-area proportions of this script's
-# single-panel figures (8-9 x 5), so the text reads at the same relative size.
-# Same three-file pattern as save_fig() in combined_outputs.R: a working PNG, a 600 dpi
-# PNG for raster-only journals, and the vector PDF that should be preferred where accepted.
-ggsave("CHIKV_fit_cases_infections.png",        p_ab, width = 11, height = 8.6, dpi = 300)
-ggsave("CHIKV_fit_cases_infections_600dpi.png", p_ab, width = 11, height = 8.6, dpi = 600)
-ggsave("CHIKV_fit_cases_infections.pdf",        p_ab, width = 11, height = 8.6)
-cat(sprintf(paste0("Saved CHIKV_fit_cases_infections.png/.pdf -- peak beta %.2f (week %d), ",
+# Supplementary figure: a PNG at 1000 dpi, Elsevier's minimum for bitmapped line art.
+ggsave("CHIKV_fit_cases_infections.png", p_ab, width = FIG_W, height = 5.85, dpi = 1000)
+cat(sprintf(paste0("Saved CHIKV_fit_cases_infections.png -- peak beta %.2f (week %d), ",
                    "peak reported %s (week %d), peak infections %s (week %d); ",
                    "%d of %d weeks clipped by the beta cap of %g.\n"),
             max(betd$med), which.max(betd$med),
