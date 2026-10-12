@@ -23,7 +23,7 @@
 # Run order:  CHIKV_lhs.R  (slow, once)  ->  this file  ->  CHIKV_outputs.R
 # ============================================================
 library(dplyr); library(tidyr)
-source("common.R")   # fmtq, qs, burden, load_burden_params, load_caldas_age_cases,
+source("common/common.R")   # fmtq, qs, burden, load_burden_params, load_caldas_age_cases,
                         # compute_age_weight, seirv_vaccinated, load_daly_params
 
 # ---- knobs --------------------------------------------------
@@ -38,9 +38,9 @@ set.seed(2030)
 # ------------------------------------------------------------
 # 0. Load the LHS ensemble
 # ------------------------------------------------------------
-if (!file.exists("CHIKV_lhs_ensemble.rds"))
+if (!file.exists("outputs/CHIKV_lhs_ensemble.rds"))
   stop("CHIKV_lhs_ensemble.rds not found -- run CHIKV_lhs.R first.")
-E <- readRDS("CHIKV_lhs_ensemble.rds")
+E <- readRDS("outputs/CHIKV_lhs_ensemble.rds")
 N <- E$N; A <- E$A; age_df <- E$age_df; age_mid <- E$age_mid
 observed_cases <- E$observed_cases; caldas_obs <- E$caldas_obs
 week_1_cases <- E$week_1_cases; T_data <- E$T_weeks
@@ -349,10 +349,10 @@ for (nm in grep("pre-outbreak", vac_names, value = TRUE)) {
 # parse error in R.
 RES_FILE <- {
   if (exists("CHIKV_DOSES")) {
-    sprintf("CHIKV_engine_results_doses%d.rds", CHIKV_DOSES)
+    sprintf("outputs/CHIKV_engine_results_doses%d.rds", CHIKV_DOSES)
   } else if (exists("CHIKV_FIXED_COV")) {
-    sprintf("CHIKV_engine_results_cov%03d.rds", round(1000*CHIKV_FIXED_COV))
-  } else "CHIKV_engine_results.rds"
+    sprintf("outputs/CHIKV_engine_results_cov%03d.rds", round(1000*CHIKV_FIXED_COV))
+  } else "outputs/CHIKV_engine_results.rds"
 }
 # ---- Stage-2 replication file: the per-draw BURDEN parameters -----------------------
 # Stage 1 (transmission) is written by CHIKV_lhs.R as CHIKV_lhs_draws.csv. This is
@@ -364,7 +364,7 @@ RES_FILE <- {
 # model actually uses; nextU() returns Nx1 matrices, hence as.vector().
 # Written only on the MAIN run, so a fixed-coverage or dose-constrained scenario can never
 # overwrite the file the manuscript cites.
-if (identical(RES_FILE, "CHIKV_engine_results.rds")) {
+if (identical(RES_FILE, "outputs/CHIKV_engine_results.rds")) {
   mcols <- function(m, stem) setNames(as.data.frame(m), sprintf("%s_%d", stem, seq_len(ncol(m))))
   v <- as.vector
   burden_draws <- cbind(
@@ -379,7 +379,7 @@ if (identical(RES_FILE, "CHIKV_engine_results.rds")) {
     data.frame(rec_acute_u40 = v(acy_d), rec_acute_o40 = v(aco_d),
                rec_subacute_u40 = v(sby_d), rec_subacute_o40 = v(sbo_d),
                rec_chronic_u40 = v(chy_d), rec_chronic_o40 = v(cho_d)))
-  dir.create(DRAWS_DIR, showWarnings = FALSE)
+  dir.create(DRAWS_DIR, recursive = TRUE, showWarnings = FALSE)
   bd_path <- file.path(DRAWS_DIR, "CHIKV_burden_draws.csv")
   write.csv(burden_draws, bd_path, row.names = FALSE)
   cat(sprintf("Saved %s (%d draws x %d parameters + draw/transmission_row).\n",

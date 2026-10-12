@@ -32,11 +32,11 @@
 # Output:    MAYV_burden_outputs.xlsx
 # ============================================================
 suppressMessages({library(writexl)})
-if (!exists("fmtq")) source("common.R")
+if (!exists("fmtq")) source("common/common.R")
 
-if (!file.exists("MAYV_engine_results.rds"))
+if (!file.exists("outputs/MAYV_engine_results.rds"))
   stop("MAYV_engine_results.rds not found -- run MAYV_engine.R first.")
-G  <- readRDS("MAYV_engine_results.rds")
+G  <- readRDS("outputs/MAYV_engine_results.rds")
 ok <- G$outbreak                      # ALL draws (no take-off conditioning)
 ND <- G$N_DRAWS
 rho_draw <- G$rho_draw
@@ -115,7 +115,7 @@ write_xlsx(list(notes = notes,
                 averted_95UI = averted,
                 averted_per_100k_doses = per100k,
                 doses_wastage = doses_tbl),
-           "MAYV_burden_outputs.xlsx")
+           "outputs/MAYV_burden_outputs.xlsx")
 cat("Wrote MAYV_burden_outputs.xlsx (transmission-only: no DALYs)\n")
 cat(sprintf("  scenario '%s', R0 sampled %.1f-%.1f, %d draws\n\n",
             G$R0_scenario, G$R0_lo, G$R0_hi, ND))

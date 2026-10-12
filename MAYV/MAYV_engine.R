@@ -32,7 +32,7 @@
 # Run order: source("MAYV_lhs.R")  (ensemble, once);  source("MAYV_engine.R")
 # ============================================================
 library(dplyr); library(ggplot2)
-source("common.R")   # fmtq, load_burden_params, load_daly_params
+source("common/common.R")   # fmtq, load_burden_params, load_daly_params
 
 # ---- knobs --------------------------------------------------
 PHASE_MODE             <- "hosp_severity"   # YLD severity axis (matches CHIKV engine)
@@ -101,9 +101,9 @@ seirv_vaccinated_MAYV <- function(
 # ------------------------------------------------------------
 # 0. Load the MAYV LHS ensemble (transmission draws)
 # ------------------------------------------------------------
-if (!file.exists("MAYV_lhs_ensemble.rds"))
+if (!file.exists("outputs/MAYV_lhs_ensemble.rds"))
   stop("MAYV_lhs_ensemble.rds not found -- run MAYV_lhs.R first.")
-E <- readRDS("MAYV_lhs_ensemble.rds")
+E <- readRDS("outputs/MAYV_lhs_ensemble.rds")
 N <- E$N; A <- E$A; age_df <- E$age_df; season <- E$season
 seed_week <- E$seed_week; E0 <- E$E0; I0_total <- E$I0_total
 T_weeks <- E$T_weeks; weeks <- E$weeks; x_ticks <- E$x_ticks; year_break <- E$year_break
@@ -126,7 +126,7 @@ invisible(list2env(load_burden_params(A), globalenv()))   # ps_*, hosp_*, cfr_*,
 # name, and load_burden_params() matches names EXACTLY, so CHIKV never sees it.
 # (Same pattern as MAYV_ZERO_DEATHS below, which zeroes the borrowed CFRs.)
 {
-  .dp <- as.data.frame(readxl::read_excel("disease_progression.xlsx",
+  .dp <- as.data.frame(readxl::read_excel("data/disease_progression.xlsx",
                                           sheet = "disease_progression"))
   .r  <- .dp[.dp[[1]] == "Probability of hospitalisation among symptomatic cases (MAYV)", ]
   if (nrow(.r) != 1)
@@ -245,13 +245,13 @@ dwCH_d <- qbeta(nextU(), dp$dw_chr$a, dp$dw_chr$b)
 # severe/hospitalised duration, and the sub-acute and chronic durations -- stays borrowed
 # from the CHIKV parameter set.
 {
-  .d2 <- as.data.frame(readxl::read_excel("disease_progression.xlsx",
+  .d2 <- as.data.frame(readxl::read_excel("data/disease_progression.xlsx",
                                           sheet = "disease_progression"))
   .r2 <- .d2[.d2[[1]] == "Duration of illness for mild and moderate Mayaro (years)", ]
   if (nrow(.r2) != 1)
     stop("disease_progression.xlsx: expected exactly one MAYV mild/moderate duration row, found ", nrow(.r2))
   MAYV_ACUTE_DUR <<- list(m = as.numeric(.r2[[8]]), s = as.numeric(.r2[[10]]))
-  .gs <- as.numeric(as.data.frame(readxl::read_excel("model_calibration.xlsx", 1)) |>
+  .gs <- as.numeric(as.data.frame(readxl::read_excel("data/model_calibration.xlsx", 1)) |>
            subset(Group == "MAYV" & grepl("gamma", Parameter)) |> (\(z) z[["Value 2"]])())
   if (!isTRUE(all.equal(MAYV_ACUTE_DUR$s, .gs, tolerance = 1e-8)))
     stop("MAYV acute duration sdlog (", MAYV_ACUTE_DUR$s, ") does not match gamma sdlog (", .gs,
@@ -432,7 +432,7 @@ p_epi <- ggplot(pdf_df, aes(week)) +
   labs(x = "Week", y = "Predicted symptomatic cases", title = ttl) +
   theme_bw(12) + theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 10.5),
                        panel.grid.minor = element_blank())
-epi_fn <- sprintf("MAYV_symptomatic_%s.png", E$R0_scenario)
+epi_fn <- sprintf("outputs/MAYV_symptomatic_%s.png", E$R0_scenario)
 ggsave(epi_fn, p_epi, width = 8, height = 4.5, dpi = 120)
 cat(sprintf("Saved epidemic-curve plot: %s (grey = no vaccine, blue = disease-blocking)\n", epi_fn))
 
@@ -453,7 +453,7 @@ base_curve_plot <- function(M, draws, ytitle, ttl, fn) {
 base_curve_plot(wk_base, draw_set, "Predicted symptomatic cases (no vaccine)",
   sprintf("MAYV symptomatic, NO vaccine (2025-W24 - 2026-W22) | %s scenario, R0 %.1f-%.1f (all %d draws)",
           E$R0_scenario, E$R0_lo, E$R0_hi, N_DRAWS),
-  sprintf("MAYV_baseline_%s.png", E$R0_scenario))
+  sprintf("outputs/MAYV_baseline_%s.png", E$R0_scenario))
 
 
 # ------------------------------------------------------------
@@ -482,7 +482,7 @@ base_curve_plot(wk_base, draw_set, "Predicted symptomatic cases (no vaccine)",
                dur_subacute = v(duSB_d), dur_chronic = v(duCH_d)),
     mcols(le_d, "life_expectancy_band"),
     data.frame(rec_acute = v(acy_d), rec_subacute = v(sby_d), rec_chronic = v(chy_d)))
-  dir.create(DRAWS_DIR, showWarnings = FALSE)
+  dir.create(DRAWS_DIR, recursive = TRUE, showWarnings = FALSE)
   bd_path <- file.path(DRAWS_DIR, "MAYV_burden_draws.csv")
   write.csv(burden_draws, bd_path, row.names = FALSE)
   file.copy(bd_path, file.path(DRAWS_DIR, sprintf("MAYV_burden_draws_%s.csv", E$R0_scenario)),
@@ -509,10 +509,10 @@ saveRDS(list(
   wk_base = wk_base, wk_vacc = wk_vacc, T_weeks = T_weeks,    # weekly symptomatic, for figures
   start_pre = start_pre, immun_delay = immun_delay, deliv_median = median(del_d),
   delay_d = delay_d, dose_start = start_pre + median(delay_d)),
-  "MAYV_engine_results.rds")
+  "outputs/MAYV_engine_results.rds")
 # Scenario-tagged copy so both R0 scenarios can coexist on disk for comparison.
-file.copy("MAYV_engine_results.rds",
-          sprintf("MAYV_engine_results_%s.rds", E$R0_scenario), overwrite = TRUE)
+file.copy("outputs/MAYV_engine_results.rds",
+          sprintf("outputs/MAYV_engine_results_%s.rds", E$R0_scenario), overwrite = TRUE)
 cat(sprintf("\nSaved MAYV_engine_results.rds and MAYV_engine_results_%s.rds\n  (per-draw + aggregates over ALL draws, R0 %.1f-%.1f; severity-phase counts included).\n",
             E$R0_scenario, E$R0_lo, E$R0_hi))
 

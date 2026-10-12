@@ -21,8 +21,8 @@
 suppressMessages({library(dplyr); library(ggplot2); library(writexl)})
 
 DEFS_ONLY <- TRUE                 # load the fit machinery without the 1000-draw run
-source("CHIKV_lhs.R")          # refit(), seir_baseline(), data, fixed choices
-source("common.R")             # seirv_vaccinated, load_burden_params, load_daly_params
+source("CHIKV/CHIKV_lhs.R")          # refit(), seir_baseline(), data, fixed choices
+source("common/common.R")             # seirv_vaccinated, load_burden_params, load_daly_params
 
 invisible(list2env(load_burden_params(A), globalenv()))
 dp <- load_daly_params()
@@ -184,8 +184,8 @@ tornado <- function(outcome, xlab, file) {
                          strip.text = element_text(face = "bold"))
   ggsave(file, p, width = 11, height = 4.6, dpi = 130); p
 }
-p_symp <- tornado("symptomatic", "Symptomatic cases averted", "CHIKV_owsa_symptomatic.png")
-p_daly <- tornado("daly",        "DALYs averted",                              "CHIKV_owsa_daly.png")
+p_symp <- tornado("symptomatic", "Symptomatic cases averted", "outputs/CHIKV_owsa_symptomatic.png")
+p_daly <- tornado("daly",        "DALYs averted",                              "outputs/CHIKV_owsa_daly.png")
 print(p_symp)
 
 # ------------------------------------------------------------
@@ -254,8 +254,8 @@ intended_vs_actual <- surface |>
 # propagated over the 1000-draw ensemble. The fold loss is formed per draw, keeping the
 # two timings paired.
 timing_propagated <- NULL
-if (file.exists("CHIKV_engine_results.rds")) {
-  Ge <- readRDS("CHIKV_engine_results.rds")
+if (file.exists("outputs/CHIKV_engine_results.rds")) {
+  Ge <- readRDS("outputs/CHIKV_engine_results.rds")
   be <- Ge$per_draw[["No vaccine (baseline)"]][, "symptomatic"]
   qf <- function(x, d) sprintf("%.*f (%.*f-%.*f)", d, median(x), d,
                                quantile(x, .025), d, quantile(x, .975))
@@ -296,7 +296,7 @@ p_surface <- ggplot(surface, aes(100*coverage, week, fill = pct_averted)) +
         panel.grid = element_blank(), legend.position = "bottom",
         legend.key.width = unit(1.4, "cm"), legend.key.height = unit(.3, "cm"))
 # Supplementary figure (Fig S6): a PNG at 1000 dpi, Elsevier's minimum for bitmapped line art.
-ggsave("CHIKV_timing_coverage.png", p_surface, width = 190 / 25.4, height = 4.4, dpi = 1000)
+ggsave("outputs/CHIKV_timing_coverage.png", p_surface, width = 190 / 25.4, height = 4.4, dpi = 1000)
 
 # ------------------------------------------------------------
 # 7. Export
@@ -330,10 +330,10 @@ notes <- data.frame(item = c(
 write_xlsx(list(notes = notes, base_case = base_tbl, owsa = owsa,
                 timing_coverage_surface = surface,
                 intended_vs_actual = intended_vs_actual,
-                intended_vs_actual_propagated = timing_propagated), "CHIKV_owsa.xlsx")
+                intended_vs_actual_propagated = timing_propagated), "outputs/CHIKV_owsa.xlsx")
 saveRDS(list(owsa = owsa, base = base_tbl, BASE = BASE, BOUNDS = BOUNDS,
              base_run = base_run, surface = surface,
-             intended_vs_actual = intended_vs_actual), "CHIKV_owsa.rds")
+             intended_vs_actual = intended_vs_actual), "outputs/CHIKV_owsa.rds")
 
 cat("\n=== Base case, pre-outbreak rollout ===\n"); print(base_tbl, row.names = FALSE)
 cat("\n=== Swing in symptomatic cases averted (both-blocking) ===\n")

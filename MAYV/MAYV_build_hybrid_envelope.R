@@ -39,9 +39,10 @@
 # Re-run whenever caldas_beta_season.rds or caldas_rain_season.rds changes.
 # ============================================================
 suppressMessages(library(ggplot2))
+dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
 
-beta <- readRDS("caldas_beta_season.rds")   # 2025-W24 .. 2026-W22
-rain <- readRDS("caldas_rain_season.rds")   # 2025-W24 .. 2026-W22
+beta <- readRDS("outputs/caldas_beta_season.rds")   # 2025-W24 .. 2026-W22
+rain <- readRDS("outputs/caldas_rain_season.rds")   # 2025-W24 .. 2026-W22
 b_at <- function(o) beta[o - 23]            # valid ordinal 24..75
 r_at <- function(o) rain[o - 23]            # valid ordinal 24..75
 
@@ -52,7 +53,7 @@ hybrid <- sapply(ords, function(o) if (o <= TRANS) b_at(o) else r_at(o) * scale)
 hybrid <- hybrid / mean(hybrid)             # store mean-1 (the engine peak-scales anyway)
 
 stopifnot(length(hybrid) == 52, abs(mean(hybrid) - 1) < 1e-9)
-saveRDS(hybrid, "caldas_hybrid_season.rds")
+saveRDS(hybrid, "outputs/caldas_hybrid_season.rds")
 cat(sprintf("Wrote caldas_hybrid_season.rds: %d wks, mean=%.3f, max=%.2f, min-after-peak=%.3f\n",
             length(hybrid), mean(hybrid), max(hybrid), min(hybrid[which.max(hybrid):length(hybrid)])))
 
@@ -85,5 +86,5 @@ p <- ggplot(df, aes(ord, val, colour = env)) + geom_line(linewidth = .7) +
 # Supplementary figure (Fig S4), drawn at its printed size (190 mm, Elsevier's full page
 # width; theme_bw(9) puts axis and legend text at 7.2 pt) and saved as a PNG at 1000 dpi,
 # Elsevier's minimum for bitmapped line art.
-ggsave("MAYV_hybrid_envelope.png", p, width = 190 / 25.4, height = 3.6, dpi = 1000)
+ggsave("outputs/MAYV_hybrid_envelope.png", p, width = 190 / 25.4, height = 3.6, dpi = 1000)
 cat("Wrote MAYV_hybrid_envelope.png\n")

@@ -19,7 +19,7 @@
 # Output:    CHIKV_rho_sensitivity.xlsx
 # ============================================================
 DEFS_ONLY <- TRUE
-suppressMessages({library(writexl); source("CHIKV_lhs.R")})
+suppressMessages({library(writexl); source("CHIKV/CHIKV_lhs.R")})
 
 RHO_UPPER <- 0.3887               # upper 95% bound of the municipal estimate 15.40% (7.02-38.87%)
 
@@ -77,5 +77,5 @@ per_draw <- data.frame(draw = D$draw, FOI = D$FOI, gamma = D$gamma, sigma = D$si
                        rho_fixed = RHO_UPPER, attack_pct_fixed = attack, infections_fixed = infections,
                        total_reported_fixed = totrep, retained_fixed = seq_len(n) %in% ok_up)
 write_xlsx(list(summary = summary_tbl, notes = notes, per_draw = per_draw),
-           "CHIKV_rho_sensitivity.xlsx")
+           "outputs/CHIKV_rho_sensitivity.xlsx")
 cat("\nWrote CHIKV_rho_sensitivity.xlsx\n")
