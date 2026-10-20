@@ -67,14 +67,11 @@ BASE <- list(R0 = R0_BASE, imm = IMM_BASE, rho = 0.25, ve = 4/12,
              psymp = PSYMP,                        # MAYV-specific symptomatic fraction (median)
              latent = 1/SIGMA)                     # latent period, weeks (active scenario median)
 
-# LATENT PERIOD is a tornado row for the same reason as R0: it is SAMPLED per draw from the
-# active latent prior (MAYV_LATENT; base case lognormal 7-12 d, Martins et al. 2020), so it
-# is genuine within-scenario uncertainty and is propagated into every reported interval.
-# Bounds are that prior's 95% interval (its support, for a uniform prior).
-# Its mechanism is indirect -- R_eff = R0 x season(t) x S/N contains no sigma -- so it acts
-# by changing how many generations fit inside the supercritical season before the
-# dry-season tail ends it. The ALTERNATIVE SOURCES (Diagne 1-6 d, Caicedo 3.0 d, the 5-7 d
-# band) are structural rows: competing sources, not points within one range.
+# The LATENT PERIOD is NOT a tornado row. Like the recovery rate, it is a natural-history
+# rate held at its central value, as in the CHIKV OWSA, which varies neither. Its
+# uncertainty is still propagated in the probabilistic analysis (sampled per draw from the
+# MAYV_LATENT prior), and the competing published sources (Martins 7-12 d, Diagne 1-6 d,
+# Caicedo 3.0 d, the 5-7 d band) are run as structural rows below.
 #
 # R0 IS a tornado row. Within a scenario it is SAMPLED per draw from a lognormal on the
 # scenario range and propagated into every reported interval, so leaving it out would make
@@ -100,14 +97,13 @@ BASE <- list(R0 = R0_BASE, imm = IMM_BASE, rho = 0.25, ve = 4/12,
 # REPORTED ones. It therefore has exactly zero effect on true cases averted.
 BOUNDS <- list(
   R0     = unname(c(E$R0_lo, E$R0_hi)),                # the scenario's SAMPLED range
-  latent = unname(c(E$lat_lo, E$lat_hi)),              # 95% interval of the active latent prior
   ve     = c(0.109, 0.610),                            # Kostecki 2026, Beta(4,8) 95% UI
   cov   = c(0.20, 0.40),
   deliv = c(0.09, 0.11),
   delay = c(1, 3),
   immun = c(1, 3))
 
-PAR_LAB <- c(R0 = "R0", latent = "Latent period",
+PAR_LAB <- c(R0 = "R0",
              rho = "Reporting rate", ve = "Vaccine efficacy",
              cov = "Vaccine coverage", deliv = "Weekly delivery speed",
              delay = "Delay in deployment", immun = "Time to immunity",
@@ -439,7 +435,7 @@ notes <- data.frame(item = c("Analysis", "Base case R0", "R0 response curve", "V
   "Disease-blocking only (VE_inf = 0): infections are identical across arms; only symptomatic cases and downstream outcomes move.",
   sprintf("Inherited from the CHIKV fit (hybrid = CHIKV beta rise + climatological dry-season tail). Reported as a structural sensitivity. The pure-rainfall envelope peaks at week %d (index 1 = 2025-W24); the pre-outbreak campaign starts dosing at week %d and completes at about week %d.",
           which.max(env_of("rain")), start_pre + BASE$delay, start_pre + BASE$delay + round(1/BASE$deliv)),
-  "gamma and prop_symp (as in the CHIKV OWSA; prop_symp has a structural row instead). Also the reporting rate: MAYV is not fitted, so rho does not enter the transmission model at all -- it converts true cases to reported cases after the simulation and has exactly zero effect on true burden averted. (In the CHIKV OWSA rho ranks third, because there it works backwards from the observed 8,204 cases to infer the size of the true epidemic.)",
+  "gamma, the latent period and prop_symp (as in the CHIKV OWSA, which varies neither natural-history rate; the latent period and prop_symp have structural rows instead). Also the reporting rate: MAYV is not fitted, so rho does not enter the transmission model at all -- it converts true cases to reported cases after the simulation and has exactly zero effect on true burden averted. (In the CHIKV OWSA rho ranks third, because there it works backwards from the observed 8,204 cases to infer the size of the true epidemic.)",
   sprintf("52 weeks, 2025-W24 -> 2026-W22 (indices %d-%d).", min(EVAL_WIN), max(EVAL_WIN))),
   stringsAsFactors = FALSE)
 write_xlsx(c(list(notes = notes,
