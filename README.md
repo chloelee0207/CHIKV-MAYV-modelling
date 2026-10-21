@@ -35,7 +35,8 @@ run_all.R runs the whole analysis in the right order
 
 ## Data
 
-The input files are deposited on Mendeley Data: **[Mendeley DOI]**. Download them into
+The input files are deposited on Mendeley Data:
+[doi:10.17632/zk98x2736j.1](https://doi.org/10.17632/zk98x2736j.1). Download them into
 `data/`:
 
 | File | Contents | Source |
@@ -48,7 +49,14 @@ The input files are deposited on Mendeley Data: **[Mendeley DOI]**. Download the
 
 The Mendeley deposit also contains the sampled parameter values behind every published
 estimate (the Latin hypercube draws), so the results can be checked without re-running
-the models.
+the models. `run_all.R` writes the same files to `outputs/lhs_draws/`:
+
+| File | Contents |
+|---|---|
+| `CHIKV_lhs_draws.csv` | Chikungunya transmission draws (one row per Latin hypercube draw) |
+| `CHIKV_burden_draws.csv` | Chikungunya vaccine, severity and DALY draws, linked to the transmission draws by `transmission_row` |
+| `MAYV_lhs_draws_low.csv`, `MAYV_lhs_draws_high.csv` | Mayaro transmission draws, one file per R0 scenario |
+| `MAYV_burden_draws_low.csv`, `MAYV_burden_draws_high.csv` | Mayaro vaccine, severity and DALY draws, one file per R0 scenario |
 
 ## Running the analysis
 

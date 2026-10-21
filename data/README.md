@@ -1,7 +1,8 @@
 # Input data
 
 The input files are not stored in this repository. Download them from Mendeley Data
-(**[Mendeley DOI]**) and place them in this folder:
+([doi:10.17632/zk98x2736j.1](https://doi.org/10.17632/zk98x2736j.1)) and place them in
+this folder:
 
 | File | Contents |
 |---|---|
