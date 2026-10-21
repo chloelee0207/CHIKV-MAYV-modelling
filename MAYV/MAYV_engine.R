@@ -460,7 +460,7 @@ base_curve_plot(wk_base, draw_set, "Predicted symptomatic cases (no vaccine)",
 # 7. Save per-draw + aggregated + the outbreak index (severity-phase counts included)
 # ------------------------------------------------------------
 # ---- Stage-2 replication file: the per-draw BURDEN parameters -----------------------
-# Counterpart to MAYV_lhs_draws.csv (stage 1), so the two together contain every
+# Counterpart to MAYV_lhs_draws_<scenario>.csv (stage 1), so the two together contain every
 # sampled input. Unlike the CHIKV engine this one does NOT resample: N_DRAWS = n_ens and
 # the loop indexes E$...[i] directly, so burden draw i always pairs with stage-1 draw i.
 # transmission_row is therefore the identity, kept so both pathogens' files have the same
