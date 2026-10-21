@@ -477,6 +477,11 @@ write.csv(data.frame(draw = 1:n, R0 = R0v, gamma = gam, sigma = sig, rho = rho, 
                      peak_reported_wk = peak_rep_wk, attack_pct = attack,
                      finite = (seq_len(n) %in% ok)),
           file.path(DRAWS_DIR, "MAYV_lhs_draws.csv"), row.names = FALSE)
+# Scenario-tagged copy, as for the burden draws: the untagged file holds whichever
+# scenario ran last, so the published draws for each scenario are the tagged ones.
+invisible(file.copy(file.path(DRAWS_DIR, "MAYV_lhs_draws.csv"),
+                    file.path(DRAWS_DIR, sprintf("MAYV_lhs_draws_%s.csv", R0_SCENARIO)),
+                    overwrite = TRUE))
 
 mayv_lhs_ensemble <- list(
   rep = rep_mat[ok, , drop = FALSE], inf = inf_mat[ok, , drop = FALSE],
@@ -498,5 +503,5 @@ saveRDS(mayv_lhs_ensemble, "outputs/MAYV_lhs_ensemble.rds")
 # Scenario-tagged copy, so both R0 scenarios can coexist on disk for comparison.
 saveRDS(mayv_lhs_ensemble, sprintf("outputs/MAYV_lhs_ensemble_%s.rds", R0_SCENARIO))
 
-cat(sprintf("\nSaved MAYV_lhs_reported.png, MAYV_lhs_infections.png, MAYV_lhs_draws.csv,\n  MAYV_lhs_ensemble.rds and MAYV_lhs_ensemble_%s.rds (R0 median %.2f)\n",
-            R0_SCENARIO, R0_median))
+cat(sprintf("\nSaved MAYV_lhs_reported.png, MAYV_lhs_infections.png, MAYV_lhs_draws.csv,\n  MAYV_lhs_draws_%s.csv, MAYV_lhs_ensemble.rds and MAYV_lhs_ensemble_%s.rds (R0 median %.2f)\n",
+            R0_SCENARIO, R0_SCENARIO, R0_median))
