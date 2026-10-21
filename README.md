@@ -1,4 +1,4 @@
-# Chikungunya and Mayaro vaccination in Caldas Novas, Brazil
+# Incremental health impact of chikungunya vaccine cross-protection against Mayaro virus disease in Brazil: a modeling study
 
 R code for the modelling study *[manuscript title]* ([authors], *Epidemics*, [year]).
 
