@@ -1,7 +1,5 @@
 # Incremental health impact of chikungunya vaccine cross-protection against Mayaro virus disease in Brazil: a modeling study
 
-R code for the modelling study *[manuscript title]* ([authors], *Epidemics*, [year]).
-
 The code fits an age-structured SEIR model to the 2025–26 chikungunya outbreak in Caldas
 Novas (Goiás, Brazil), estimates the health impact of vaccination with Ixchiq, and projects
 the impact of the same vaccine against a hypothetical Mayaro virus outbreak in the same
@@ -43,13 +41,12 @@ The input files are deposited on Mendeley Data:
 |---|---|---|
 | `weekly_case.xlsx` | Weekly reported chikungunya cases by age group, Caldas Novas (sheet `ca_combined`) | SINAN, Brazilian Ministry of Health |
 | `population.xlsx` | Population by age group, Caldas Novas (sheet `prop_immune`) | IBGE 2022 census |
-| `disease_progression.xlsx` | Severity, recovery, disability-weight and life-expectancy parameters | Kang et al. 2025 (Table S4) and sources cited in the manuscript |
-| `model_calibration.xlsx` | Natural-history and reporting priors | Sources cited in the manuscript |
+| `disease_progression.xlsx` | Severity, recovery, disability-weight and life-expectancy parameters | Kang et al. 2025 (Table S4) and sources cited in the supplementary materials |
+| `model_calibration.xlsx` | Natural-history and reporting priors | Sources cited in the supplementary materials |
 | `rainfall_caldas.csv` | Climatological rainfall for Caldas Novas | CHIRPS, via the Humanitarian Data Exchange (WFP, Brazil subnational rainfall) |
 
 The Mendeley deposit also contains the sampled parameter values behind every published
-estimate (the Latin hypercube draws), so the results can be checked without re-running
-the models. `run_all.R` writes the same files to `outputs/lhs_draws/`:
+estimate (the Latin hypercube draws). `run_all.R` writes the same files to `outputs/lhs_draws/`:
 
 | File | Contents |
 |---|---|
@@ -72,7 +69,7 @@ a fresh R session. All results are written to `outputs/`, and each step's consol
 `outputs/logs/`. It takes about 1.5 hours on a laptop; most of that is the chikungunya
 model fit and the two analyses that re-fit it 1,000 times.
 
-To run the steps yourself, keep this order (each step reads what the previous one wrote):
+Follow the following order (each step reads what the previous one wrote):
 
 | Step | Script | What it does |
 |---|---|---|
@@ -86,7 +83,7 @@ To run the steps yourself, keep this order (each step reads what the previous on
 | 8 | `MAYV/MAYV_lhs.R` | Mayaro outbreak draws, run once per R0 scenario (`R0_SCENARIO <- "low"`, then `"high"`) |
 | 9 | `MAYV/MAYV_engine.R` | Mayaro vaccination scenario and health outcomes, after each step 8 |
 | 10 | `MAYV/MAYV_outputs.R`, `MAYV/MAYV_burden_outputs.R` | Mayaro tables and figures |
-| 11 | `MAYV/MAYV_owsa.R` | One-way sensitivity analysis and R0 response |
+| 11 | `MAYV/MAYV_owsa.R` | One-way sensitivity analysis |
 | 12 | `MAYV/MAYV_threshold_sensitivity.R` | Transmission-potential and seeding-week sensitivity |
 | 13 | `common/combined_outputs.R` | Figures and tables combining both models |
 
@@ -114,8 +111,8 @@ their own licence.
 
 ## Citation
 
-If you use this code, please cite [manuscript citation].
+If you use this code, please cite the manuscript.
 
 ## Contact
 
-[name, email]
+Chloe Lee [chloe.lee@alumni.lshtm.ac.uk]
