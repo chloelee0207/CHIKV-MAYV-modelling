@@ -281,4 +281,4 @@ cat(sprintf("Saved CHIKV_lhs_ensemble.rds (%d of %d draws retained).\n",
             length(ok), n))
 
 
-} 
+} # you can load this above without running the 1,000 draws fit
