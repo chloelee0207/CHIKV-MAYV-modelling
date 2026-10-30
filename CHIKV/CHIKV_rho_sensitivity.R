@@ -51,6 +51,6 @@ per_draw <- data.frame(draw = D$draw, FOI = D$FOI, gamma = D$gamma, sigma = D$si
                        rho_main = D$rho, attack_pct_main = D$attack_pct, retained_main = D$feasible,
                        rho_fixed = RHO_UPPER, attack_pct_fixed = attack, infections_fixed = infections,
                        total_reported_fixed = totrep, retained_fixed = seq_len(n) %in% ok_up)
-write_xlsx(list(summary = summary_tbl, notes = notes, per_draw = per_draw),
+write_xlsx(list(summary = summary_tbl, per_draw = per_draw),
            "outputs/CHIKV_rho_sensitivity.xlsx")
 cat("\nWrote CHIKV_rho_sensitivity.xlsx\n")
