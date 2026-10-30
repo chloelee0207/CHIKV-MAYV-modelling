@@ -123,8 +123,8 @@ outcome_one <- function(symp_age, infections, doses, rho, hosp_j, cfr_j, le_band
   reported <- rho * st                                     # rho * symptomatic
   n_hosp    <- st * hosp_j                                 # hospitalised (severe acute)
   n_nonhosp <- st * (1 - hosp_j)                           # non-hospitalised (mild/moderate acute)
-  # The three shares are marginal proportions of one cohort; they sum to ~1)
-  # chronic is the sum of the 6m/12m/30m rows, renormalised to sum to 1 within each age class so every symptomatic case is counted in exactly one phase
+  # Acute / sub-acute / chronic shares come from the Halsey 2013 Dirichlet(1, 4, 11) draw
+  # dividing by their sum keeps every symptomatic case in exactly one phase
   sy_t <- acy + sby + chy; so_t <- aco + sbo + cho
   n_acute    <- sy*acy/sy_t + so*aco/so_t
   n_subacute <- sy*sby/sy_t + so*sbo/so_t
