@@ -94,8 +94,8 @@ full CHIRPS download; it is not part of the pipeline.
 
 | Manuscript item | File in `outputs/` | Script |
 |---|---|---|
-| Figure 1 | `combined_master.pdf` | `common/combined_outputs.R` |
-| Table 2 | `CHIKV_vacc_outputs.xlsx`, `MAYV_vacc_outputs.xlsx`, `*_daly_outputs.xlsx` | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
+| Fig. 1 | `combined_master.pdf` | `common/combined_outputs.R` |
+| Table 1 | `CHIKV_vacc_outputs.xlsx`, `MAYV_vacc_outputs.xlsx`, `*_daly_outputs.xlsx` | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
 | Fig. S4 | `MAYV_hybrid_envelope.png` | `MAYV/MAYV_build_hybrid_envelope.R` |
 | Fig. S6 | `CHIKV_timing_coverage.png` | `CHIKV/CHIKV_owsa.R` |
 | [other supplementary items] | | |
