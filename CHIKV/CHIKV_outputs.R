@@ -1,5 +1,5 @@
 # ============================================================
-# CHIKV_outputs.R 
+# CHIKV_outputs.R
 # Run order:  CHIKV_engine.R  ->  this file
 #             Cross-pathogen figures (CHIKV beside MAYV) live in combined_outputs.R.
 # ============================================================
@@ -257,7 +257,7 @@ p_fit <- ggplot(pred, aes(week, med)) +
 print(p_fit); ggsave("outputs/CHIKV_vacc_fit_observed.png", p_fit, width = 9, height = 5, dpi = 120)
 
 # ------------------------------------------------------------
-# 5b. Two-panel
+# 5b. Fig. S3: transmission rate, reported cases and infections
 # ------------------------------------------------------------
 iq   <- apply(wk_inf[["No vaccine (baseline)"]], 2, quantile, c(.025, .5, .975), na.rm = TRUE)
 infd <- data.frame(week = 1:T_sim, lo = iq[1, ], med = iq[2, ], hi = iq[3, ])
@@ -307,7 +307,7 @@ p_ab <- pA + pB + pC +
   theme(plot.tag = element_text(face = "bold", size = FS_AB$tag),
         legend.position = "bottom", legend.justification = "center")
 
-# Supplementary figure
+# Fig. S3
 ggsave("outputs/CHIKV_fit_cases_infections.png", p_ab, width = FIG_W, height = 5.85, dpi = 1000)
 cat(sprintf(paste0("Saved CHIKV_fit_cases_infections.png -- peak beta %.2f (week %d), ",
                    "peak reported %s (week %d), peak infections %s (week %d); ",
@@ -451,7 +451,7 @@ add_res <- function(outcome, scen, arm, v) res_rows[[length(res_rows)+1]] <<- da
   med = median(v, na.rm = TRUE), lo = quantile(v, .025, na.rm = TRUE),
   hi = quantile(v, .975, na.rm = TRUE), row.names = NULL)
 
-# outcome label
+# Outcomes shown in the residual-burden panels (Fig. 1 B-E)
 resid_outcomes <- list(
   list(lab = "Cumulative symptomatic cases", col = "symptomatic"),
   list(lab = "Cumulative hospitalisations",  col = "hospitalisations"),
