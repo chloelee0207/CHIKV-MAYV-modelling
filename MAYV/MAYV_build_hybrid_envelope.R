@@ -11,7 +11,7 @@ rain <- readRDS("outputs/caldas_rain_season.rds")
 b_at <- function(o) beta[o - 23]
 r_at <- function(o) rain[o - 23]
 
-TRANS <- 63 # join at 2026-W10 because we want to constrain beta; beyond W10 beta goes up because susceptibles are depleting towards the end of the outbreak 
+TRANS <- 63 # join at 2026-W10: after this the fitted beta stays flat because depletion, not season, drives the decline, so rainfall shapes the tail 
 ords  <- 24:75
 scale <- b_at(TRANS) / r_at(TRANS)
 hybrid <- sapply(ords, function(o) if (o <= TRANS) b_at(o) else r_at(o) * scale)
