@@ -1,56 +1,36 @@
 # ============================================================
-# common.R -- shared helpers for the Caldas Novas vaccination scripts
+# common.R
 # ------------------------------------------------------------
-# Single source of truth for code shared across the CHIKV engine (CHIKV_engine.R)
-# and MAYV_engine.R. Source it once near the top of each:
-#     source("common.R")
-# Provides:
-#   week_to_index()       calendar (year, epi-week) -> within-window index
-#   fmtq()                "median (2.5% - 97.5%)" formatter for MC draws
-#   burden()              summarise an SEIR run -> infections/symp/hosp/deaths
-#   load_burden_params()  read disease_progression.xlsx (Kang et al. 2025 Table S4) and
-#                         return the Beta(alpha,beta) severity parameters
+# Single source of truth for code shared across the CHIKV engine (CHIKV_engine.R) and MAYV_engine.R. 
+# Source it once near the top of each.
 # ============================================================
 library(readxl)
 suppressMessages({library(dplyr); library(tidyr)})
-dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
+dir.create("outputs", showWarnings = FALSE)
 
-# Calendar -> within-window index for the 2025-W24 -> 2026-W22 fit window.
 # The 2025 epi calendar has a Semana 53, so 2025 contributes 30 weeks (W24..W53):
 #   2025-W24 = index 1  ; 2025-W53 = index 30   (2025 weeks: index = week - 23)
 #   2026-W01 = index 31                          (2026 weeks: index = 30 + week)
 week_to_index <- function(year, week) ifelse(year == 2025, week - 23L, 30L + week)
 
-# Summarise a Monte Carlo draw vector as "median (2.5% - 97.5%)" with d decimals.
+# Summarise a Monte Carlo draw vector
 fmtq <- function(v, d = 0) {
   q <- quantile(v, c(.5, .025, .975), na.rm = TRUE)
   f <- function(x) formatC(round(x, d), big.mark = ",", format = "f", digits = d)
   sprintf("%s (%s - %s)", f(q[1]), f(q[2]), f(q[3]))
 }
 
-# Numeric median + 95% quantiles as c(median, 2.5%, 97.5%) for a MC draw vector.
-# (fmtq() is the string formatter; qs() returns the raw numbers for further use.)
 qs <- function(v) as.numeric(quantile(v, c(.5, .025, .975), na.rm = TRUE))
 
-# Optional age re-weighting for the age-sensitive outcomes: deaths and YLL (age-specific
-# CFR and life expectancy) and the <40 / >=40 split of YLD. Defaults to 1 (no correction).
-# The pipeline sets age_weight to observed_prop / model_prop by age so these use the
-# DATA-based age distribution instead of the population-structure one.
-# Guarded with exists() so RE-sourcing common.R (e.g. from CHIKV_outputs.R) does
-# not clobber an age_weight the engine already set.
 if (!exists("age_weight")) age_weight <- 1
 
-# Folder holding the per-draw replication CSVs (the sampled LHS parameter values published
-# with the manuscript). Kept in one place so the repo root stays readable. Writers call
-# dir.create() immediately before saving: git cannot track an empty directory, so the
-# folder must be created on demand rather than committed and relied upon.
+# Folder structure
 DRAWS_DIR <- "outputs/lhs_draws"
 
-# Burden extractor: infections, symptomatic, hospitalisations, deaths.
-# hr (hosp rate) and cv (CFR-by-age) default to the means but accept per-draw values.
-# w re-weights the age distribution for DEATHS only, redistributing symptomatic cases
-# across ages while PRESERVING the total (so infections/symptomatic totals and the
-# single-rate hospitalisations are unchanged; only deaths move).
+# Estimate burden
+# hr: hosp rate
+# cv: CFR-by-age
+# w re-weights the age distribution for deaths only, redistributing symptomatic cases across ages 
 burden <- function(out, hr = hosp_rate, cv = cfr_vec, w = age_weight) {
   symp_age <- rowSums(out$new_symptomatic)
   symp     <- sum(symp_age)
@@ -63,24 +43,15 @@ burden <- function(out, hr = hosp_rate, cv = cfr_vec, w = age_weight) {
     deaths           = sum(symp_dw * cv))
 }
 
-# Read the disease-progression Beta(alpha, beta) hyperparameters (Kang et al. 2025 Table S4,
-# disease_progression.xlsx) and return the severity parameters used by burden() and
-# the Monte Carlo draws. `A` is the number of model age groups (for the age->band
-# length check). Returns a named list; the caller typically unpacks it into globals:
-#     list2env(load_burden_params(A), globalenv())
-# so downstream code can reference ps_a, hosp_a, cfr_vec, age_to_band, ... directly.
+# Read the disease-progression Beta(alpha, beta) (Kang et al. 2025 Table S4, disease_progression.xlsx) 
 load_burden_params <- function(A,
                                dp_path  = "data/disease_progression.xlsx",
                                dp_sheet = "disease_progression") {
   dp <- read_excel(dp_path, sheet = dp_sheet)
   names(dp)[1:10] <- c("parameter", "group", "median", "ui_lo", "ui_hi",
                        "dist", "p1", "alpha", "p2", "beta")
-  # Keep only the Beta severity rows; the sheet may also hold DALY inputs (illness
-  # durations, remaining life-years) with a Lognormal dist -- those are used elsewhere.
   dp <- dp[dp$dist == "Beta", ]
 
-  # Pull alpha/beta for rows matching an exact Parameter (+ optional Group regex),
-  # ordered by the lower age bound when the Group is an "Age [lo, hi)" band.
   get_beta_ab <- function(param, group_regex = NULL) {
     d <- dp[dp$parameter == param, ]
     if (!is.null(group_regex)) d <- d[grepl(group_regex, d$group), ]
@@ -89,16 +60,13 @@ load_burden_params <- function(A,
     list(a = d$alpha, b = d$beta)
   }
 
-  # prop_symp (symptomatic among infections), "Overall"
   ps <- get_beta_ab("Probability of symptomatic cases among infections", "^Overall$")
   ps_a <- ps$a; ps_b <- ps$b
 
-  # hospitalisation among symptomatic (single, not age-specific)
   hp <- get_beta_ab("Probability of hospitalisation among symptomatic cases")
   hosp_a <- hp$a; hosp_b <- hp$b
   hosp_rate <- hosp_a / (hosp_a + hosp_b)
 
-  # case fatality by decadal band [0,10)..[80,90) (length 9), hospitalised vs not
   ch <- get_beta_ab("Probability of death among hospitalised cases")
   cn <- get_beta_ab("Probability of death among non-hospitalised cases")
   cfr_hosp_a <- ch$a; cfr_hosp_b <- ch$b
@@ -112,7 +80,7 @@ load_burden_params <- function(A,
 
   age_to_band <- c(1, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 9)   # 12 model groups -> 9 decadal bands
   stopifnot(length(age_to_band) == A)
-  cfr_vec <- cfr_band[age_to_band]                       # death per symptomatic case, length A
+  cfr_vec <- cfr_band[age_to_band]
 
   list(ps_a = ps_a, ps_b = ps_b,
        hosp_a = hosp_a, hosp_b = hosp_b, hosp_rate = hosp_rate,
@@ -123,19 +91,8 @@ load_burden_params <- function(A,
 }
 
 # ------------------------------------------------------------
-# Canonical Caldas Novas age-stratified case loader (the "ca_combined" SINAN sheet).
-# Single source of truth for the outbreak-window cases used by the fit (CHIKV_lhs.R),
-# the engine and the one-way sensitivity analysis.
-# Window 2025-W24 -> 2026-W22 = 52 weeks (2025 has an epi Semana 53). Missing zero-case
-# weeks (2025-W33 & W40) are zero-filled on a canonical contiguous grid.
-# Returns:
-#   observed_cases  weekly totals (length 52), ordered by week_index
-#   caldas_obs      week grid + totals (cols: Year, week, week_index, week_label, cases)
-#   ca_age          long age x week table (cols: week_index, week_label, Year, week,
-#                   age_group, cases)
-#   age_totals      cases summed by ca_combined age group
-#   obs_band_prop   observed case proportion across the 9 decadal CFR bands (length 9)
-#   age_levels      the ca_combined age-group labels, in order
+# Caldas Novas age-stratified cases (the "ca_combined" SINAN sheet).
+# Single source of truth for cases within the study period
 # ------------------------------------------------------------
 load_caldas_age_cases <- function(path = "data/weekly_case.xlsx", sheet = "ca_combined") {
   age_levels <- c("<1 Ano", "1-4", "5-9", "10-14", "15-19",
@@ -168,7 +125,6 @@ load_caldas_age_cases <- function(path = "data/weekly_case.xlsx", sheet = "ca_co
   age_totals <- ca_age |> group_by(age_group) |>
     summarise(cases = sum(cases), .groups = "drop")
 
-  # observed case proportion across the 9 decadal CFR bands; two-band groups split evenly
   group_to_bands <- list("<1 Ano" = 1, "1-4" = 1, "5-9" = 1, "10-14" = 2, "15-19" = 2,
                          "20-39" = c(3, 4), "40-59" = c(5, 6),
                          "60-64" = 7, "65-69" = 7, "70-79" = 8, "80 e +" = 9)
@@ -184,10 +140,7 @@ load_caldas_age_cases <- function(path = "data/weekly_case.xlsx", sheet = "ca_co
        obs_band_prop = obs_band / sum(obs_band), age_levels = age_levels)
 }
 
-# Age re-weighting vector w_a (length A) that maps the model's baseline infection age
-# split to the OBSERVED case age split, per decadal band. Feed the model's baseline
-# infections-by-age (length A) plus obs_band_prop + age_to_band from load_burden_params.
-# Outcomes computed with this w follow the observed age distribution (see burden()).
+# Age re-weighting vector w_a (length A) that maps the model's baseline infection age split to the observed case age split, per decadal band.
 compute_age_weight <- function(inf_age_model, obs_band_prop, age_to_band) {
   mod_band <- as.numeric(tapply(inf_age_model, age_to_band, sum)[as.character(seq_along(obs_band_prop))])
   mod_band[is.na(mod_band)] <- 0
@@ -197,18 +150,13 @@ compute_age_weight <- function(inf_age_model, obs_band_prop, age_to_band) {
 }
 
 # ============================================================
-# Shared SEIRV engine + DALY parameter loader
-# ------------------------------------------------------------
-# Age-structured weekly SEIRV simulator and the disease-progression (DALY) parameter
-# loader. Callers: CHIKV_engine.R and MAYV_engine.R.
+# Shared SEIRV engine + DALY parameter
 # ============================================================
 
-# Age-structured weekly SEIRV with vaccination. Returns weekly age x week matrices
-# for infections and symptomatic, plus total_used_age (doses delivered per age = the
-# NNV numerator base). Two efficacy channels: VE_inf moves S->immune (infection
-# blocking); VE_block scales symptomatic among the covered (disease blocking). Callers
-# use ONE channel per arm (VE_block = 0 when VE_inf > 0, as in Kang et al. 2025): the
-# symptomatic formula applies VE_block to all infections, so using both would double count.
+# VE_inf moves S->immune (infection blocking)
+# VE_block scales symptomatic among the covered (disease blocking)
+# 1 channel per arm (VE_block = 0 when VE_inf > 0
+# symptomatic formula applies VE_block to all infections
 seirv_vaccinated <- function(
     T_weeks, 
     A, 
@@ -224,8 +172,8 @@ seirv_vaccinated <- function(
     total_coverage, 
     weekly_delivery_speed, 
     delay,
-    VE_inf = 0,        # infection-blocking efficacy (S->immune); set per scenario by the engine
-    VE_block = 0,      # disease-blocking efficacy (down-scales symptomatic); set per scenario
+    VE_inf = 0,
+    VE_block = 0,
     immun_delay = 2, 
     prop_symp = 0.5242478, 
     sub_steps = 7) {
@@ -286,10 +234,7 @@ seirv_vaccinated <- function(
        total_used_age=total_used_age)
 }
 
-# Read the DALY (disease-progression) distribution hyperparameters from
-# disease_progression.xlsx: disability weights (Beta), illness durations (Lognormal),
-# remaining life-years by decadal band (Lognormal), and 14d/90d recovery probabilities
-# by age class (Beta). Returns a named list of the a/b or m/s (+ median) hyperparams.
+# Read disease-progression distribution hyperparameters from disease_progression.xlsx
 load_daly_params <- function(dp_path = "data/disease_progression.xlsx",
                              dp_sheet = "disease_progression") {
   dp <- read_excel(dp_path, sheet = dp_sheet)
@@ -308,8 +253,7 @@ load_daly_params <- function(dp_path = "data/disease_progression.xlsx",
   du_sev <- lnorm_ms("Duration of illness for severe chikungunya (years)")
   du_sub <- lnorm_ms("Duration of illness for sub-acute chikungunya (years)")
   du_chr <- lnorm_ms("Duration of illness for chronic chikungunya (years)")
-  # No separate disability weight is published for the sub-acute phase; by assumption
-  # it is given the CHRONIC disability weight (dw_chr), sampled from the same draw.
+  # No separate disability weight is published for the sub-acute phase; assume chronic dw, sampled from the same draw
   le <- row("Remaining life-years")
   lo <- as.numeric(sub(".*\\[\\s*([0-9]+).*", "\\1", le$group)); le <- le[order(lo), ]
   le_ms <- list(m = le$v1, s = le$v2, med = le$median)
@@ -318,10 +262,8 @@ load_daly_params <- function(dp_path = "data/disease_progression.xlsx",
   p14_o <- beta_ab("Probability of recovery within 14 days after onset of symptoms", "> 40")
   p90_y <- beta_ab("Probability of recovery within 90 days after acute period", "< 40")
   p90_o <- beta_ab("Probability of recovery within 90 days after acute period", "> 40")
-  # The five recovery rows are MARGINAL proportions of one cohort, not conditional
-  # probabilities: they sum to 1 in each age group. So the chronic proportion is
-  # the SUM of the 6m/12m/30m rows (0.287 / 0.378 at the means), matching chr_prop in Kang et al. 2025 -- NOT
-  # a survival cascade (1-p14)(1-p90). Source: O'Driscoll et al. 2021 IJID.
+  # The five recovery rows are marginal proportions of one cohort, not conditional
+  # probabilities: they sum to 1 in each age group. So the chronic proportion is the sum of the 6m/12m/30m rows
   p6_y  <- beta_ab("Probability of recovery within 6 months after sub-acute period", "< 40")
   p6_o  <- beta_ab("Probability of recovery within 6 months after sub-acute period", "> 40")
   p12_y <- beta_ab("Probability of recovery within 12 months after 6 months of chronicity", "< 40")
