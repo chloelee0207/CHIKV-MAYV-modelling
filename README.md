@@ -101,10 +101,6 @@ transmission scenario (the second `MAYV/MAYV_lhs.R` run).
 |---|---|---|
 | Fig. 1 | `combined_master.pdf`; the percentages in panels B–E are in `CHIKV_residual_burden.xlsx` and `MAYV_residual_burden.xlsx` | `common/combined_outputs.R` (figure); `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` (workbooks) |
 | Table 1 | `CHIKV_vacc_outputs.xlsx` and `MAYV_vacc_outputs.xlsx` [averted_per_100k_doses]; `CHIKV_nnv_outputs.xlsx` and `MAYV_nnv_outputs.xlsx` [nnv] | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
-| Results, % of burden averted | `CHIKV_residual_burden.xlsx`, `MAYV_residual_burden.xlsx` | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
-| Results, Mayaro mean Rn | `MAYV_threshold_sensitivity.xlsx` [transmission_potential] | `MAYV/MAYV_threshold_sensitivity.R` |
-| Discussion, attack rates under the national and municipal reporting rates | `CHIKV_rho_sensitivity.xlsx` [summary] | `CHIKV/CHIKV_rho_sensitivity.R` |
-| Discussion, chikungunya R0 | `lhs_draws/CHIKV_lhs_draws.csv` [`R0_peak` column] | `CHIKV/CHIKV_lhs.R` |
 
 **Supplementary materials**
 
