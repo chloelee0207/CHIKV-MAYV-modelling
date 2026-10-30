@@ -1,86 +1,11 @@
 # ============================================================
-# Caldas Novas MAYV -- uncertainty propagation for the forward outbreak
-# (self-contained).
-#
-# WHAT THIS IS. Parameter PRIORS are propagated through a forward SEIR: each Latin
-# hypercube draw re-runs the simulation, so the reported / infection / attack-rate
-# bands carry natural-history, reporting, symptomatic-fraction and R0 uncertainty. There is
-# NO fitting -- Caldas Novas has no observed MAYV outbreak -- so these are
-# PRIOR-PREDICTIVE bands, not posteriors. The seasonal transmission SHAPE is a HYBRID
-# (caldas_hybrid_season.rds, built by MAYV_build_hybrid_envelope.R): the fitted CHIKV
-# beta_t for the rise/peak + a climatological dry-season tail.
-# Window: 52 weeks, 2025-W24 -> 2026-W22.
-#
-# SAMPLED INPUTS (priors; section 5 gives the sources):
-#     gamma     ~ Lognormal (rate)     recovery, ~7 d (5.2-9.4 d)  [model_calibration.xlsx]
-#     sigma     = 1 / latent period    lognormal 7-12 d (median 9.2 d) by default; family and
-#                                      range set by MAYV_LATENT    [matches the workbook row]
-#     rho       ~ Beta(20, 60)         reporting rate (mean 0.25)  [model_calibration.xlsx]
-#     prop_symp ~ Lognormal, truncated at 1; 95% 0.68-0.92 (48/71 to 33/36)   [hardcoded]
-#     R0        ~ Lognormal            peak R_eff within the scenario range (see below)
-#
-# PRIOR IMMUNITY: none. The population is assumed fully susceptible to MAYV (S(0) = N in
-# every draw), as there is no documented MAYV circulation in Caldas Novas.
-#
-# R0 = wet-season PEAK R_eff, SAMPLED WITHIN A SCENARIO RANGE. base_beta =
-# R0 * gamma * season, so R_eff(t) = R0*season(t)*S/N is INDEPENDENT of gamma
-# (gamma/sigma move only PEAK TIMING & HEIGHT; size is driven by R0).
-# SEASONAL-PEAK scaling (envelope rescaled so max = 1) makes the cited R0 the wet-season
-# PEAK R_eff, avoiding a mean-1 framing that would hide a higher true peak. NB
-# R0(t) = R0*season(t) is just beta_t/gamma with an imposed seasonal shape (standard
-# seasonal forcing), NOT a new formula.
-#
-# WHY TWO SCENARIOS RATHER THAN ONE R0 PRIOR. The published MAYV R0 figures come from
-# DIFFERENT PLACES AND DECADES -- Caicedo et al. 2021 give 1.11 (French Guiana 1960), 3.47
-# (Brazil 1966), 2.1-2.9 (Amazon basin), 1.1-1.3 (outside the Amazon); Dodero-Rojas et al.
-# 2020 give 1.18-3.51. The spread BETWEEN them is between-setting heterogeneity (vectors,
-# land use, host contact), not uncertainty about one municipality. Sampling R0 across that
-# whole span would mix transmission regimes: outbreak size is a steep convex function of
-# R0, so the draws would split into "fizzle" and "explode" groups and the central estimate
-# would describe neither. R0 is therefore SCENARIO-DEFINING, and within each scenario it is
-# sampled only over that scenario's own range.
-#
-# THE TWO SCENARIOS (R0_SCENARIO, peak R_eff), both from Caicedo et al. 2021:
-#   low  = 1.1-1.3  outside the Amazon basin -- current ecology. Read as a PEAK (not
-#                   annual-mean) value, the conservative reading: an annual-mean 1.2 would
-#                   imply a peak of ~3+ and a far larger outbreak. A single introduction
-#                   does not self-sustain at this R0.
-#   high = 2.1-2.9  Amazon basin, applied to Goias as a PEAK R0. A COUNTERFACTUAL: it
-#                   assumes MAYV transmits in Caldas Novas as it does in the Amazon basin,
-#                   which it is not currently known to do, and is not a prediction.
-#                   Caveat: Caicedo derive R0 from age-stratified seroprevalence with
-#                   catalytic models, so 2.1-2.9 is an ENDEMIC-AVERAGE reproduction number;
-#                   using it as a seasonal PEAK is an assumption.
-# R0 ~ Lognormal with the range endpoints as its 2.5th/97.5th percentiles (median = the
-# geometric centre: 1.20 low, 2.47 high).
-#   NB R0 and the latent period are partly INTERCHANGEABLE in setting outbreak size,
-#   because both control how many generations fit inside the seasonal window before the
-#   dry-season tail collapses transmission.
-# Because each scenario's range is narrow, outbreak size is UNIMODAL (on the log scale)
-# within a scenario -- right-skewed, but with no fizzle/take-off split -- so the engine
-# reports over ALL draws (no conditioning). There is still NO MAYV outbreak to fit, so
-# these remain PRIOR-PREDICTIVE bands.
-#
-# WINDOW: 2025-W24 -> 2026-W22 (52 epi weeks). Extended past the CHIKV fit window (which
-# ends 2026-W22) so the dry-season tail sits inside the window and every outbreak resolves.
-# 2025 carries an epi-week 53, so 2025-W24..W53 = 30 wks and 2026-W01..W22 = 22 wks.
-#
-# FIXED (NOT sampled):
-#   * seasonal envelope = HYBRID (caldas_hybrid_season.rds, built by
-#     MAYV_build_hybrid_envelope.R): fitted CHIKV beta_t for the data-constrained rise
-#     and peak (2025-W24..2026-W10) spliced onto the CHIRPS climatological dry season for
-#     the tail (2026-W10..W22). CHIKV and MAYV share the Aedes vector, so the fitted CHIKV
-#     signal is the best proxy for the rise; the dry-season tail (which the beta lacks --
-#     its post-outbreak tail is an unconstrained spline artefact) is what lets the outbreak
-#     collapse. A DETERMINISTIC covariate (fixed weekly shape), so it does NOT enter the LHS.
-#   * single index case seeded at the WINDOW OPEN (2025-W24, seed_week = 1), matching the
-#     CHIKV engine (infection present from t = 1) so the MAYV outbreak rises with CHIKV.
+# Latin hypercube sampling (LHS)
 # ============================================================
 suppressMessages({library(readxl); library(dplyr); library(tidyr); library(ggplot2)})
-dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
+dir.create("outputs", showWarnings = FALSE) 
 
 # ------------------------------------------------------------
-# 1. SEIR forward simulator (seeded at seed_week)
+# 1. SEIR
 # ------------------------------------------------------------
 seir_baseline_MAYV <- function(
     T_weeks, A, N, R_init_prop, I0, base_beta, sigma, gamma, rho, prop_symp,
@@ -107,8 +32,7 @@ seir_baseline_MAYV <- function(
 }
 
 # ------------------------------------------------------------
-# 2. Population (Caldas Novas), grown 2022 -> 2025
-#    (no prior immunity, so the whole population is susceptible)
+# 2. Population in Caldas Novas)
 # ------------------------------------------------------------
 age_df <- read_excel("data/population.xlsx", sheet = "prop_immune")
 age_df <- as.data.frame(age_df[tolower(age_df$municipality) == "caldas novas", ])
@@ -118,82 +42,36 @@ pop_2022_total <- 98622; pop_2025_total <- 106820
 growth_r <- log(pop_2025_total/pop_2022_total)/3
 N        <- age_df$pop_num * exp(growth_r*3)
 
-T_weeks <- 52   # 2025-W24 -> 2026-W22, aligned with the CHIKV chain
+T_weeks <- 52 
 
 # ------------------------------------------------------------
-# 3. HYBRID seasonal envelope: CHIKV beta (rise/peak) + climatological dry-season tail
+# 3. hybrid seasonal envelope
 # ------------------------------------------------------------
-# caldas_hybrid_season.rds (built by MAYV_build_hybrid_envelope.R): 52-week mean-1 envelope, 2025-W24 ->
-# 2026-W22. It uses the FITTED CHIKV beta_t where it is data-constrained (the rise and
-# peak, 2025-W24 .. 2026-W10) and splices on the CHIRPS climatological DRY SEASON for the
-# tail (2026-W10 .. W22). Rationale: the CHIKV beta's post-outbreak tail is a spline
-# artefact (flat ~0.9, unconstrained -- no CHIKV cases there), which lacks a real dry
-# season; against MAYV's high R0 that flat tail keeps R_eff ~ 1 and the outbreak never
-# resolves inside the window. The rainfall dry season (deep trough, min ~0.04) crashes
-# R_eff after the peak so the outbreak collapses -- for the same reason CHIKV's own
-# outbreak does. So each source is used only where it is informative.
 season_mean1 <- readRDS("outputs/caldas_hybrid_season.rds")
 stopifnot(length(season_mean1) == T_weeks, abs(mean(season_mean1) - 1) < 1e-6)
-# R0 INTERPRETATION. r0_is_peak = TRUE: R0 is the SEASONAL-PEAK R_eff (rescale envelope
-# so max = 1; yearly-avg R0 = R0*mean = ~0.58*R0). FALSE: R0 is the ANNUAL-MEAN (envelope
-# left at mean 1; wet peak reaches R0*max ~ 1.7x). Seed/wet-band logic below always uses
-# the mean-1 envelope so it is unaffected by this choice. NB the CHIKV beta_t envelope is
-# FLATTER than the rainfall one it replaces (max 1.73 vs 2.44, min 0.58 vs 0.04).
 r0_is_peak <- TRUE
 season <- if (r0_is_peak) season_mean1 / max(season_mean1) else season_mean1
 
 # ------------------------------------------------------------
-# 4. Seed (single introduction at the WINDOW OPEN, matching the CHIKV chain)
+# 4. introduce infectious person
 # ------------------------------------------------------------
-# The CHIKV engine has infection present from t = 1 (2025-W24). To make the MAYV
-# outbreak RISE AT THE SAME TIME as CHIKV (both driven by the shared beta_t envelope),
-# we introduce the index case at the window open too. The old "wet-season onset"
-# rule (first week beta > its mean, ~2025-W43) was a leftover from the CHIRPS-rainfall
-# design; against the flatter CHIKV beta it fired ~11 weeks after the envelope starts
-# rising and, being R0-independent, seeded high-R0 outbreaks ~19 weeks too late so they
-# ran off the end of the 52-week window. Seeding at t=1 fixes both: the beta trough
-# over 2025-W24..W35 keeps early growth slow (so a W40 vaccination is still pre-surge),
-# then the outbreak surges as beta peaks (~W50) and resolves inside the window.
-I0_total  <- if (exists("MAYV_I0"))   MAYV_I0   else 1     # seed size (infectious persons); override for experiments
+I0_total  <- if (exists("MAYV_I0"))   MAYV_I0   else 1     # seed size
 E0        <- rep(0, A)
-seed_week <- if (exists("MAYV_SEED")) MAYV_SEED else 1     # seed week index; 1 = window open (2025-W24), 17 = 2025-W40
+seed_week <- if (exists("MAYV_SEED")) MAYV_SEED else 1     # seed week index; 1 = window open (2025-W24)
 
 # ------------------------------------------------------------
-# 5. Priors / samplers
+# 5. Priors
 # ------------------------------------------------------------
 cal <- as.data.frame(read_excel("data/model_calibration.xlsx", sheet = 1))
 cal <- cal[cal$Group == "MAYV" & !is.na(cal$Median), ]
 row_for <- function(k) cal[grepl(k, cal$Parameter, ignore.case = TRUE), ][1, ]
 sd_of   <- function(r) (r[["95% UI upper"]] - r[["95% UI lower"]]) / (2*1.96)
 
-gr <- row_for("gamma"); sr <- row_for("sigma")
-# GAMMA is a RATE (per week), sampled LOGNORMAL. The evidence is about a DURATION -- MAYV
-# symptoms resolve in about 7 days (5-9) -- so the distribution belongs on the period, and a
-# lognormal is the natural family: strictly positive, right-skewed, reproduces its endpoints
-# exactly. Because the reciprocal of a lognormal is lognormal, period ~ LN(m, s) is the same
-# as rate ~ LN(-m, s), so the workbook stores the RATE directly and no inversion is needed.
-# This replaces a Normal(1.0, 0.17857) on the rate, which had two defects: it put mass on
-# gamma <= 0 (an impossible negative recovery rate) and, once inverted, gave a fat right tail
-# on the period -- 15.6 d at the 99.9th percentile, and 0.26% of draws above 14 d. It also
-# could not reproduce the stated 0.7-1.4 interval, which is asymmetric about 1.0, and so
-# actually sampled 0.65-1.35. The lognormal fixes all three at an unchanged median of 1.0.
-# Duration of illness for mild/moderate Mayaro in disease_progression.xlsx carries the SAME
-# sdlog, so the infectious period and the acute illness duration cannot drift apart.
+gr <- row_for("gamma"); sr <- row_for("sigma") # gamma sampled lognormal
 g_ml <- as.numeric(gr[["Value 1"]]); g_sl <- as.numeric(gr[["Value 2"]])
 stopifnot(tolower(gr[["Uncertainty distribution"]]) == "lognormal", is.finite(g_ml), is.finite(g_sl))
-g_m <- exp(g_ml)                               # median rate, for the deterministic base run
-p_m <- sr$Median; p_sd <- sd_of(sr)            # workbook latent row (weeks); p_m is reset below
-                                               # from the MAYV_LATENT sampler, which matches it
-
-# LATENT PERIOD. Base case MAYV_LATENT = "mayv7_12": Martins et al. 2020's incubation period of 7-12 d,
-# lognormal with 7 and 12 d as the 2.5th/97.5th percentiles (median 9.17 d = 1.309 wk), which
-# is the workbook's latent row. The other LAT_SPEC entries are STRUCTURAL sensitivities --
-# competing sources, not points within one range (see MAYV_owsa.R). The family matters as
-# much as the bounds: over a range spanning an order of magnitude the uniform and lognormal
-# centres diverge sharply (7.5 d vs 3.7 d on 1-14), so it is recorded explicitly.
-# Latent period and R0 are partly interchangeable in setting outbreak size: a longer latent
-# period lengthens the generation time, so fewer generations fit inside the supercritical
-# season before the dry-season tail collapses transmission.
+g_m <- exp(g_ml)
+p_m <- sr$Median; p_sd <- sd_of(sr)
 if (!exists("MAYV_LATENT")) MAYV_LATENT <- "mayv7_12"
 stopifnot(MAYV_LATENT %in% c("mayv7_12", "mayv5_7", "mayv3_11", "diagne1_6", "cdc1_14", "caicedo3d", "long12d"))
 LAT_SPEC <- list(
@@ -261,54 +139,35 @@ LAT_SPEC <- list(
   long12d   = list(dist = "lognormal", lo = 11.31/7, hi = 12.69/7))
 lat <- LAT_SPEC[[MAYV_LATENT]]
 lat_lo <- lat$lo; lat_hi <- lat$hi
-# lat_ml/lat_sl are lognormal-only; NA under a uniform so nothing downstream can quietly
-# treat the uniform draws as lognormal.
 lat_ml <- lat_sl <- NA_real_
 if (lat$dist == "lognormal") {
-  # A spec may supply ml/sl explicitly (fitted to more than two quantiles); otherwise the
-  # endpoints are taken as the 2.5th/97.5th percentiles and the median is their geometric mean.
   lat_ml <- if (!is.null(lat$ml)) lat$ml else (log(lat_lo) + log(lat_hi)) / 2
   lat_sl <- if (!is.null(lat$sl)) lat$sl else (log(lat_hi) - log(lat_lo)) / (2 * 1.96)
 }
-# quantile function for the chosen family, used by the LHS below
 lat_q <- function(u) {
   if (lat$dist == "uniform") qunif(u, lat_lo, lat_hi) else qlnorm(u, lat_ml, lat_sl)
 }
-p_m <- lat_q(0.5)                               # median period, weeks
+p_m <- lat_q(0.5) 
 cat(sprintf("Latent period '%s': %s on [%.2f, %.2f] d -> median %.4f wk (%.2f d)\n",
             MAYV_LATENT, lat$dist, 7*lat_lo, 7*lat_hi, p_m, 7*p_m))
-rab <- c(a = 20, b = 60)                        # rho ~ Beta(20,60), mean 0.25
-# SYMPTOMATIC FRACTION -- MAYV-specific, replacing the borrowed CHIKV Beta(35.84, 32.56).
-# Bounded by the only two usable MAYV denominators:
-#   lower 48/71 = 0.6761  Belterra 1978 (71 seropositive, 23 of them asymptomatic)
-#   upper 33/36 = 0.9167  Azevedo narrative review
-# Lognormal fitted so those are the 2.5th/97.5th percentiles: right-skewed, so most mass
-# sits toward the LOWER end. That is the conservative direction, because most MAYV case
-# series ascertain only febrile presentations and so over-count the symptomatic fraction.
-# TRUNCATED at 1 -- a proportion cannot exceed it, and the untruncated fit puts ~0.1% of
-# draws above 1 (about 1 draw in 1000).
+rab <- c(a = 20, b = 60)                        # rho ~ Beta(20,60)
+# proportion symptomatic
 ps_ml  <- (log(48/71) + log(33/36)) / 2
 ps_sl  <- (log(33/36) - log(48/71)) / (2 * 1.96)
-ps_cap <- plnorm(1, ps_ml, ps_sl)               # CDF mass below 1, for the truncation
+ps_cap <- plnorm(1, ps_ml, ps_sl)
 
-# R0 = wet-season PEAK R_eff (r0_is_peak = TRUE above), sampled within the scenario's
-# range (see the header). Two scenarios only; each is one transmission regime.
+
 if (!exists("R0_SCENARIO")) R0_SCENARIO <- "high"   # "high" = 2.1-2.9 | "low" = 1.1-1.3
-# R0 is SAMPLED from the scenario's range, lognormal with the endpoints as the 2.5th/97.5th
-# percentiles. BOTH ranges are Caicedo et al. 2021, so the two scenarios are one quantity
-# measured in two ecological zones rather than a mix of sources -- no geometric mean taken
-# across a modelling paper's limits, and no single point estimate asserted.
-R0_RANGE <- list(low  = c(1.1, 1.3),    # outside the Amazon basin -- current ecology
-                 high = c(2.1, 2.9))    # Amazon basin, applied to Goias as a PEAK R0
+
+R0_RANGE <- list(low  = c(1.1, 1.3),
+                 high = c(2.1, 2.9)) 
 stopifnot(R0_SCENARIO %in% names(R0_RANGE))
 R0_LO <- R0_RANGE[[R0_SCENARIO]][1]; R0_HI <- R0_RANGE[[R0_SCENARIO]][2]
 R0_meanlog <- (log(R0_LO) + log(R0_HI)) / 2
 R0_sdlog   <- (log(R0_HI) - log(R0_LO)) / (2 * 1.96)
-R0_median  <- exp(R0_meanlog)                   # geometric centre of the range
+R0_median  <- exp(R0_meanlog) 
 
-# Prior immunity: none. The population is assumed FULLY SUSCEPTIBLE to MAYV, so immunity
-# is 0 in every draw and S(0) = N; Caldas Novas lies outside the Amazon basin and has no
-# documented MAYV circulation.
+# assume population is naive, so 0% immunity
 imm_base <- 0
 cat("Prior immunity: 0% -- population fully susceptible\n")
 
@@ -321,12 +180,7 @@ cat(sprintf("R0 ~ lognormal on [%.1f, %.1f] (%s scenario, %s): median %.3f\n",
             R0_LO, R0_HI, R0_SCENARIO, if (r0_is_peak) "seasonal-peak R_eff" else "annual-mean", R0_median))
 
 # ------------------------------------------------------------
-# Seasonality summary. R0 above is the WET-SEASON PEAK, because the envelope is
-# peak-normalised (r0_is_peak). The mean of season(t) is well below 1, so the
-# year-average transmission intensity is much lower than the headline R0 -- report both,
-# or a reader will read the peak R0 as an unforced R0 and expect a large attack rate.
-# The model therefore runs close to the epidemic threshold for most of the year, which
-# is why burden is a steep function of R0 rather than a saturating one.
+# Seasonality summary
 # ------------------------------------------------------------
 season_mean <- mean(season)
 cat(sprintf("Seasonality: season(t) peak %.3f, MEAN %.4f, min %.3f; %d of %d weeks above 0.5\n",
@@ -338,10 +192,10 @@ cat(sprintf("Implied MEAN R0(t) = %.3f (peak %.3f); %d of %d weeks with R0(t) > 
 
 # ------------------------------------------------------------
 # 6. One forward run -> weekly reported / infections + summary scalars
-#    imm = flat prior-immune fraction; sets S(0), susceptible_pop and the seed split.
+#    imm = flat prior-immune fraction; sets S(0), susceptible_pop and the seed split
 # ------------------------------------------------------------
 run_draw <- function(R0, g, s, r, ps, imm) {
-  Rimm <- rep(imm, A)                            # FLAT immune fraction across ages
+  Rimm <- rep(imm, A)   
   sus  <- N * (1 - Rimm)                         # susceptibles by age
   I0i  <- I0_total * sus / sum(sus)              # single seed split by susceptibility
   out  <- seir_baseline_MAYV(T_weeks, A, N, Rimm, I0i, R0*g*season,
@@ -354,34 +208,28 @@ run_draw <- function(R0, g, s, r, ps, imm) {
        attack = 100 * sum(inf_wk) / sum(sus), immune = 100 * imm)
 }
 
-# Baseline at median inputs (dashed reference on the plots), at the scenario's MEDIAN R0
-PSYMP_MED <- exp(ps_ml)                          # median symptomatic fraction (~0.787)
+# Baseline at median inputs
+PSYMP_MED <- exp(ps_ml)                          # median symptomatic fraction
 base <- run_draw(R0_median, g_m, 1/p_m, rab["a"]/sum(rab), PSYMP_MED, imm_base)
 cat(sprintf("Baseline R0=%.2f (%s scenario, median inputs, immune %.1f%%): total infections %.0f | total reported %.1f | peak reported wk %d (%.1f) | attack %.2f%%\n",
             R0_median, R0_SCENARIO, base$immune, base$tot_inf, base$tot_rep, base$peak_rep_wk, base$peak_rep, base$attack))
-# Reference: the OTHER scenario's R0 under the SAME scaling, for context in the log.
 R0_other <- exp(mean(log(R0_RANGE[[setdiff(names(R0_RANGE), R0_SCENARIO)]])))
 base_other <- run_draw(R0_other, g_m, 1/p_m, rab["a"]/sum(rab), PSYMP_MED, imm_base)
 cat(sprintf("Reference R0=%.2f (other scenario, same scaling): total infections %.0f | total reported %.1f | attack %.3f%%\n",
             R0_other, base_other$tot_inf, base_other$tot_rep, base_other$attack))
 
 # ------------------------------------------------------------
-# 7. Latin Hypercube, forward-simulate each draw. Sampled: gamma, sigma, rho,
-#    prop_symp and R0 (within the scenario's range). Every draw is the same transmission
-#    regime, so the outbreak-size distribution is unimodal and needs no take-off
-#    conditioning.
+# 7. Latin Hypercube, sampled: gamma, sigma, rho, prop_symp and R0
 # ------------------------------------------------------------
 set.seed(2024); n <- 1000
 lhs_col <- function(n) (sample.int(n) - runif(n)) / n
 U   <- sapply(1:6, function(j) lhs_col(n))
-gam <- qlnorm(U[,1], g_ml, g_sl)                # rate (lognormal; see above)
-sig <- 1/lat_q(U[,2])                           # sampled PERIOD -> rate (family per LAT_SPEC)
+gam <- qlnorm(U[,1], g_ml, g_sl) 
+sig <- 1/lat_q(U[,2]) 
 rho <- qbeta(U[,3], rab["a"], rab["b"])
-psy <- qlnorm(U[,4]*ps_cap, ps_ml, ps_sl)       # lognormal, truncated at 1
-# Prior immunity is 0 in every draw. U[,5] is unused but still drawn, so the other
-# sampled inputs keep their values.
+psy <- qlnorm(U[,4]*ps_cap, ps_ml, ps_sl)
 imm <- rep(0, n)
-R0v <- qlnorm(U[,6], R0_meanlog, R0_sdlog)      # SAMPLED from the scenario range
+R0v <- qlnorm(U[,6], R0_meanlog, R0_sdlog) 
 
 rep_mat <- inf_mat <- matrix(NA_real_, n, T_weeks)
 tot_rep <- tot_inf <- peak_rep_wk <- peak_rep <- attack <- R0peak <- immune <- rep(NA_real_, n)
@@ -395,13 +243,11 @@ for (i in 1:n) {
   immune[i] <- d$immune; R0peak[i] <- R0v[i] * max(season)
   if (i %% 100 == 0) cat("  ", i, "/", n, "\n")
 }
-# Every forward draw is feasible (no data-consistency filter: there is no observed
-# MAYV outbreak to compare against). Keep only numerically finite draws.
 ok <- which(is.finite(tot_inf) & is.finite(tot_rep))
 cat(sprintf("Kept %d / %d finite draws.\n", length(ok), n))
 
 # ------------------------------------------------------------
-# 8. Summaries (baseline point vs propagated median [95% UI])
+# 8. Summary
 # ------------------------------------------------------------
 q3   <- function(x) quantile(x, c(.5, .025, .975), na.rm = TRUE)
 band <- function(M) apply(M[ok, , drop = FALSE], 2, quantile, c(.025, .5, .975), na.rm = TRUE)
@@ -422,13 +268,13 @@ cat(sprintf("Busiest reported week (count): baseline %.1f -> propagated %.1f [%.
             base$peak_rep, q3(peak_rep[ok])[1], q3(peak_rep[ok])[2], q3(peak_rep[ok])[3]))
 
 # ------------------------------------------------------------
-# 9. Plots: propagated 95% bands (reported + true infections), with season shading
+# 9. Plots
 # ------------------------------------------------------------
-wk_num  <- function(idx) ifelse(idx <= 30, idx + 23, idx - 30)   # 2025-W24..W53 | 2026-W01..W22
-tick_idx <- c(7, 17, 27, 40, 50)                      # 2025-W30/40/50, 2026-W10/20
+wk_num  <- function(idx) ifelse(idx <= 30, idx + 23, idx - 30) 
+tick_idx <- c(7, 17, 27, 40, 50) 
 x_ticks  <- data.frame(week_index = tick_idx, week = wk_num(tick_idx))
-year_break <- 30.5                                    # 2025-W53 (idx 30) | 2026-W01 (idx 31)
-wet_start <- which(season_mean1 >= 1)[1]              # above-mean (wet) span (mean-1 envelope)
+year_break <- 30.5    
+wet_start <- which(season_mean1 >= 1)[1]   
 wet_end   <- tail(which(season_mean1 >= 1), 1)
 season_layers <- list(
   annotate("rect", xmin = 0.5,       xmax = wet_start,   ymin = -Inf, ymax = Inf, fill = "#f4ead7", alpha = 0.55),
@@ -466,10 +312,8 @@ p_inf <- ggplot(data.frame(week = weeks, lo = ib[1,], med = ib[2,], hi = ib[3,])
 ggsave("outputs/MAYV_lhs_infections.png", p_inf, width = 8, height = 4.5, dpi = 120)
 
 # ------------------------------------------------------------
-# 10. Save per-draw table + ensemble (mirrors CHIKV_lhs_ensemble.rds shape so a
-#     future MAYV vaccine/engine variant can iterate over these draws directly)
+# 10. Save
 # ------------------------------------------------------------
-# This script does not source common.R, so DRAWS_DIR is defined here if absent.
 if (!exists("DRAWS_DIR")) DRAWS_DIR <- "outputs/lhs_draws"
 dir.create(DRAWS_DIR, recursive = TRUE, showWarnings = FALSE)
 write.csv(data.frame(draw = 1:n, R0 = R0v, gamma = gam, sigma = sig, rho = rho, prop_symp = psy,
@@ -477,8 +321,6 @@ write.csv(data.frame(draw = 1:n, R0 = R0v, gamma = gam, sigma = sig, rho = rho, 
                      peak_reported_wk = peak_rep_wk, attack_pct = attack,
                      finite = (seq_len(n) %in% ok)),
           file.path(DRAWS_DIR, "MAYV_lhs_draws.csv"), row.names = FALSE)
-# Scenario-tagged copy, as for the burden draws: the untagged file holds whichever
-# scenario ran last, so the published draws for each scenario are the tagged ones.
 invisible(file.copy(file.path(DRAWS_DIR, "MAYV_lhs_draws.csv"),
                     file.path(DRAWS_DIR, sprintf("MAYV_lhs_draws_%s.csv", R0_SCENARIO)),
                     overwrite = TRUE))
@@ -486,12 +328,11 @@ invisible(file.copy(file.path(DRAWS_DIR, "MAYV_lhs_draws.csv"),
 mayv_lhs_ensemble <- list(
   rep = rep_mat[ok, , drop = FALSE], inf = inf_mat[ok, , drop = FALSE],
   R0 = R0v[ok], gamma = gam[ok], sigma = sig[ok], rho = rho[ok], prop_symp = psy[ok],
-  immune_frac = imm[ok],                          # prior immune fraction: 0 (naive population)
+  immune_frac = imm[ok],  
   base_R0 = R0_median, R0_scenario = R0_SCENARIO, r0_is_peak = r0_is_peak,
-  # R0 prior: lognormal on [R0_lo, R0_hi]; R0_median is the OWSA base case and the label value.
   R0_median = R0_median, R0_sampled = TRUE, R0_lo = R0_LO, R0_hi = R0_HI,
   R0_meanlog = R0_meanlog, R0_sdlog = R0_sdlog,
-  lat_meanlog = lat_ml, lat_sdlog = lat_sl,        # NA when the family is uniform
+  lat_meanlog = lat_ml, lat_sdlog = lat_sl, 
   lat_dist = lat$dist, lat_lo = lat_lo, lat_hi = lat_hi, MAYV_LATENT = MAYV_LATENT,
   ps_meanlog = ps_ml, ps_sdlog = ps_sl,
   base_gamma = g_m, base_sigma = 1/p_m, base_prop_symp = PSYMP_MED,
@@ -500,7 +341,6 @@ mayv_lhs_ensemble <- list(
   I0_total = I0_total, E0 = E0, seed_week = seed_week,
   T_weeks = T_weeks, weeks = weeks, x_ticks = x_ticks, year_break = year_break)
 saveRDS(mayv_lhs_ensemble, "outputs/MAYV_lhs_ensemble.rds")
-# Scenario-tagged copy, so both R0 scenarios can coexist on disk for comparison.
 saveRDS(mayv_lhs_ensemble, sprintf("outputs/MAYV_lhs_ensemble_%s.rds", R0_SCENARIO))
 
 cat(sprintf("\nSaved MAYV_lhs_reported.png, MAYV_lhs_infections.png, MAYV_lhs_draws.csv,\n  MAYV_lhs_draws_%s.csv, MAYV_lhs_ensemble.rds and MAYV_lhs_ensemble_%s.rds (R0 median %.2f)\n",
