@@ -1,21 +1,5 @@
 # ============================================================
-# CHIKV_owsa.R -- Caldas Novas CHIKV one-way sensitivity analysis.
-#
-# DETERMINISTIC. Every input is held at its central value and ONE parameter at a time
-# is moved to its lower and upper bound; the change in vaccine impact is the tornado.
-# This is the deterministic complement to the probabilistic (LHS) analysis in
-# CHIKV_lhs.R / CHIKV_engine.R, which vary everything at once.
-#
-# Two classes of parameter:
-#   FIT parameters (FOI, rho) change prior immunity or the case scaling, so beta must
-#     be RE-FITTED to the same 8,204 observed cases at each bound.
-#   CAMPAIGN parameters (VE, coverage, delivery, delay, time-to-immunity) leave the
-#     epidemic fit untouched; only the SEIRV re-runs.
-#
-# Outcomes, all accrued over the 52-week observed window (2025-W24 -> 2026-W22):
-#   symptomatic cases averted, deaths averted, DALYs averted, and % symptomatic
-#   reduction.
-#
+# CHIKV_owsa.R
 # Run order:  CHIKV_lhs.R (once, for the ensemble) -> this file
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2); library(writexl)})
@@ -32,17 +16,13 @@ young_idx <- which(age_to_band <= 4); old_idx <- which(age_to_band >= 5)
 # ------------------------------------------------------------
 # 1. Central values and one-way bounds
 # ------------------------------------------------------------
-# Central = the same point estimate the LHS uses for its reference fit. Bounds are the
-# 95% interval of each parameter's propagated distribution, except the deployment delay,
-# varied over its sampled range (1-3 weeks), and time to immunity, which the engine fixes
-# at 2 weeks and is varied here by +/- 1 week.
 BASE <- list(foi = 0.008, rho = 0.25, ve = 263/266, cov = 0.30,
              deliv = 0.10, delay = 2, immun = 2)
 
 BOUNDS <- list(
-  foi   = c(0.003, 0.020),                        # serocatalytic 95% UI
-  rho   = unname(qbeta(c(.025, .975), 20, 60)),   # Beta(20,60)
-  ve    = unname(qbeta(c(.025, .975), 264, 4)),   # Beta(264,4) from 263/266 seroprotected
+  foi   = c(0.003, 0.020), 
+  rho   = unname(qbeta(c(.025, .975), 20, 60)),
+  ve    = unname(qbeta(c(.025, .975), 264, 4)),
   cov   = c(0.20, 0.40),
   deliv = c(0.09, 0.11),
   delay = c(1, 3),
@@ -55,17 +35,16 @@ PAR_LAB <- c(foi   = "FOI",
              deliv = "Weekly delivery speed",
              delay = "Delay in deployment",
              immun = "Time to immunity")
-REFIT_PARS <- c("foi", "rho")     # these change the epidemic fit
+REFIT_PARS <- c("foi", "rho")
 
-GAMMA <- 0.54; SIGMA <- 1/0.60; PSYMP <- prop_symp   # held fixed (see header of the workbook)
+GAMMA <- 0.54; SIGMA <- 1/0.60; PSYMP <- prop_symp
 start_pre <- caldas_obs$week_index[caldas_obs$Year == 2025 & caldas_obs$week == 40]
-target_age <- rep(0, A); target_age[c(4,5,6,7,8)] <- 1          # eligible 18-59
+target_age <- rep(0, A); target_age[c(4,5,6,7,8)] <- 1
 target_pop_elig <- sum(N[target_age == 1])
 EVAL_WIN <- seq_len(T_weeks)
 
 # ------------------------------------------------------------
-# 2. Deterministic outcome extractor (mirrors CHIKV_engine.R outcome_one at
-#    central severity/DALY values; recovery funnel, each case counted once).
+# 2. Deterministic outcome
 # ------------------------------------------------------------
 mean_ab <- function(x) x$a / (x$a + x$b)
 DW  <- c(mm = mean_ab(dp$dw_mm), sev = mean_ab(dp$dw_sev), chr = mean_ab(dp$dw_chr))
@@ -75,7 +54,7 @@ REC <- c(acy = mean_ab(dp$p14_y), aco = mean_ab(dp$p14_o),
          sby = mean_ab(dp$p90_y), sbo = mean_ab(dp$p90_o),
          chy = mean_ab(dp$p6_y) + mean_ab(dp$p12_y) + mean_ab(dp$p30_y),
          cho = mean_ab(dp$p6_o) + mean_ab(dp$p12_o) + mean_ab(dp$p30_o))
-CFR <- cfr_vec                                            # death per symptomatic, by age
+CFR <- cfr_vec
 
 outcomes_det <- function(out, age_weight) {
   symp_age <- rowSums(out$new_symptomatic[, EVAL_WIN, drop = FALSE])
@@ -85,9 +64,9 @@ outcomes_det <- function(out, age_weight) {
 
   n_hosp <- st * hosp_rate; n_nonhosp <- st - n_hosp
   syt <- REC["acy"] + REC["sby"] + REC["chy"]; sot <- REC["aco"] + REC["sbo"] + REC["cho"]
-  n_acute <- sy*REC["acy"]/syt + so*REC["aco"]/sot     # resolved <= 14d
-  n_sub   <- sy*REC["sby"]/syt + so*REC["sbo"]/sot     # resolved 14d - 3m
-  n_chr   <- sy*REC["chy"]/syt + so*REC["cho"]/sot     # still ill > 3m
+  n_acute <- sy*REC["acy"]/syt + so*REC["aco"]/sot
+  n_sub   <- sy*REC["sby"]/syt + so*REC["sbo"]/sot
+  n_chr   <- sy*REC["chy"]/syt + so*REC["cho"]/sot
 
   yld <- unname((n_nonhosp*DW["mm"]*DUR["mm"] + n_hosp*DW["sev"]*DUR["sev"]) * (n_acute/st) +
                 n_sub*DW["chr"]*DUR["sub"] + n_chr*DW["chr"]*DUR["chr"])
@@ -98,7 +77,7 @@ outcomes_det <- function(out, age_weight) {
 }
 
 # ------------------------------------------------------------
-# 3. One full scenario: re-fit if needed, then baseline + both vaccine arms
+# 3. One full scenario
 # ------------------------------------------------------------
 fit_cache <- list()
 get_fit <- function(foi, rho) {
@@ -124,9 +103,8 @@ run_scenario <- function(p) {
   aw   <- compute_age_weight(rowSums(base$new_infections), obs_band_prop, age_to_band)
   ob   <- outcomes_det(base, aw)
   list(base = ob,
-       disb = ob - outcomes_det(sim(p$cov, 0,    p$ve), aw),   # averted, disease-blocking
-       both = ob - outcomes_det(sim(p$cov, p$ve, 0), aw))      # averted, + infection-blocking
-                                                                # (VE_block = 0: see CHIKV_engine.R)
+       disb = ob - outcomes_det(sim(p$cov, 0,    p$ve), aw),   # disease-blocking
+       both = ob - outcomes_det(sim(p$cov, p$ve, 0), aw))      # disease and infection blocking
 }
 
 # ------------------------------------------------------------
@@ -160,7 +138,7 @@ base_tbl <- do.call(rbind, lapply(c("disb","both"), function(arm) data.frame(
   pct_symp = 100*base_run[[arm]]["symptomatic"]/base_run$base["symptomatic"], row.names = NULL)))
 
 # ------------------------------------------------------------
-# 5. Tornado: symptomatic cases averted, ordered by swing
+# 5. Tornado
 # ------------------------------------------------------------
 tornado <- function(outcome, xlab, file) {
   arm_lv <- c("Disease-blocking", "Disease + infection blocking")
@@ -189,37 +167,23 @@ p_daly <- tornado("daly",        "DALYs averted",                              "
 print(p_symp)
 
 # ------------------------------------------------------------
-# 6. Scenario surface: campaign START WEEK x vaccine COVERAGE.
-# The one-way tornado varies deployment DELAY by a week or two; this asks the bigger
-# question the delay parameter cannot -- what does the campaign DATE cost? Ixchiq was
-# intended as a pre-outbreak prophylactic (2025-W40); in Caldas Novas it was announced on
-# 18 April 2026 = 2026-W15, after the modelled peak.
-#
-# Deterministic, like the rest of this script: 52 start weeks x 10 coverage levels x 2
-# arms is a scenario surface, and re-propagating 1,040 cells would obscure the pattern
-# without changing its shape. FOI and rho stay at their central values, so the fit is
-# reused and the baseline epidemic is identical in every cell -- only the campaign moves.
+# 6. Campaign start week x vaccine coverage
 # ------------------------------------------------------------
 idx_of <- function(y, w) caldas_obs$week_index[caldas_obs$Year == y & caldas_obs$week == w]
-WK_PRE <- start_pre                       # intended: pre-outbreak, 2025-W40
-WK_ACT <- idx_of(2026, 15)                # actual: announced 18 April 2026
-WK_PEAK <- idx_of(2025, 50)               # transmission peak of the fitted envelope
+WK_PRE <- start_pre                       # pre-outbreak, 2025-W40
+WK_ACT <- idx_of(2026, 15)                # actual announced 18 April 2026
+WK_PEAK <- idx_of(2025, 50)               # peak of the fitted envelope
 
-sw_fit <- get_fit(BASE$foi, BASE$rho)     # cached; the tornado has already built it
+sw_fit <- get_fit(BASE$foi, BASE$rho)
 sw_Rimm  <- 1 - exp(-BASE$foi * exposure_age)
 sw_sfrac <- (N*(1-sw_Rimm))/sum(N*(1-sw_Rimm))
 sw_I0i   <- round(((week_1_cases/BASE$rho/PSYMP)/GAMMA) * sw_sfrac)
-# The engine's age reweighting rescales to preserve the total, so for a TOTAL the raw
-# sum is the same number and no weighting is needed here.
-# The y-axis is the week the campaign is DECIDED. Dosing begins BASE$delay weeks later,
-# exactly as run_scenario does (st <- start_pre + delay), so a cell here means the same
-# thing as the corresponding scenario in the tornado and in the engine.
 sw_sim <- function(cov, start, vi, vb)
   sum(seirv_vaccinated(T_weeks, A, N, sw_Rimm, sw_I0i, E0, sw_fit$beta, SIGMA, GAMMA,
                        BASE$rho, target_age, cov, BASE$deliv,
                        min(start + BASE$delay, T_weeks), vi, vb, BASE$immun,
                        prop_symp = PSYMP)$new_symptomatic[, EVAL_WIN])
-SW_BASE <- sw_sim(0, WK_PRE, 0, 0)        # start week is irrelevant at coverage 0
+SW_BASE <- sw_sim(0, WK_PRE, 0, 0) 
 
 SW_WEEKS <- seq_len(T_weeks); SW_COVS <- seq(0.10, 1.00, by = 0.10)
 SW_ARMS  <- c("Disease-blocking", "Disease + infection blocking")
@@ -233,10 +197,6 @@ surface <- do.call(rbind, lapply(SW_WEEKS, function(w) do.call(rbind, lapply(SW_
 surface$epi_week <- sprintf("%d-W%02d", caldas_obs$Year[surface$week],
                             caldas_obs$week[surface$week])
 
-# fold loss between the intended and the actual campaign date, at each coverage level
-# Three campaign dates: the modelled pre-outbreak date, the transmission peak, and the
-# actual announcement. Fold losses are both measured against the pre-outbreak date, so
-# they read as "how much impact is given up by deciding this late".
 intended_vs_actual <- surface |>
   filter(week %in% c(WK_PRE, WK_PEAK, WK_ACT)) |>
   mutate(timing = dplyr::case_when(week == WK_PRE  ~ "modelled_pre_outbreak_2025W40",
@@ -249,10 +209,6 @@ intended_vs_actual <- surface |>
   as.data.frame()
 
 
-# The surface itself is deterministic, so its cells carry no interval. The two marked
-# dates DO have one: both are engine scenarios, so their uncertainty is already
-# propagated over the 1000-draw ensemble. The fold loss is formed per draw, keeping the
-# two timings paired.
 timing_propagated <- NULL
 if (file.exists("outputs/CHIKV_engine_results.rds")) {
   Ge <- readRDS("outputs/CHIKV_engine_results.rds")
@@ -289,13 +245,11 @@ p_surface <- ggplot(surface, aes(100*coverage, week, fill = pct_averted)) +
                                       caldas_obs$Year[sw_ticks], caldas_obs$week[sw_ticks])) +
   labs(x = "Vaccine coverage (% of eligible population aged 18-59)",
        y = "Start of vaccination campaign (week index)") +
-  # Drawn at its printed size (190 mm, Elsevier's full page width): theme_bw(9) puts the
-  # axis and legend text at 7.2 pt, above Elsevier's 7 pt minimum.
   theme_bw(9) +
   theme(strip.text = element_text(face = "bold", size = 8),
         panel.grid = element_blank(), legend.position = "bottom",
         legend.key.width = unit(1.4, "cm"), legend.key.height = unit(.3, "cm"))
-# Supplementary figure (Fig S6): a PNG at 1000 dpi, Elsevier's minimum for bitmapped line art.
+# Fig. S6
 ggsave("outputs/CHIKV_timing_coverage.png", p_surface, width = 190 / 25.4, height = 4.4, dpi = 1000)
 
 # ------------------------------------------------------------
@@ -315,7 +269,7 @@ notes <- data.frame(item = c(
   paste(sprintf("%s [%.4g, %.4g]", names(BOUNDS), sapply(BOUNDS, `[`, 1), sapply(BOUNDS, `[`, 2)), collapse = "; "),
   paste("gamma, sigma, prop_symp. gamma is absorbed by the beta re-fit (R0 = beta/gamma",
         "against the same cases); sigma shifts peak timing not size. prop_symp is held at",
-        "its median, as in Kang et al. 2025; it does NOT cancel -- the fit anchors on",
+        "its median, as in Kang et al. 2025; it does not cancel -- the fit anchors on",
         "rho x prop_symp x infections = 8,204, so a lower prop_symp puts more infections",
         "behind the same cases -- and its uncertainty is carried by the probabilistic",
         "analysis (CHIKV_lhs.R samples it per draw)."),
@@ -323,9 +277,9 @@ notes <- data.frame(item = c(
   "Averted = baseline - scenario, both inside the window.",
   sprintf("Campaign start week x coverage, %d x %d x 2 arms, deterministic at the central set. Three dates are tabulated: modelled pre-outbreak 2025-W40 (week %d), the transmission peak 2025-W50 (week %d), and the actual announcement 18 April 2026 = 2026-W15 (week %d). Both fold losses are measured against the pre-outbreak date. The propagated sheet covers only the pre-outbreak and actual dates, because those are the two campaign timings the engine simulates; 2025-W50 is deterministic only.", T_weeks, length(SW_COVS), WK_PRE, WK_PEAK, WK_ACT),
   "Coverage on the surface is of the ELIGIBLE 18-59 group (61.5% of the population), not of the whole population.",
-  sprintf("The surface y-axis is the week the campaign is DECIDED; dosing begins %d weeks later (BASE$delay), as in run_scenario and the engine.", BASE$delay),
+  sprintf("The surface y-axis is the week the campaign is decided; dosing begins %d weeks later (BASE$delay), as in run_scenario and the engine.", BASE$delay),
   "Surface cells are deterministic and carry NO interval. The two marked dates are engine scenarios, so their 95% UIs are propagated over the 1000-draw ensemble -- see intended_vs_actual_propagated. Those medians differ slightly from the deterministic cells because the engine also samples coverage, efficacy and deployment delay.",
-  "The fold loss is UNSTABLE and should not be quoted precisely: its denominator is ~0.05% of cases, so small changes in assumptions move it by a multiple. Adding the 2-week deployment delay alone takes it from ~123x to ~319x, because two weeks costs nothing pre-outbreak (99.5% of cases still ahead) but 62% of the remaining benefit at 2026-W15 (cases left after immunity fall 2,346 -> 1,215, and the 10-week rollout is truncated by the window end). Prefer reporting the two percentages, which are stable, and describing the loss as two to three orders of magnitude."),
+  "The fold loss is unstable and should not be quoted precisely: its denominator is ~0.05% of cases, so small changes in assumptions move it by a multiple. Adding the 2-week deployment delay alone takes it from ~123x to ~319x, because two weeks costs nothing pre-outbreak (99.5% of cases still ahead) but 62% of the remaining benefit at 2026-W15 (cases left after immunity fall 2,346 -> 1,215, and the 10-week rollout is truncated by the window end). Prefer reporting the two percentages, which are stable, and describing the loss as two to three orders of magnitude."),
   stringsAsFactors = FALSE)
 write_xlsx(list(notes = notes, base_case = base_tbl, owsa = owsa,
                 timing_coverage_surface = surface,
