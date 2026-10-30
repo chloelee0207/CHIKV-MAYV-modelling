@@ -39,8 +39,8 @@ The input files are deposited on Mendeley Data:
 
 | File | Contents | Source |
 |---|---|---|
-| `weekly_case.xlsx` | Weekly reported chikungunya cases by age group, Caldas Novas (sheet `ca_combined`) | SINAN, Brazilian Ministry of Health |
-| `population.xlsx` | Population by age group, Caldas Novas (sheet `prop_immune`) | IBGE 2022 census |
+| `weekly_case.xlsx` | Weekly reported chikungunya cases by age group, munucipality A (sheet `ca_combined`) | SINAN, Brazilian Ministry of Health |
+| `population.xlsx` | Population by age group, munucipality A (sheet `prop_immune`) | IBGE 2022 census |
 | `disease_progression.xlsx` | Severity, recovery, disability-weight and life-expectancy parameters | Kang et al. 2025 (Table S4) and sources cited in the supplementary materials |
 | `model_calibration.xlsx` | Natural-history and reporting priors | Sources cited in the supplementary materials |
 | `rainfall_caldas.csv` | Climatological rainfall for Caldas Novas | CHIRPS, via the Humanitarian Data Exchange (WFP, Brazil subnational rainfall) |
