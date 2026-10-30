@@ -11,7 +11,7 @@ if (!exists("DEFS_ONLY")) DEFS_ONLY <- FALSE
 suppressMessages({library(readxl); library(dplyr); library(tidyr); library(ggplot2); library(splines)})
 
 # ------------------------------------------------------------
-# 1. age-structured SEIRV
+# 1. Age-structured SEIR simulator (weekly, 7 daily sub-steps)
 # ------------------------------------------------------------
 seir_baseline <- function(T_weeks, A, N, R_init_prop, I0, base_beta, sigma, gamma, rho,
                           prop_symp = 0.5242478, sub_steps = 7, E0 = rep(0, A)) {
@@ -117,10 +117,10 @@ refit <- function(foi, g, s, r, ps, start) {
        pool=pool, immune=100*sum(Rimm*N)/sum(N))
 }
 
-if (!isTRUE(DEFS_ONLY)) {
+if (!isTRUE(DEFS_ONLY)) {   # DEFS_ONLY = TRUE loads the functions above without running the 1,000-draw fit
 
 # ------------------------------------------------------------
-# 5. Sample gamma/sigma/rho from model_calibration.xlsx
+# 5. Samplers: gamma and sigma from model_calibration.xlsx; rho, FOI and prop_symp set below
 # ------------------------------------------------------------
 cal <- as.data.frame(read_excel("data/model_calibration.xlsx", sheet=1))
 cal <- cal[cal$Group=="CHIKV" & !is.na(cal$Median),]
@@ -281,4 +281,4 @@ cat(sprintf("Saved CHIKV_lhs_ensemble.rds (%d of %d draws retained).\n",
             length(ok), n))
 
 
-} # you can load this above without running the 1,000 draws fit
+}  # end if (!DEFS_ONLY)
