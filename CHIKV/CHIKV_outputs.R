@@ -1,12 +1,5 @@
 # ============================================================
-# CHIKV_outputs.R -- Caldas Novas CHIKV presentation and export layer.
-#
-# Reads CHIKV_engine_results.rds and writes the burden workbook and figures.
-# Pure presentation: no SEIR or Monte Carlo of its own, so every number here shares
-# the engine's per-draw propagation.
-#
-# Horizon is the 52-week observed window, 2025-W24 -> 2026-W22.
-#
+# CHIKV_outputs.R 
 # Run order:  CHIKV_engine.R  ->  this file
 #             Cross-pathogen figures (CHIKV beside MAYV) live in combined_outputs.R.
 # ============================================================
@@ -21,24 +14,20 @@ scen_names <- G$scen_names; vac_names <- G$vac_names
 timings <- G$timings; T_sim <- G$T_sim; T_data <- G$T_data
 arm_names <- G$arm_names; nnv <- G$nnv; NNV_OUT <- G$NNV_OUT; cov_d <- G$cov_d
 caldas_obs <- G$caldas_obs; observed_cases <- G$observed_cases
-outcomes <- c("infections","symptomatic","hospitalisations","deaths")   # burden subset of OUTCOMES
-stopifnot(T_sim == T_data)                        # horizon is the observed window
+outcomes <- c("infections","symptomatic","hospitalisations","deaths") 
+stopifnot(T_sim == T_data)
 base_true <- bmat[["No vaccine (baseline)"]][, outcomes, drop = FALSE]
 
-# averted (baseline - scenario), per draw, for the burden outcomes (computed locally
-# so infections is included -- G$averted carries only the NNV outcomes).
+# averted (baseline - scenario)
 av <- setNames(lapply(vac_names, function(nm)
   base_true - bmat[[nm]][, outcomes, drop = FALSE]), vac_names)
 
-# baseline true-vs-reported and averted-MC tables (built here; the engine stores raw draws)
+# baseline true-vs-reported and averted-MC tables
 base_tbl <- do.call(rbind, lapply(outcomes, function(o) {
   d <- if (o == "deaths") 1 else 0
   data.frame(outcome = o, true = fmtq(base_true[,o], d), reported = fmtq(rho_i*base_true[,o], d))
 }))
-# % of baseline symptomatic cases averted, median (95% UI), from a per-draw vector.
-# Precision adapts because the timings span three orders of magnitude: a fixed 1 dp
-# renders the post-peak rollout as "0.0% (0.0-0.1%)", which cannot support the figure
-# being quoted in the text.
+# % of baseline symptomatic cases averted, median (95% UI)
 pct_fmt <- function(r) { q <- quantile(r, c(.5,.025,.975), na.rm = TRUE)
   d <- if (q[1] < 1) 3 else 1
   sprintf("%.*f%% (%.*f-%.*f%%)", d, q[1], d, q[2], d, q[3]) }
@@ -51,11 +40,7 @@ mc_tbl <- do.call(rbind, lapply(vac_names, function(nm) {
              row.names = NULL)
 }))
 
-# Outcomes averted per 100,000 doses (= 1e5 x averted / doses, per draw). Scale-free,
-# so it is comparable across settings of different population size. Infections are
-# averted only by the infection-blocking arm, so disease-blocking shows NA there.
-# YLDs and YLLs are listed beside DALYs so the per-dose return splits into its
-# morbidity and mortality halves; DALY = YLD + YLL, so the three stay consistent.
+# Outcomes averted per 100,000 doses
 per100k_outcomes <- c(infections="Infections", symptomatic="Symptomatic",
                       hospitalisations="Hospitalisations", deaths="Deaths",
                       yld="YLDs", yll="YLLs", daly="DALYs")
@@ -72,7 +57,7 @@ mc_per100k <- do.call(rbind, lapply(vac_names, function(nm) {
 }))
 
 # ------------------------------------------------------------
-# 1. Calendar axis for the 52 observed weeks
+# 1. Figure - time x-axis
 # ------------------------------------------------------------
 grid <- data.frame(week_index = 1:T_sim)
 grid$Year <- caldas_obs$Year[match(grid$week_index, caldas_obs$week_index)]
@@ -85,9 +70,9 @@ year_break <- mean(c(max(which(grid$Year==2025)), min(which(grid$Year==2026))))
 grid$week_label <- sprintf("%d-W%02d", grid$Year, grid$wk)
 
 # ------------------------------------------------------------
-# 1b. Baseline (no-vaccine) weekly REPORTED cases.
-# wk_symp holds per-draw weekly TRUE symptomatic; reported = rho_i * true (rho_i
-# recycles down the columns, so row i is scaled by that draw's reporting rate).
+# 1b. Baseline (no-vaccine) weekly reported cases
+# wk_symp holds per-draw weekly true symptomatic 
+# reported = rho_i * true
 # ------------------------------------------------------------
 rep_mat <- wk_symp[["No vaccine (baseline)"]] * rho_i
 rq <- apply(rep_mat, 2, quantile, c(.025, .5, .975), na.rm = TRUE)
@@ -103,8 +88,7 @@ write.csv(weekly_reported, "outputs/CHIKV_vacc_weekly_reported.csv", row.names =
 # ------------------------------------------------------------
 # 2. Excel workbook
 # ------------------------------------------------------------
-# per-scenario TOTALS, true & reported (median, 95% UI). rho already per-draw in the
-# ensemble, so reported = rho_i * true carries the reporting-rate uncertainty jointly.
+# per-scenario totals, true & reported (median, 95% UI)
 vtr <- do.call(rbind, lapply(scen_names, function(nm) {
   m <- bmat[[nm]]; base <- nm == "No vaccine (baseline)"
   data.frame(timing = if (base) "No vaccine" else sub(" \\|.*","",nm),
@@ -147,9 +131,6 @@ notes <- rbind(notes, data.frame(parameter = "Scope of the window", value = past
   stringsAsFactors = FALSE))
 
 # doses actually delivered to the eligible 18-59, and dose wastage, per vaccine
-# scenario. wastage = doses administered to already-immune / already-infected eligible
-# people (cannot benefit) = 1 - on-target (reached susceptibles) / administered; it
-# rises for later-timing rollouts, when more of the eligible are already infected.
 pct3 <- function(x) { q <- quantile(x, c(.5,.025,.975), na.rm = TRUE)
   sprintf("%.1f%% (%.1f - %.1f%%)", 100*q[1], 100*q[2], 100*q[3]) }
 doses_wastage <- do.call(rbind, lapply(vac_names, function(nm) {
@@ -162,19 +143,8 @@ doses_wastage <- do.call(rbind, lapply(vac_names, function(nm) {
 
 
 # ------------------------------------------------------------
-# Attack rates for the BASELINE (no-vaccine) arm, median (95% UI).
-# Denominator is the per-draw SUSCEPTIBLE POOL at t = 0, not the total population: prior
-# immunity is sampled, so the pool varies draw to draw and is recorded by the engine
-# (sus_pool). Both numerators are given because they answer different questions and are
-# routinely confused:
-#   infections / susceptibles   -- transmission intensity; what the model's internal
-#                                  attack_pct uses, and what final-size theory refers to
-#   symptomatic / susceptibles  -- the CLINICALLY OBSERVABLE attack rate, and the only one
-#                                  comparable with field serosurveys that counted cases
-#                                  (e.g. Belterra 1978: 807 clinically suspect cases among
-#                                  3,941 questioned = 20.5%)
-# Computed per draw and then summarised, so the UI carries the joint uncertainty in both
-# the numerator and the susceptible denominator rather than dividing two medians.
+# baseline attack rates (median, 95% UI)
+# denominator is the per-draw susceptible pool at t = 0, not the total population
 # ------------------------------------------------------------
 stopifnot(!is.null(G$sus_pool))          # re-run CHIKV_engine.R if this fails
 .bpd <- bmat[["No vaccine (baseline)"]]
@@ -183,10 +153,6 @@ attack_rates <- data.frame(
               "Infections / susceptibles (%)", "Symptomatic / susceptibles (%)",
               "Susceptible pool at t = 0", "Total population"),
   baseline = c(
-    # POPULATION-WEIGHTED for CHIKV: immunity is age-dependent (truncated catalytic,
-    # 1 - exp(-FOI * min(age, 12))), so this is the share of the WHOLE population immune,
-    # not a single per-person probability. Derived as 1 - sus_pool/pop_total so it is
-    # guaranteed consistent with the denominator used by the two attack rates above.
     fmtq(100 * (1 - G$sus_pool / G$pop_total), 1),
     fmtq(100 * .bpd[, "infections"]  / G$sus_pool, 1),
     fmtq(100 * .bpd[, "symptomatic"] / G$sus_pool, 1),
@@ -204,11 +170,10 @@ write_xlsx(sheets, "outputs/CHIKV_vacc_outputs.xlsx")
 cat("Wrote CHIKV_vacc_outputs.xlsx  (sheets:", paste(names(sheets), collapse=", "), ")\n")
 
 # ------------------------------------------------------------
-# 3. Figure (a): epidemic-curve ribbons, per timing
+# 3. Figure - epidemic curve
 # ------------------------------------------------------------
 scen_cols <- c("No vaccination"="grey55", "Disease-blocking"="#4393c3",
                "Disease + infection blocking"="#d6604d")
-# TRUE symptomatic (solid, with ribbon) and REPORTED = rho_i * symptomatic (dotted).
 band <- function(nm, lab) {
   qt <- apply(wk_symp[[nm]],          2, quantile, c(.025,.5,.975), na.rm=TRUE)
   qr <- apply(wk_symp[[nm]] * rho_i,  2, quantile, c(.025,.5,.975), na.rm=TRUE)
@@ -224,15 +189,12 @@ make_epicurve <- function(tn) {
                band(disb,"Disease-blocking"), band(both,"Disease + infection blocking"))
   pdf$scenario <- factor(pdf$scenario, levels=names(scen_cols))
   pdf$measure  <- factor(pdf$measure, levels=c("True symptomatic","Reported"))
-  # median deploy delay + 10-wk rollout, clipped to the window: at 2026-W15 the rollout
-  # would otherwise run to week 57 of a 52-week window
   roll0 <- timings[[tn]] + 2; roll1 <- min(roll0 + 10, T_sim + 0.5)
   lab <- paste0("% symptomatic reduction:\nDisease-blocking: ", pct_of(disb),
                 "\nDisease + infection blocking: ", pct_of(both))
   ggplot(pdf, aes(week, med, colour=scenario, fill=scenario)) +
     annotate("rect", xmin=roll0, xmax=roll1, ymin=-Inf, ymax=Inf, fill="#3a7d3a", alpha=.10) +
     geom_vline(xintercept=year_break, linetype="dashed", colour="grey60") +
-    # geom_vline(xintercept=T_data+0.5, linetype="dotted", colour="grey60") +
     geom_ribbon(data=subset(pdf, measure=="True symptomatic"), aes(ymin=lo, ymax=hi), alpha=.18, colour=NA) +
     geom_line(aes(linetype=measure), linewidth=.9) +
     annotate("text", x=Inf, y=Inf, label=lab, hjust=1.02, vjust=1.2, size=3.5, lineheight=.95) +
@@ -242,7 +204,6 @@ make_epicurve <- function(tn) {
     scale_y_continuous(labels=scales::comma) +
     labs(x="Week", y="Predicted symptomatic cases", colour=NULL, fill=NULL,
          title="CHIKV symptomatic cases (coverage sampled, median 30%)") +
-         # caption=sprintf("Green = vaccination rollout window; band = 95%% UI", T_data)) +
     theme_bw(11) + theme(legend.position="bottom", plot.title=element_text(face="bold"),
                          panel.grid.minor=element_blank())
 }
@@ -252,7 +213,7 @@ for (tn in names(timings)) {
 }
 
 # ------------------------------------------------------------
-# 4. Figure (b): averted burden by timing x arm (median + 95% UI)
+# 4. Figure - averted burden (median, 95% UI)
 # ------------------------------------------------------------
 mc_long <- do.call(rbind, lapply(vac_names, function(nm) {
   m <- av[[nm]]
@@ -278,7 +239,7 @@ p_bar <- ggplot(mc_long, aes(timing, med, fill=arm)) +
 print(p_bar); ggsave("outputs/CHIKV_vacc_averted_mc.png", p_bar, width=10, height=4.2, dpi=120)
 
 # ------------------------------------------------------------
-# 5. Figure (c): baseline observed vs predicted reported cases.
+# 5. Figure - baseline observed vs predicted reported cases
 # ------------------------------------------------------------
 pred <- data.frame(week = 1:T_sim, lo = rq[1, ], med = rq[2, ], hi = rq[3, ])
 obs  <- data.frame(week = 1:T_data, cases = observed_cases)
@@ -296,30 +257,12 @@ p_fit <- ggplot(pred, aes(week, med)) +
 print(p_fit); ggsave("outputs/CHIKV_vacc_fit_observed.png", p_fit, width = 9, height = 5, dpi = 120)
 
 # ------------------------------------------------------------
-# 5b. Two-panel fit figure: (a) reported cases, (b) inferred infections.
-#
-# Panel (a) is the calibration target -- what surveillance actually saw, so the observed
-# dots belong here and nowhere else. Panel (b) is the same draws expressed as INFECTIONS,
-# which is a model inference with no observable counterpart: reported = rho * symptomatic,
-# so (b) is larger than (a) by the reporting rate AND the symptomatic fraction together.
-#
-# Two panels rather than one with two y-axes: the series differ ~8-fold
-# (peak 675 reported vs 5,282 infections) and a second axis would invite a slope comparison
-# that means nothing. Both panels share one x scale and one colour, so they read as two
-# views of a single fit rather than two results.
-#
-# wk_inf holds per-draw weekly NEW infections; its row sums reproduce the `infections`
-# outcome exactly (65,090 median), so the panels are consistent with Table 2 by construction.
+# 5b. Two-panel
 # ------------------------------------------------------------
 iq   <- apply(wk_inf[["No vaccine (baseline)"]], 2, quantile, c(.025, .5, .975), na.rm = TRUE)
 infd <- data.frame(week = 1:T_sim, lo = iq[1, ], med = iq[2, ], hi = iq[3, ])
 
-# beta(t) for panel A. The engine RESAMPLES the transmission ensemble with replacement,
-# so quoting the raw ensemble here would show a slightly different draw set from the one
-# panels B and C are built on. rho_i = E$rho[t_idx] and the rho draws are unique, so the
-# engine's exact t_idx is recoverable and panel A becomes draw-for-draw consistent with
-# the other two. Falls back to the raw ensemble if that ever stops being true.
-BETA_CAP <- 4                     # see below
+BETA_CAP <- 4
 E_lhs <- readRDS("outputs/CHIKV_lhs_ensemble.rds")
 t_idx <- match(rho_i, E_lhs$rho)
 if (anyNA(t_idx)) { warning("t_idx not recoverable from rho_i; using the raw LHS ensemble.")
@@ -330,13 +273,9 @@ betd <- data.frame(week = 1:T_sim, lo = bq[1, ], med = bq[2, ], hi = bq[3, ])
 FIT_LINE <- "#2166ac"; FIT_BAND <- "#4393c3"
 LAB_FIT  <- "Model fit (median, 95% UI)"; LAB_OBS <- "Observed reported cases"
 
-# Font sizes, in points -- EDIT HERE. This is a supplementary figure, drawn at its printed
-# size (190 mm wide, Elsevier's full page width), so these are the sizes on the page;
-# Elsevier asks for at least 7 pt.
 FIG_W <- 190 / 25.4
 FS_AB <- list(base = 8, axis_title = 8, axis_text = 7, legend = 7, tag = 10)
 
-# Shared skeleton so the two panels cannot drift apart in scale, grid or year marker.
 fit_panel <- function(d, ytitle) {
   ggplot(d, aes(week, med)) +
     geom_vline(xintercept = year_break, linetype = "dashed", colour = "grey60") +
@@ -354,41 +293,21 @@ fit_panel <- function(d, ytitle) {
           legend.position  = "bottom")
 }
 
-# The panels are identified by the bold A / B / C tags, matching combined_outputs.R; a
-# centred title over each would repeat what the y-axis already says.
-#
-# A  beta(t), the fitted weekly transmission rate -- the quantity the spline estimates.
-# B  reported cases, the calibration target (the only panel with observed data).
-# C  infections, the model's inference from the same draws.
-# Read left to right, top to bottom: what was estimated, what it was fitted to, what it
-# implies. Only B carries dots, because reported cases are the only observable of the three.
-#
-# A's y-axis is capped at BETA_CAP. The upper band runs to 8.5 in the closing weeks, when
-# susceptible depletion leaves beta barely identified; uncapped, that single excursion
-# flattens the median curve and the epidemic-peak rise into an unreadable line. 7 of 52
-# weeks are clipped. Same choice, and same cap, as CHIKV_prop_beta_zoom.png -- state it
-# in the figure legend.
 pA <- fit_panel(betd, expression(paste("Weekly transmission rate ", beta[t]))) +
   coord_cartesian(ylim = c(0, BETA_CAP)) + guides(colour = "none")
 pB <- fit_panel(pred, "Weekly no. of reported cases") +
   geom_point(data = obs, aes(week, cases, shape = LAB_OBS), inherit.aes = FALSE,
              size = .9, colour = "grey15") +
   scale_shape_manual(values = setNames(16, LAB_OBS), name = NULL)
-# A and C carry no observed data and repeat B's fit encoding, so their keys are suppressed
-# and the single collected legend serves all three.
 pC <- fit_panel(infd, "Weekly no. of infections") + guides(colour = "none")
 
-# A top-left, B top-right, C bottom-left; "#" leaves the fourth cell empty.
-# One explicit design rather than nested rows -- (pA + pB) / (pC + plot_spacer()) lays each
-# row out independently, so C ends up wider than A because the spacer has no axis to make
-# room for. A single design grid shares one column layout and keeps A and C the same width.
 p_ab <- pA + pB + pC +
   patchwork::plot_layout(design = "AB\nC#", guides = "collect") +
   patchwork::plot_annotation(tag_levels = "A") &
   theme(plot.tag = element_text(face = "bold", size = FS_AB$tag),
         legend.position = "bottom", legend.justification = "center")
 
-# Supplementary figure: a PNG at 1000 dpi, Elsevier's minimum for bitmapped line art.
+# Supplementary figure
 ggsave("outputs/CHIKV_fit_cases_infections.png", p_ab, width = FIG_W, height = 5.85, dpi = 1000)
 cat(sprintf(paste0("Saved CHIKV_fit_cases_infections.png -- peak beta %.2f (week %d), ",
                    "peak reported %s (week %d), peak infections %s (week %d); ",
@@ -399,9 +318,7 @@ cat(sprintf(paste0("Saved CHIKV_fit_cases_infections.png -- peak beta %.2f (week
             sum(betd$hi > BETA_CAP), nrow(betd), BETA_CAP))
 
 # ------------------------------------------------------------
-# 6. DALYs: workbook + composition and averted figures.
-# YLD (by phase), YLL and DALY are per-draw engine outcomes, consistent draw-for-draw
-# with the burden totals. DALY = YLD + YLL, undiscounted.
+# 6. DALYs
 # ------------------------------------------------------------
 base_daly <- bmat[["No vaccine (baseline)"]]
 daly_by_scenario <- do.call(rbind, lapply(scen_names, function(nm) {
@@ -412,11 +329,7 @@ daly_by_scenario <- do.call(rbind, lapply(scen_names, function(nm) {
              YLD_acute = fmtq(m[,"yld_acute"]), YLD_subacute = fmtq(m[,"yld_subacute"]),
              YLD_chronic = fmtq(m[,"yld_chronic"]), row.names = NULL, check.names = FALSE)
 }))
-# YLD and YLL averted, in absolute terms and per 100,000 doses, alongside DALYs.
-# G$averted carries only infections/symptomatic/hospitalisations/deaths/daly, so the YLD
-# and YLL components are differenced from per_draw here rather than read off that matrix.
-# Per-dose figures use the same convention as averted_per_100k_doses: computed per draw,
-# with non-finite or negative values set to NA rather than clamped to zero.
+
 daly_averted <- do.call(rbind, lapply(vac_names, function(nm) {
   m <- G$averted[[nm]]; s <- bmat[[nm]]; doses <- s[,"doses"]
   p100 <- function(v) { r <- 1e5 * v / doses; r[!is.finite(r) | r < 0] <- NA; fmtq(r, 0) }
@@ -432,13 +345,7 @@ daly_averted <- do.call(rbind, lapply(vac_names, function(nm) {
 }))
 
 # ------------------------------------------------------------
-# yld_by_phase: the acute / sub-acute / chronic split of YLDs, in one place.
-# daly_by_scenario already reports the phase split of the LEVELS, and daly_averted the
-# TOTAL averted -- but nothing carried the phase split of what the vaccine AVERTS, which is
-# the quantity a per-dose comparison needs. Long-format (one row per scenario x phase) so
-# the phases can be filtered or plotted directly.
-# pct_of_total is each phase's share of BASELINE YLD, so it is a property of the disease
-# course and does not vary by vaccination scenario.
+# yld by phase
 # ------------------------------------------------------------
 PHASE <- c(yld_acute = "Acute (<=14 d)", yld_subacute = "Sub-acute (14 d - 3 mo)",
            yld_chronic = "Chronic (>3 mo)", yld = "TOTAL YLD")
@@ -494,9 +401,7 @@ p_dav <- ggplot(dav_long, aes(timing, med, fill = arm)) +
 print(p_dav); ggsave("outputs/CHIKV_daly_averted.png", p_dav, width = 8, height = 4.5, dpi = 120)
 
 # ------------------------------------------------------------
-# 7. Number Needed to Vaccinate: workbook + figure (pre-outbreak rollout).
-# NNV = doses / burden averted, per draw, so it shares the burden/DALY propagation.
-# NNV < 1 means one dose averts more than one case via herd protection.
+# 7. NNV
 # ------------------------------------------------------------
 out_labs <- c(infections = "Infection", symptomatic = "Symptomatic case",
               hospitalisations = "Hospitalisation", deaths = "Death", daly = "DALY")
@@ -534,12 +439,9 @@ p_nnv <- ggplot(nnv_plt, aes(arm, med, fill = arm)) +
 print(p_nnv); ggsave("outputs/CHIKV_nnv.png", p_nnv, width = 11, height = 4.6, dpi = 120)
 
 # ------------------------------------------------------------
-# 8. Residual burden under PRE-OUTBREAK vaccination (2025-W40), as a % of no
-# vaccination. Two bars per panel: unvaccinated counterfactual vs vaccinated.
-# Ratios are formed per draw (scenario / baseline) and then summarised, so the UI
-# keeps the baseline-scenario pairing instead of dividing two independent medians.
+# 8. Residual burden
 # ------------------------------------------------------------
-RESID_TIMING <- "pre-outbreak"                    # 2025-W40, the only timing shown
+RESID_TIMING <- "pre-outbreak"
 stopifnot(RESID_TIMING %in% names(timings))
 
 pct_of_base <- function(num, den) { r <- 100 * num / den; r[!is.finite(r)] <- NA; r }
@@ -549,7 +451,7 @@ add_res <- function(outcome, scen, arm, v) res_rows[[length(res_rows)+1]] <<- da
   med = median(v, na.rm = TRUE), lo = quantile(v, .025, na.rm = TRUE),
   hi = quantile(v, .975, na.rm = TRUE), row.names = NULL)
 
-# outcome label -> per-draw burden column in the engine results
+# outcome label
 resid_outcomes <- list(
   list(lab = "Cumulative symptomatic cases", col = "symptomatic"),
   list(lab = "Cumulative hospitalisations",  col = "hospitalisations"),
@@ -586,15 +488,11 @@ p_resid <- ggplot(resid_plot, aes(scenario, med, fill = scenario)) +
         panel.grid.minor = element_blank())
 print(p_resid)
 ggsave("outputs/CHIKV_residual_burden.png", p_resid, width = 6.4, height = 8.6, dpi = 130)
-# % reduction from no vaccination, the complement of the residual columns. The interval
-# BOUNDS SWAP: a draw with a high residual burden is a draw with a small reduction, so
-# red_lo is 100 - hi and red_hi is 100 - lo. Taking 100 - lo as the lower bound would
-# report the interval backwards.
 resid$red_med <- 100 - resid$med
 resid$red_lo  <- 100 - resid$hi
 resid$red_hi  <- 100 - resid$lo
 write_xlsx(list(residual_burden_pct = resid), "outputs/CHIKV_residual_burden.xlsx")
-saveRDS(resid_plot, "outputs/CHIKV_residual_burden.rds")     # for the merged CHIKV|MAYV figure
+saveRDS(resid_plot, "outputs/CHIKV_residual_burden.rds")
 cat("Saved CHIKV_residual_burden.png and .xlsx (pre-outbreak vaccination, 2025-W40,\n",
     "     burden as % of no vaccination).\n", sep = "")
 
