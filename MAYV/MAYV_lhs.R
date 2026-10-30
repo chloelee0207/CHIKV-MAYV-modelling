@@ -74,68 +74,24 @@ g_m <- exp(g_ml)
 p_m <- sr$Median; p_sd <- sd_of(sr)
 if (!exists("MAYV_LATENT")) MAYV_LATENT <- "mayv7_12"
 stopifnot(MAYV_LATENT %in% c("mayv7_12", "mayv5_7", "mayv3_11", "diagne1_6", "cdc1_14", "caicedo3d", "long12d"))
+# Latent-period priors (weeks); MAYV_LATENT picks one. Only the base case feeds the published results
 LAT_SPEC <- list(
-  # BASE CASE. Stated incubation period of 7-12 days, taken as the 95% interval on the
-  # population MEAN and centred on its geometric mean sqrt(84) = 9.17 d -> 1.309 wk
-  # (1.000-1.714). Same convention as the CHIKV model: the interval is placed on the mean,
-  # not on between-individual variation, which the SEIR's exponential E->I waiting time
-  # already represents.
-  #   CAVEAT, recorded deliberately. The source describes this 7-12 d window as FOLLOWING
-  #   the acute viraemic phase ("a short and transient viraemia (3-4 days) ... subsequently
-  #   ... an incubation period of 7-12 days"). That inverts the usual ordering, in which
-  #   incubation precedes symptoms and viraemia, so the window may describe the interval
-  #   before chronic signs rather than classical incubation. Modelled here as the latent
-  #   (E->I) period per the study team's decision; mayv5_7 and caicedo3d are the alternatives.
-  #   NB the same sentence puts VIRAEMIA at 3-4 d. Viraemia, not symptom duration, is what
-  #   governs onward transmission, so a gamma of 3-4 d rather than 7 d would be the internally
-  #   consistent reading of this source -- see the note on the gamma row above.
+  # Base case: Martins et al. 2020, 7-12 d, as the 95% interval on the population mean
   mayv7_12  = list(dist = "lognormal", lo = 7/7,      hi = 12/7),
-  # ALTERNATIVE, and the main competing source. Diagne et al. 2020 chart the incubation
-  # period as roughly 0-6 d before symptom onset, with viral load lasting 5-7 d and fever
-  # about a week. Read as 1-6 d (an incubation of 0 is not admissible). This BARELY OVERLAPS
-  # the 7-12 d base case, so the two are not reconcilable into one prior and the disagreement
-  # is carried as a structural sensitivity row rather than averaged away.
-  #   NB the same figure CORROBORATES the gamma row: viral load 5-7 d and fever ~1 week are
-  #   consistent with an infectious period of 7 d (5.2-9.4), against the 3-4 d viraemia that
-  #   the Martins text implies.
+  # Diagne et al. 2020, ~0-6 d (read as 1-6 d)
   diagne1_6 = list(dist = "lognormal", lo = 1/7,      hi = 6/7),
-  # ALTERNATIVE. Another source states incubation "can range from 3 to 11 days" with viraemia and
-  # symptoms "usually 5-7 days". We take the USUAL band as the 95% interval, centred on its
-  # geometric mean sqrt(35) = 5.92 d, giving 0.845 wk (0.714-1.000).
-  # WHY NOT THE FULL 3-11 RANGE. The LHS samples uncertainty in the population-MEAN latent
-  # period. A 3-11 d spread is BETWEEN-INDIVIDUAL variation in incubation time, which the
-  # SEIR's exponential E->I waiting time already represents; using it as a 95% interval on
-  # the mean double-counts that variation and overstates parameter uncertainty. This is the
-  # same convention the CHIKV model uses -- the Kang et al. 2025 latent row is 0.60 wk (0.45-0.80), i.e.
-  # 4.2 d (3.15-5.6), drawn from "usually 2 to 6 days" while discarding the stated 1-12 d
-  # range for exactly this reason. Keeping the two models on one convention also keeps the
-  # MAYV/CHIKV comparison like-for-like, which is the point of the analysis.
-  # See mayv3_11 for the full-range alternative.
+  # "Usually 5-7 days" band (the 3-11 d full range is between-person variation, see mayv3_11)
   mayv5_7   = list(dist = "lognormal", lo = 5/7,      hi = 7/7),
-  # SENSITIVITY: treat the full stated 3-11 d range as the 95% interval on the mean, fitted
-  # to BOTH statements at once by least squares on the log scale: 3 and 11 d at the
-  # 2.5th/97.5th percentiles, 5 and 7 d at the quartiles. Because mean(z) = 0 for a symmetric
-  # set of standard normal quantiles, the fit is closed-form -- meanlog is the mean of the
-  # four log targets and sdlog is sum(z*y)/sum(z^2). It reproduces 3.10-10.97 d (95% UI) and
-  # 4.69-7.25 d (IQR), so neither statement is discarded. The median lands at 5.83 d, NOT the
-  # 6.0 d arithmetic midpoint of 5-7: a lognormal's median is the GEOMETRIC centre, and the
-  # geometric centres of 3-11 and 5-7 are 5.74 and 5.92 respectively. Forcing 6.0 would push
-  # the upper 95% bound to 11.5 d, outside the range the source gives.
+  # Full 3-11 d range, lognormal fitted to both the 3-11 d range and the 5-7 d band
   mayv3_11  = list(dist = "lognormal", lo = 3/7,      hi = 11/7,
                    ml = mean(log(c(3,5,7,11)/7)),
                    sl = sum(qnorm(c(.025,.25,.75,.975)) * log(c(3,5,7,11))) /
                         sum(qnorm(c(.025,.25,.75,.975))^2)),
-  # CDC: "the incubation period for Mayaro virus disease is 1-14 days". A stated RANGE with
-  # hard limits, not a credible interval, so it is sampled UNIFORMLY across the whole range
-  # rather than fitted with the endpoints as percentiles (which would place 5% of draws
-  # outside the limits the source gives).
+  # CDC 1-14 d, a hard range, so sampled uniformly
   cdc1_14   = list(dist = "uniform",   lo = 1/7,     hi = 14/7),
-  # Caicedo et al. 2021 estimated intrinsic incubation, 3.0 d (95% CrI 2.4-4.1): the only
-  # FITTED estimate, of the population mean, and estimated jointly with Caicedo's R0. NB the
-  # fitted lognormal's median is 3.14 d, not 3.0: the CrI is not symmetric about 3.0, and the
-  # interval, which carries the uncertainty, is preserved instead.
+  # Caicedo et al. 2021 fitted mean, 3.0 d (95% CrI 2.4-4.1)
   caicedo3d = list(dist = "lognormal", lo = 2.4/7,   hi = 4.1/7),
-  # an earlier 12-day assumption, retained as a sensitivity
+  # Earlier 12-day assumption
   long12d   = list(dist = "lognormal", lo = 11.31/7, hi = 12.69/7))
 lat <- LAT_SPEC[[MAYV_LATENT]]
 lat_lo <- lat$lo; lat_hi <- lat$hi
