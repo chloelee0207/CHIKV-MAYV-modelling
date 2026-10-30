@@ -373,23 +373,9 @@ rows <- lapply(names(OUT100), function(o) {
              stringsAsFactors = FALSE) })
 
 per100k_tbl <- do.call(rbind, rows)
-p100_notes <- data.frame(item = c("Unit", "Why doses", "Why not a ratio", "Combined column",
-                                  "Deaths", "Doses"),
-  detail = c(
-  "Outcomes averted per 100,000 doses administered, median (95% UI), computed per draw.",
-  "Ixchiq is deployed once, so both models consume the same doses. Doses are the shared input, which makes per-dose benefit comparable across pathogens without either model being divided by the other.",
-  "Dividing Mayaro cases averted by chikungunya cases averted compares two different models on a scale with no natural zero. Per-dose benefit has a natural zero (no benefit) and is additive.",
-  "CHIKV disease-blocking + MAYV, added per draw with MAYV randomly permuted, since the two models' draws are not paired. Assumes the two epidemics are independent, and is conditional on BOTH occurring as modelled -- the Mayaro outbreak is hypothetical.",
-  "MAYV deaths are identically zero (MAYV_ZERO_DEATHS = TRUE fixes the CFR at 0), so the Mayaro column is 0 by construction.",
-  sprintf("CHIKV %s, MAYV %s (median), a %.2f%% difference from sampling alone.",
-          format(round(median(ch_db[, "doses"])), big.mark=","),
-          format(round(median(mv_db[, "doses"])), big.mark=","),
-          100*abs(median(mv_db[,"doses"])/median(ch_db[,"doses"]) - 1))),
-  stringsAsFactors = FALSE)
-writexl::write_xlsx(list(averted_per_100k_doses = per100k_tbl, notes = p100_notes),
+writexl::write_xlsx(list(averted_per_100k_doses = per100k_tbl),
                     "outputs/combined_per_100k_doses.xlsx")
 cat("Saved combined_per_100k_doses.xlsx (CHIKV beside MAYV, per 100,000 doses).\n")
-print(per100k_tbl, row.names = FALSE)
 
 
 # ------------------------------------------------------------
@@ -403,7 +389,7 @@ rb <- function(p) rbeta(N_MC, p$a, p$b)
 chronic_share <- function(p14, p90, p6, p12, p30) {
   a <- rb(p14); s <- rb(p90); ch <- rb(p6) + rb(p12) + rb(p30)
   tot <- a + s + ch
-  list(acute = a/tot, subacute = s/tot, chronic = ch/tot, raw_total = tot)
+  list(acute = a/tot, subacute = s/tot, chronic = ch/tot)
 }
 cs_y <- chronic_share(dpar$p14_y, dpar$p90_y, dpar$p6_y, dpar$p12_y, dpar$p30_y)
 cs_o <- chronic_share(dpar$p14_o, dpar$p90_o, dpar$p6_o, dpar$p12_o, dpar$p30_o)
@@ -432,28 +418,7 @@ partition_tbl <- data.frame(
   still_symptomatic_3m = c(pc(cs_y$chronic),  pc(cs_o$chronic),  pc(mv_chronic)),
   stringsAsFactors = FALSE)
 
-chronic_notes <- data.frame(item = c(
-  "Quantity", "Chikungunya derivation", "Mayaro derivation", "Marginal, not conditional",
-  "Why medians are not summed", "Interval widths are not comparable",
-  "Mayaro is prevalence, not survival", "Mayaro acute bin", "No pooled value"),
-  detail = c(
-  "Proportion of symptomatic cases still reporting arthralgia at approximately three months from symptom onset. Median (95% UI) over 200,000 Monte Carlo draws.",
-  "One minus the cumulative probability of recovery by 90 days, i.e. the sum of the 6-month, 12-month and 30-month recovery rows, renormalised so the three phases sum to 1. The five O'Driscoll rows sum to 1.000 (<40) and 1.000 (>=40) using the published Beta hyperparameters, confirming they partition one cohort.",
-  "Proportion with arthralgia at the 3-month visit, 11 of 16 patients. Drawn as the chronic component of a Dirichlet(1, 4, 11) so the three phases stay correlated and sum to 1 in every draw; the exact marginal is Beta(11, 5).",
-  "Despite the 'within X after Y period' wording of the source tables, these are marginal shares of recovery time, not conditional recovery probabilities. Reading row 2 as conditional on not having recovered in row 1 gives a different number (26.7% rather than 23.9% for Mayaro).",
-  "Components are summed per draw, not by adding medians. Medians are not additive in general; adding the three components' UI endpoints would assume perfect positive correlation and yields an interval about 1.6 times too wide, since the chikungunya Betas are drawn independently.",
-  "The chikungunya intervals are narrow because O'Driscoll's Beta hyperparameters encode very large pooled sample sizes; they describe precision in the source meta-analysis, not transportability to Caldas Novas. The Mayaro interval reflects n = 16. The widths differ by roughly 17-fold and should not be read as relative confidence.",
-  "Halsey reports arthralgia prevalence falling to 3/16 at day 20 and rising to 11/16 at 3 months, a biphasic pattern the authors treat as real. Recovery is therefore not absorbing and the 3-month figure is a POINT PREVALENCE, not the probability of never having recovered.",
-  "Halsey's first follow-up visit was day 20, so the 14-day boundary was never observed. The acute share is 'no arthralgia at the acute visit' (1 of 16), which is why it is far below the chikungunya values.",
-  "No age-pooled chikungunya value is given: the source stratifies at 40 years and a pooled figure would depend on the age distribution of symptomatic cases, making it a model output rather than a parameter."),
-  stringsAsFactors = FALSE)
-
 write_xlsx(list(still_symptomatic_3m = chronic_tbl,
-                full_partition       = partition_tbl,
-                notes                = chronic_notes),
+                full_partition       = partition_tbl),
            "outputs/combined_chronic_share.xlsx")
 cat("\nSaved combined_chronic_share.xlsx (proportion still symptomatic at 3 months).\n")
-print(chronic_tbl[, 1:3], row.names = FALSE)
-cat("\nFull partition:\n"); print(partition_tbl, row.names = FALSE)
-cat(sprintf("\nO'Driscoll rows sum to %.4f (<40) and %.4f (>=40) before renormalisation.\n",
-            median(cs_y$raw_total), median(cs_o$raw_total)))
