@@ -1,27 +1,13 @@
 # ============================================================
-# CHIKV_rho_sensitivity.R -- post hoc reporting-rate sensitivity (Discussion).
+# CHIKV_rho_sensitivity.R (used for Discussion)
 # ------------------------------------------------------------
-# The main analysis (CHIKV_lhs.R) samples the reporting rate rho ~ Beta(20, 60), the
-# national estimate of 25% (16-35%). A post hoc comparison of long-term average reported
-# cases in Caldas Novas (2016-2025) with long-term average model-predicted symptomatic
-# cases gave a municipal reporting rate of 15.40% (95% UI 7.02-38.87%). This script asks
-# what attack rate the fit implies if rho is instead fixed at that estimate's upper
-# bound, 38.87%.
-#
-# LIKE-FOR-LIKE with the main analysis. It re-fits the SAME 1000 Latin hypercube draws:
-# FOI, gamma, sigma and prop_symp are read per draw from the main run's
-# lhs_draws/CHIKV_lhs_draws.csv, and the spline window, penalty, peak weighting,
-# warm start and attack < 100% guard are all those of CHIKV_lhs.R. ONLY rho changes,
-# so each draw is paired with its main-analysis counterpart and the difference between
-# the two attack rates is due to the reporting rate alone.
-#
 # Run after: CHIKV_lhs.R  (which writes the draws file read here)
 # Output:    CHIKV_rho_sensitivity.xlsx
 # ============================================================
 DEFS_ONLY <- TRUE
 suppressMessages({library(writexl); source("CHIKV/CHIKV_lhs.R")})
 
-RHO_UPPER <- 0.3887               # upper 95% bound of the municipal estimate 15.40% (7.02-38.87%)
+RHO_UPPER <- 0.3887               # upper bound of the estimate 15.40% (7.02-38.87%)
 
 draws_csv <- file.path(DRAWS_DIR, "CHIKV_lhs_draws.csv")
 if (!file.exists(draws_csv))
@@ -29,7 +15,6 @@ if (!file.exists(draws_csv))
 D <- read.csv(draws_csv)
 n <- nrow(D)
 
-# Warm start from the point-estimate fit, exactly as CHIKV_lhs.R does.
 warm <- refit(0.008, 0.54, 1/0.60, rho_pt, prop_symp, gen_start)$par
 
 cat(sprintf("Re-fitting %d LHS draws with rho fixed at %.2f%%...\n", n, 100*RHO_UPPER))
@@ -41,7 +26,6 @@ for (i in seq_len(n)) {
   attack[i] <- f$attack; infections[i] <- sum(f$inf); totrep[i] <- f$total
   if (i %% 100 == 0) cat("  ", i, "/", n, "\n")
 }
-# Same guard as the main analysis: drop a failed re-fit or an impossible attack rate.
 ok_up   <- which(!is.na(totrep) & attack < 100)
 ok_main <- which(D$feasible)
 
@@ -62,15 +46,6 @@ dq <- q3(attack[both] - D$attack_pct[both])
 cat(sprintf("Paired change in attack rate (fixed %.2f%% minus main), %d draws retained in both: %.1f pp (%.1f to %.1f)\n",
             100*RHO_UPPER, length(both), dq[1], dq[2], dq[3]))
 
-notes <- data.frame(item = c("Question", "Pairing", "Held as in the main analysis", "Guard",
-                             "Attack rate"),
-  detail = c(
-  sprintf("Attack rate implied by the fit if the reporting rate is fixed at %.2f%%, the upper 95%% bound of the post hoc municipal estimate 15.40%% (7.02-38.87%%), instead of sampled from Beta(20,60).", 100*RHO_UPPER),
-  "The same 1000 LHS draws as CHIKV_lhs.R (read from lhs_draws/CHIKV_lhs_draws.csv), re-fitted with rho replaced. Every other input is the draw's own value, so the two rows differ only in the reporting rate.",
-  "FOI, gamma, sigma and prop_symp per draw; beta_t spline over weeks 1-49 held flat to week 52; ridge penalty; peak weighting; warm start from the point-estimate fit.",
-  "A draw is dropped only if its re-fit fails or its attack rate reaches 100%, as in CHIKV_lhs.R. No goodness-of-fit filter.",
-  "Infections over the 52-week window as a % of the susceptible pool at t = 0, median (95% UI) across retained draws."),
-  stringsAsFactors = FALSE)
 per_draw <- data.frame(draw = D$draw, FOI = D$FOI, gamma = D$gamma, sigma = D$sigma,
                        prop_symp = D$prop_symp,
                        rho_main = D$rho, attack_pct_main = D$attack_pct, retained_main = D$feasible,
