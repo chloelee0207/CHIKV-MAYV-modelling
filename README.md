@@ -92,13 +92,40 @@ full CHIRPS download; it is not part of the pipeline.
 
 ## Where each result comes from
 
-| Manuscript item | File in `outputs/` | Script |
+Sheet names are in brackets. Unless stated otherwise, Mayaro results are from the high
+transmission scenario (the second `MAYV/MAYV_lhs.R` run).
+
+**Main text**
+
+| Item | File in `outputs/` [sheet] | Script |
 |---|---|---|
-| Fig. 1 | `combined_master.pdf` | `common/combined_outputs.R` |
-| Table 1 | `CHIKV_vacc_outputs.xlsx`, `MAYV_vacc_outputs.xlsx`, `*_daly_outputs.xlsx` | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
+| Fig. 1 | `combined_master.pdf`; the percentages in panels B–E are in `CHIKV_residual_burden.xlsx` and `MAYV_residual_burden.xlsx` | `common/combined_outputs.R` (figure); `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` (workbooks) |
+| Table 1 | `CHIKV_vacc_outputs.xlsx` and `MAYV_vacc_outputs.xlsx` [averted_per_100k_doses]; `CHIKV_nnv_outputs.xlsx` and `MAYV_nnv_outputs.xlsx` [nnv] | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
+| Results, % of burden averted | `CHIKV_residual_burden.xlsx`, `MAYV_residual_burden.xlsx` | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
+| Results, Mayaro mean Rn | `MAYV_threshold_sensitivity.xlsx` [transmission_potential] | `MAYV/MAYV_threshold_sensitivity.R` |
+| Discussion, attack rates under the national and municipal reporting rates | `CHIKV_rho_sensitivity.xlsx` [summary] | `CHIKV/CHIKV_rho_sensitivity.R` |
+| Discussion, chikungunya R0 | `lhs_draws/CHIKV_lhs_draws.csv` [`R0_peak` column] | `CHIKV/CHIKV_lhs.R` |
+
+**Supplementary materials**
+
+| Item | File in `outputs/` [sheet] | Script |
+|---|---|---|
+| Fig. S1 | Model schematic, not produced by the code | – |
+| Table S1 | Inputs: `data/model_calibration.xlsx` and `data/disease_progression.xlsx` (chikungunya symptomatic fraction); the other priors (FOI, reporting rate, R0, Mayaro symptomatic fraction, vaccine parameters) are set in the scripts | `CHIKV/CHIKV_lhs.R`, `CHIKV/CHIKV_engine.R`, `MAYV/MAYV_lhs.R`, `MAYV/MAYV_engine.R` |
+| Fig. S2 | Map, not produced by the code | – |
+| Fig. S3 | `CHIKV_fit_cases_infections.png` | `CHIKV/CHIKV_outputs.R` |
 | Fig. S4 | `MAYV_hybrid_envelope.png` | `MAYV/MAYV_build_hybrid_envelope.R` |
-| Fig. S6 | `CHIKV_timing_coverage.png` | `CHIKV/CHIKV_owsa.R` |
-| [other supplementary items] | | |
+| Fig. S5 | Prognosis diagram, not produced by the code | – |
+| Table S2 | Inputs: `data/disease_progression.xlsx`; Mayaro recovery shares (Halsey et al. 2013) are set in the script and summarised in `combined_chronic_share.xlsx` | `MAYV/MAYV_engine.R`, `common/combined_outputs.R` |
+| Table S3 | `CHIKV_vacc_outputs.xlsx` and `MAYV_vacc_outputs.xlsx` [baseline_true_reported]; `CHIKV_daly_outputs.xlsx` and `MAYV_daly_outputs.xlsx` [daly_by_scenario] | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
+| Table S4 | `CHIKV_vacc_outputs.xlsx` [doses_wastage] | `CHIKV/CHIKV_outputs.R` |
+| Fig. S6 | `CHIKV_timing_coverage.png`; values in `CHIKV_owsa.xlsx` [intended_vs_actual] | `CHIKV/CHIKV_owsa.R` |
+| Table S5 | `MAYV_threshold_sensitivity.xlsx` [transmission_potential] (both scenarios) | `MAYV/MAYV_threshold_sensitivity.R` |
+| Table S6 | `MAYV_owsa.xlsx` [r0_response_table] | `MAYV/MAYV_owsa.R` |
+| Table S7 | `CHIKV_daly_outputs.xlsx` and `MAYV_daly_outputs.xlsx` [daly_by_scenario, yld_by_phase, daly_averted] | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
+| Fig. S7 | `CHIKV_MAYV_owsa.png`; values in `CHIKV_owsa.xlsx` and `MAYV_owsa.xlsx` [owsa] | `CHIKV/CHIKV_owsa.R`, `MAYV/MAYV_owsa.R` (analyses); `common/combined_outputs.R` (figure) |
+| Fig. S8 | `MAYV_ve_coverage_heatmap.png`; values in `MAYV_ve_coverage_sweep.xlsx` | `MAYV/MAYV_owsa.R` |
+| Table S8 | `MAYV_threshold_sensitivity.xlsx` [seeding_week] | `MAYV/MAYV_threshold_sensitivity.R` |
 
 ## Reproducibility
 
