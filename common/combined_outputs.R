@@ -1,29 +1,5 @@
 # ============================================================
-# combined_outputs.R -- every figure that spans BOTH pathogens.
-#
-# Each of the four pathogen scripts owns its own single-pathogen figures; anything that
-# puts Chikungunya next to Mayaro lives here, so there is one place to change shared
-# styling and one place that knows how the two models line up.
-#
-# Produces:
-#   1. CHIKV_MAYV_epicurves.png       epidemic curves, side by side
-#   2. combined_residual_burden.png   burden as % of no vaccination
-#   3. CHIKV_MAYV_owsa.png            tornado, CHIKV over MAYV
-#   4. combined_master.pdf            A epicurves / B symptomatic / C hospitalisations / D DALYs / E deaths
-#   5. combined_per_100k_doses.xlsx   benefit per 100,000 doses, CHIKV beside MAYV
-#
-# Pure presentation: reads the .rds files the model scripts write and does no SEIR or
-# Monte Carlo of its own, so every value here shares the engines' per-draw propagation.
-#
-# Panel geometry. The two blocks are sized for what they have to show, NOT to line up
-# with each other: the epidemic curves get equal halves of the width, while the burden
-# blocks are only two bars wide and are inset so they do not sprawl. A therefore does not
-# share a column grid with B-E, so each block is labelled Chikungunya / Mayaro in its own
-# right.
-#
-# Mayaro has no deaths row: MAYV_ZERO_DEATHS = TRUE fixes the MAYV CFR at 0, so the
-# ratio is undefined rather than zero. The facet level is kept (drop = FALSE) to hold the
-# row grid aligned, then the panel grob is deleted so no box or gridlines are drawn.
+# combined_outputs.R
 #
 # Run order:  CHIKV_engine.R -> CHIKV_outputs.R
 #             MAYV_engine.R  -> MAYV_outputs.R
@@ -31,54 +7,45 @@
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2); library(patchwork); library(writexl)
                   library(readxl)})
-dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
+dir.create("outputs", showWarnings = FALSE)
 
-# Which MAYV scenario to show. Reads the scenario-TAGGED results file so the figures
-# never depend on which scenario happened to run last.
 if (!exists("MAYV_EPI_SCENARIO")) MAYV_EPI_SCENARIO <- "high"   # "high" R0 2.1-2.9 | "low" R0 1.1-1.3
 
 ARMS      <- c("Disease-blocking", "Disease + infection blocking")
 OUT_LV    <- c("Cumulative symptomatic cases", "Cumulative hospitalisations",
-               "Cumulative DALYs", "Cumulative deaths")       # as stored in the .rds
-# Strip text for the B-E rows -- EDIT HERE to rename them. Must stay in OUT_LV order;
-# the .rds names above are the lookup keys and must not be changed.
+               "Cumulative DALYs", "Cumulative deaths")
 OUT_LAB   <- c("Symptomatic\ncases", "Hospitalisations", "DALYs", "Deaths")
 FILL      <- c("No vaccination" = "grey60", "Vaccination" = "#4e79a7")
 scen_cols <- c("No vaccination" = "grey55", "Disease-blocking" = "#4393c3",
                "Disease + infection blocking" = "#d6604d")
 
 # ------------------------------------------------------------
-# FONT SIZES -- every text size in the combined figures, in one place. Tune here.
-# The figures are drawn at their PRINTED size (FIG_W = 190 mm, Elsevier's full page
-# width), so these are the sizes on the page: nothing is shrunk afterwards. Elsevier asks
-# for at least 7 pt (6 pt for sub/superscripts), so nothing below is smaller than 7 pt.
-# All values are points EXCEPT epi_annot_*, which is the annotate()/geom_text() scale
-# in mm (points / 2.845), because that text is drawn inside the panel as data.
+# Font size
 # ------------------------------------------------------------
-FIG_W <- 190 / 25.4                      # 190 mm, full page width, in inches
+FIG_W <- 190 / 25.4
 FS <- list(
-  panel_letter   = 10,  # the bold A / B / C ...
-  disease_header = 9,   # "Chikungunya" / "Mayaro" headings above the B-E block
-  block_ylab     = 8,   # rotated "Cumulative burden (% of no vaccination)"
+  panel_letter   = 10,
+  disease_header = 9,
+  block_ylab     = 8,
 
-  # ---- panel A, the epidemic curves
-  epi_base       = 8,   # theme_bw() base; anything not named below inherits from it
-  epi_axis_text  = 7,   # week numbers and case counts
-  epi_axis_title = 8,   # "Week (index, 1 = 2025-W24)", "Predicted symptomatic cases"
-  epi_strip      = 8,   # grey strips: "Chikungunya", "Mayaro (R0 ...)"
-  epi_annot_chik = 2.5, # in-panel "% Reduction in predicted symptomatic cases" (~7.1 pt)
-  epi_annot_mayv = 2.5, # the same text in the MAYV panel  (annotate scale, see above)
-  epi_legend     = 7,   # legend keys under panel A
+  # panel A
+  epi_base       = 8,
+  epi_axis_text  = 7,
+  epi_axis_title = 8,
+  epi_strip      = 8,   # grey strips
+  epi_annot_chik = 2.5, # annotation
+  epi_annot_mayv = 2.5,
+  epi_legend     = 7,   # legend under panel A
 
-  # ---- panels B-E, the burden bars
-  bur_base       = 8,   # theme_bw() base for the burden blocks
-  bur_axis_x     = 7,   # "No vaccination" / "Vaccination"
-  bur_axis_y     = 7,   # 0% - 100%
-  bur_strip_x    = 7.5, # top grey strips: the vaccine arm names
-  bur_strip_y    = 7.5, # right grey strips: outcome names
+  # panels B-E
+  bur_base       = 8,
+  bur_axis_x     = 7,
+  bur_axis_y     = 7,
+  bur_strip_x    = 7.5, # top grey strips
+  bur_strip_y    = 7.5, # right grey strips
 
-  # ---- the separate tornado figure, CHIKV_MAYV_owsa.png
-  owsa_base      = 9,   # theme_bw() base: axis and legend text are 0.8 x this = 7.2 pt
+  # tornado figure
+  owsa_base      = 9,
   owsa_title     = 9,
   owsa_strip     = 8
 )
@@ -90,11 +57,8 @@ M <- readRDS(need1(sprintf("outputs/MAYV_engine_results_%s.rds", MAYV_EPI_SCENAR
                            MAYV_EPI_SCENARIO)))
 chik <- readRDS(need1("outputs/CHIKV_residual_burden.rds", "run CHIKV_outputs.R"))
 mayv <- readRDS(need1("outputs/MAYV_residual_burden.rds",  "run MAYV_outputs.R"))
-stopifnot(!is.null(M$wk_base))                 # re-run MAYV_engine.R to store curves
+stopifnot(!is.null(M$wk_base))
 
-# Only the MAYV engine results are read by scenario-tagged file name. The residual-burden
-# and OWSA files are whichever scenario was run last, so check each one's stored tag
-# against MAYV_EPI_SCENARIO rather than risk mixing R0 scenarios across panels.
 check_mayv_scenario <- function(x, file) {
   s <- if (!is.null(attr(x, "R0_scenario"))) attr(x, "R0_scenario") else x[["R0_scenario"]]
   if (is.null(s))
@@ -110,10 +74,7 @@ T_sim <- G$T_sim
 mayv_lab <- sprintf("Mayaro (R0 %.1f-%.1f)", M$R0_lo, M$R0_hi)
 
 # ------------------------------------------------------------
-# 1. Epidemic curves.
-# CHIKV carries both vaccine arms; MAYV is disease-blocking only, so it has two curves.
-# MAYV samples its peak R0 within ONE scenario's range, so every draw is the same
-# transmission regime and ALL draws are plotted -- there is no take-off conditioning to apply.
+# 1. Epidemic curves
 # ------------------------------------------------------------
 qband <- function(mat, rows, lab, measure) {
   q <- apply(mat[rows, , drop = FALSE], 2, quantile, c(.025, .5, .975), na.rm = TRUE)
@@ -125,7 +86,7 @@ pair <- function(mat, rho, rows, lab)
         qband(mat * rho, rows, lab, "Reported"))
 
 ch_rows <- seq_len(nrow(G$wk_symp[["No vaccine (baseline)"]]))
-mv_rows <- seq_len(M$N_DRAWS)                  # ALL draws: no take-off conditioning
+mv_rows <- seq_len(M$N_DRAWS)
 epi_ch <- rbind(
   pair(G$wk_symp[["No vaccine (baseline)"]],                    G$rho_i, ch_rows, "No vaccination"),
   pair(G$wk_symp[["pre-outbreak | Disease-blocking"]],          G$rho_i, ch_rows, ARMS[1]),
@@ -148,19 +109,11 @@ ann_ch <- paste0("% Reduction in predicted symptomatic cases\nDisease blocking o
 ann_mv <- paste0("% Reduction in predicted symptomatic cases\nDisease blocking only: ",
                  pct_str(mb, M$per_draw[[M$vac_name]][mv_rows, "symptomatic"]))
 
-# Rollout band = DOSING START (campaign week + median deployment delay) through the end
-# of the ~1/delivery-rate week rollout. Ixchiq is deployed once, so both pathogens use
-# the same definition and the two bands coincide.
-ch_dose <- G$timings[["pre-outbreak"]] + 2                       # median delay 2 wk
+# vaccine rollout
+ch_dose <- G$timings[["pre-outbreak"]] + 2 # median delay 2 weeks
 mv_dose <- if (!is.null(M$dose_start))   M$dose_start            else ch_dose
 mv_len  <- if (!is.null(M$deliv_median)) round(1/M$deliv_median) else 10
 
-# ------------------------------------------------------------
-# Figure saving. Figures are drawn at their printed width (FIG_W). The main-text figure,
-# combined_master, is written as a vector PDF (Elsevier: "vector drawings -> EPS/PDF,
-# embed the font"); cairo_pdf embeds the fonts. Supplementary figures are PNGs at
-# 1000 dpi, Elsevier's minimum for bitmapped line art (7,480 px at full page width).
-# ------------------------------------------------------------
 DPI_SUPP <- 1000
 save_fig <- function(file, plot, width, height, dpi) {
   ggsave(file, plot, width = width, height = height, dpi = dpi)
@@ -169,10 +122,6 @@ save_fig <- function(file, plot, width, height, dpi) {
   invisible(NULL)
 }
 save_pdf <- function(file, plot, width, height) {
-  # cairo_pdf embeds the fonts. Without Cairo, R falls back to its basic pdf() device,
-  # which neither embeds fonts nor keeps hyphens (it prints "-" as a minus sign), so
-  # stop rather than write a PDF that fails the journal's requirements. On macOS, Cairo
-  # needs XQuartz (https://www.xquartz.org); Windows and Linux builds include it.
   if (!isTRUE(capabilities("cairo")))
     stop("combined_master.pdf needs R's Cairo graphics (on macOS install XQuartz, then restart R).")
   ggsave(file, plot, width = width, height = height, device = cairo_pdf)
@@ -182,16 +131,7 @@ save_pdf <- function(file, plot, width, height) {
 
 epicurve <- function(d, strip, ann, xmin, xmax, ylab, ann_size = FS$epi_annot_chik) {
   d$panel <- factor(strip)
-  # Annotation placement. Two traps here:
-  #   * vjust > 1 offsets the block by a fraction of its OWN height, so the 2-line Mayaro
-  #     label sat higher than the 3-line chikungunya one. Use vjust = 1 (tops aligned).
-  #   * vjust = 1 at y = Inf then sits flush against the frame. Deriving a y from
-  #     max(d$hi) does NOT fix it: d holds several measures/scenarios, so its maximum is
-  #     not the plotted range and the axis blows up.
-  # Simplest robust fix: keep y = Inf / vjust = 1 and prepend a blank line. Line height is
-  # identical in both panels, so both blocks drop by exactly one line -> equal gap, and it
-  # cannot interact with the data range.
-  TOP_EXP <- 0.20                 # y-scale headroom above the data, for the annotation
+  TOP_EXP <- 0.20
   ann <- paste0("\n", ann)
   ggplot(d, aes(week, med, colour = scenario, fill = scenario)) +
     annotate("rect", xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf,
@@ -200,13 +140,6 @@ epicurve <- function(d, strip, ann, xmin, xmax, ylab, ann_size = FS$epi_annot_ch
               position = "identity", alpha = .25, colour = NA) +
     geom_line(data = subset(d, measure == "Reported"),
               aes(linetype = measure), linewidth = .8) +
-    # Anchored at week 1 rather than x = -Inf: with -Inf the hjust offset scales with
-    # the text width, so the two panels get different left margins. A data-unit anchor
-    # gives the same small gap in both.
-    # vjust = 1 (NOT 1.3): vjust > 1 offsets the block by a FRACTION OF ITS OWN HEIGHT,
-    # so the 2-line Mayaro label was pushed down less than the 3-line chikungunya one and
-    # sat visibly higher. vjust = 1 tops-aligns both regardless of line count; the
-    # headroom comes from the y-scale expansion below instead.
     annotate("text", x = 1, y = Inf, label = ann, hjust = 0, vjust = 1,
              size = ann_size, lineheight = 1.15) +
     expand_limits(y = 0) +
@@ -221,14 +154,11 @@ epicurve <- function(d, strip, ann, xmin, xmax, ylab, ann_size = FS$epi_annot_ch
            linetype = guide_legend(order = 2, nrow = 1,
                                    override.aes = list(colour = "grey25"))) +
     scale_x_continuous(breaks = c(1, seq(10, T_sim, by = 10))) +
-    # extra headroom at the top for the (now top-aligned) annotation
     scale_y_continuous(labels = scales::comma,
                        expand = expansion(mult = c(0.05, TOP_EXP))) +
     labs(x = "Week (index, 1 = 2025-W24)", y = ylab, colour = NULL, fill = NULL) +
     theme_bw(FS$epi_base) +
     theme(legend.position = "bottom",
-          # the two guides STACK vertically: the three vaccination scenarios on one row,
-          # then "Reported symptomatic cases" on its own row underneath
           legend.box = "vertical",
           legend.box.just = "center",
           legend.spacing.y = unit(1, "pt"),
@@ -241,10 +171,6 @@ epicurve <- function(d, strip, ann, xmin, xmax, ylab, ann_size = FS$epi_annot_ch
           panel.grid.minor = element_blank())
 }
 
-# Wrap guard only. At annotation size 4 the longest line (57 characters) fits a
-# half-width panel, so 60 leaves the natural three-line / two-line structure intact and
-# only catches a string that grows unexpectedly. strwrap breaks on spaces, so a wrap can
-# never land inside a number.
 wrap_ann <- function(x, w) paste(vapply(strsplit(x, "\n")[[1]],
   function(l) paste(strwrap(l, width = w), collapse = "\n"), character(1)), collapse = "\n")
 
@@ -252,18 +178,8 @@ pE_c <- epicurve(epi_ch, "Chikungunya", wrap_ann(ann_ch, 60), ch_dose, ch_dose +
                  "Predicted symptomatic cases")
 pE_m <- epicurve(epi_mv, mayv_lab, wrap_ann(ann_mv, 60), mv_dose, mv_dose + mv_len, NULL)
 
-# Equal panel widths, and ONE legend: the two panels carry identical keys, so MAYV's copy
-# is dropped at the SCALE level -- a theme(legend.position = "none") would be undone by
-# the shared `&` theme that positions the collected guide.
 p_epi <- pE_c + (pE_m + guides(fill = "none", colour = "none", linetype = "none")) +
-  # guides = "collect" lifts the legend out of the first panel and gives it its own
-  # strip across the bottom of BOTH panels; without it the legend belongs to Chikungunya
-  # and sits left-aligned under that panel alone.
   plot_layout(ncol = 2, widths = c(1, 1), guides = "collect") &
-  # legend.box MUST be set here as well as inside epicurve(): with guides = "collect"
-  # patchwork lays the collected guides out using the PATCHWORK-level theme, so a
-  # per-subplot legend.box is ignored. "vertical" stacks the two guide boxes -> the three
-  # vaccination scenarios on one row, "Reported symptomatic cases" on a second.
   theme(legend.position = "bottom", legend.justification = "center",
         legend.box = "vertical", legend.box.just = "center",
         legend.spacing.y = unit(1, "pt"))
@@ -272,13 +188,11 @@ cat(sprintf("Saved CHIKV_MAYV_epicurves.png (MAYV = '%s', R0 %.1f-%.1f, all %d d
             MAYV_EPI_SCENARIO, M$R0_lo, M$R0_hi, M$N_DRAWS))
 
 # ------------------------------------------------------------
-# 2. Residual burden as a % of no vaccination.
-# One block per outcome so each can carry its own panel letter; the CHIKV block holds
-# both arms and the MAYV block one, at widths 2:1.
+# 2. Residual burden as a % of no vaccination
 # ------------------------------------------------------------
 chik$outcome <- factor(as.character(chik$outcome), levels = OUT_LV, labels = OUT_LAB)
 mayv$outcome <- factor(as.character(mayv$outcome), levels = OUT_LV, labels = OUT_LAB)
-mayv$arm     <- factor(ARMS[1], levels = ARMS[1])       # deaths kept as an empty level
+mayv$arm     <- factor(ARMS[1], levels = ARMS[1])
 chik$arm     <- factor(as.character(chik$arm), levels = ARMS)
 
 burden <- function(d, strip, ylab, x_axis, y_axis, tag, row_strip = FALSE) {
@@ -292,8 +206,6 @@ burden <- function(d, strip, ylab, x_axis, y_axis, tag, row_strip = FALSE) {
     labs(tag = tag, x = NULL, y = ylab) +
     theme_bw(FS$bur_base) +
     theme(plot.tag = element_text(face = "bold", size = FS$panel_letter),
-          # the letter gets its own margin band (ggplot2 >= 3.5), so it cannot sit on the
-          # y-axis labels however the fonts are measured
           plot.tag.position = "topleft", plot.tag.location = "margin",
           plot.margin = margin(t = 4, r = 5.5, b = 4, l = 2),
           axis.text.x  = if (x_axis) element_text(size = FS$bur_axis_x) else element_blank(),
@@ -302,24 +214,16 @@ burden <- function(d, strip, ylab, x_axis, y_axis, tag, row_strip = FALSE) {
           axis.ticks.y = if (y_axis) element_line() else element_blank(),
           strip.text.x = if (is.null(strip)) element_blank()
                          else element_text(face = "bold", size = FS$bur_strip_x),
-          # the outcome strip rides on the RIGHT-hand (MAYV) block only, so it sits at
-          # the far edge of the figure and cannot collide with the B-E letters
           strip.text.y = if (row_strip) element_text(face = "bold", size = FS$bur_strip_y,
                                                     angle = -90)
                          else element_blank(),
           panel.grid.minor = element_blank(),
-          # the bars are already named on the x axis, so a fill legend adds nothing
           legend.position = "none")
 }
 
-# strip = NULL blanks the arm strip on the lower blocks: C and D repeat B's columns.
-# drop = FALSE is needed for the ARM dimension (MAYV lacks the infection-blocking level),
-# but it would also render all three outcome rows in every block, so the outcome factor is
-# reduced to the single level this row shows.
 one_row <- function(d, o) { d <- subset(d, outcome == o); d$outcome <- droplevels(d$outcome); d }
 
-# The Mayaro deaths cell has no bars (CFR fixed at 0), but the row still needs its
-# right-hand strip, so it gets a data-free block with every panel element blanked.
+# The Mayaro model assumes CFR is 0, so blanked
 blank_row <- function(o) {
   d <- data.frame(outcome = factor(o), arm = factor(ARMS[1], levels = ARMS[1]),
                   scenario = factor("No vaccination", levels = names(FILL)),
@@ -333,37 +237,30 @@ blank_row <- function(o) {
 row_burden <- function(o, tag, strip = FALSE, x_axis = FALSE) {
   st <- if (strip) TRUE else NULL
   c_blk <- burden(one_row(chik, o), st, NULL, x_axis, TRUE, tag)
-  m_blk <- if (o == "Deaths") blank_row(o)                            # MAYV CFR is 0
+  m_blk <- if (o == "Deaths") blank_row(o)
            else burden(one_row(mayv, o), st, NULL, x_axis, FALSE, NULL, row_strip = TRUE)
   list(c = c_blk, m = m_blk)
 }
 
-# Disease names head the whole B-E block, above the panel letters. They sit on their own
-# void row rather than as titles on row B so that they read before the B, and so C-E
-# inherits them without the names being repeated.
 head_lab <- function(txt) ggplot() + labs(title = txt) + theme_void() +
   theme(plot.title = element_text(face = "bold", size = FS$disease_header, hjust = .5,
                                   margin = margin(t = 0, b = 2)),
         plot.margin = margin(0, 0, 0, 0))
 
 YLAB <- "Cumulative burden (% of no vaccination)"
-# Deaths is the bottom row and carries the x-axis. Mayaro has no Deaths panel (CFR = 0),
-# so its last panel, DALYs, needs its own x-axis labels or that column would have none.
 rB <- row_burden(OUT_LAB[1], "B", strip = TRUE)
 rC <- row_burden(OUT_LAB[2], "C")
 rD <- row_burden(OUT_LAB[3], "D")
 rD$m <- burden(one_row(mayv, OUT_LAB[3]), NULL, NULL, TRUE, FALSE, NULL, row_strip = TRUE)
 rE <- row_burden(OUT_LAB[4], "E", x_axis = TRUE)
 
-# standalone version of the burden figure, four outcomes stacked
+# standalone figure
 pair_row <- function(r) r$c + r$m + plot_layout(widths = c(2, 1))
 burden_rows <- (head_lab("Chikungunya") + head_lab("Mayaro") +
                   plot_layout(widths = c(2, 1))) /
                pair_row(rB) / pair_row(rC) / pair_row(rD) / pair_row(rE) +
                plot_layout(heights = c(.01, 1, 1, 1, 1))
 
-# One rotated y title for the whole B-E block. Put on a single row it would be taller
-# than that row and get clipped, so it is attached to the wrapped block instead.
 with_ylab <- function(blk) wrap_elements(patchworkGrob(blk)) +
   labs(tag = YLAB) +
   theme(plot.tag = element_text(size = FS$block_ylab, angle = 90), plot.tag.position = "left",
@@ -374,9 +271,7 @@ save_fig("outputs/combined_residual_burden.png", p_burden, width = FIG_W, height
 cat("Saved combined_residual_burden.png (B symptomatic / C hospitalisations / D DALYs / E deaths).\n")
 
 # ------------------------------------------------------------
-# 3. One-way sensitivity: CHIKV (A) over MAYV (B).
-# MAYV has only the disease-blocking arm, so its panel occupies the left-hand column
-# with the right-hand cell left empty.
+# 3. One-way sensitivity
 # ------------------------------------------------------------
 if (!all(file.exists("outputs/CHIKV_owsa.rds", "outputs/MAYV_owsa.rds"))) {
   cat("Skipped CHIKV_MAYV_owsa.png (run CHIKV_owsa.R and MAYV_owsa.R).\n")
@@ -416,42 +311,28 @@ if (!all(file.exists("outputs/CHIKV_owsa.rds", "outputs/MAYV_owsa.rds"))) {
             panel.grid.minor = element_blank())
   }
   g <- tor(ca, blA, "A   Chikungunya", FALSE) + tor(mb, blB, "B   Mayaro", TRUE) +
-    plot_layout(design = "AA\nB#", heights = c(1, 1.05))   # A spans, B is left column only
+    plot_layout(design = "AA\nB#", heights = c(1, 1.05))
   save_fig("outputs/CHIKV_MAYV_owsa.png", g, width = FIG_W, height = 6.2, dpi = DPI_SUPP)
   cat("Saved CHIKV_MAYV_owsa.png (A = CHIKV, B = MAYV).\n")
 }
 
 # ------------------------------------------------------------
-# 4. Master figure: A epidemic curves, B symptomatic cases, C hospitalisations,
-# D DALYs, E deaths. The disease labels sit once, on the strips over row A; B-E inherit
-# those columns.
+# 4. Fig. 1
 # ------------------------------------------------------------
 pA_c <- pE_c + labs(tag = "A") +
   theme(plot.tag = element_text(face = "bold", size = FS$panel_letter),
         plot.tag.position = c(0, 1))
-# Both epicurve panels carry identical keys, so MAYV's copy is dropped at the SCALE
-# level -- a theme(legend.position = "none") would be undone by the shared `&` theme.
-# Rebuilt rather than reused from pE_m so the master figure's strip is a plain "Mayaro":
-# in a multi-panel figure the R0 belongs in the caption, not repeated in a panel header.
-# The standalone CHIKV_MAYV_epicurves.png keeps "Mayaro (R0 x.x-x.x)" because that
-# figure is often viewed on its own, where the scenario would otherwise be ambiguous.
+
 pA_m <- epicurve(epi_mv, "Mayaro", wrap_ann(ann_mv, 60), mv_dose, mv_dose + mv_len, NULL) +
   guides(fill = "none", colour = "none", linetype = "none")
 
-# equal halves: the Mayaro curve needs as much room to be read as the Chikungunya one
-# guides = "collect" lifts the legend out of the Chikungunya panel and gives it its own
-# strip across the bottom of BOTH panels, so it is centred on the row rather than
-# left-aligned under the first plot. Note that a collected guide is drawn from the
-# PATCHWORK's theme, so its size must be set here with `&`, not inside epicurve().
 row_A <- pA_c + pA_m + plot_layout(widths = c(1, 1), guides = "collect") &
   theme(legend.position = "bottom", legend.justification = "center",
-        # same two-row legend as the standalone epicurve figure (see section 1)
         legend.box = "vertical", legend.box.just = "center",
         legend.spacing.y = unit(1, "pt"),
         legend.text = element_text(size = FS$epi_legend), legend.key.size = unit(1.1, "lines"),
         plot.margin = margin(t = 5.5, r = 5.5, b = 2, l = 5.5))
 
-# the burden panels are two bars wide, so the block is inset rather than stretched
 row_BE <- plot_spacer() + with_ylab(burden_rows) + plot_spacer() +
   plot_layout(widths = c(.08, 1, .08))
 
@@ -462,18 +343,7 @@ cat("Saved combined_master.pdf (A epicurves, B symptomatic, C hospitalisations, 
 
 
 # ------------------------------------------------------------
-# 5. Benefit per 100,000 doses, CHIKV beside MAYV.
-# Ixchiq is deployed ONCE, so both models cost the same doses: 19,584 (CHIKV) vs 19,589
-# (MAYV), a 0.02% difference from sampling alone. Normalising by doses therefore puts the
-# two pathogens in a shared unit WITHOUT dividing one by the other -- the Mayaro figure is
-# the additional return on doses already being bought for chikungunya, expressed as an
-# absolute quantity rather than a ratio.
-#
-# The combined column adds the two per draw. CHIKV and MAYV draws are NOT paired (separate
-# models, separate LHS designs), so one is randomly permuted before adding: that samples
-# the sum correctly under the assumption the two epidemics are independent, which is
-# stated rather than hidden. The combined total is conditional on BOTH outbreaks occurring
-# as modelled -- the Mayaro one is hypothetical.
+# 5. Benefit per 100,000 doses
 # ------------------------------------------------------------
 per100k <- function(pd, base, o, doses) {
   r <- 1e5 * (base[, o] - pd[, o]) / doses; r[!is.finite(r) | r < 0] <- NA; r
@@ -484,7 +354,7 @@ gb <- G$per_draw[["No vaccine (baseline)"]]; mbase <- M$per_draw[["No vaccine (b
 ch_db <- G$per_draw[["pre-outbreak | Disease-blocking"]]
 ch_di <- G$per_draw[["pre-outbreak | Disease + infection blocking"]]
 mv_db <- M$per_draw[[M$vac_name]]
-set.seed(20260802); perm <- sample.int(nrow(mv_db))     # independence pairing, reproducible
+set.seed(20260802); perm <- sample.int(nrow(mv_db))
 
 fmt100 <- function(v, d = 0) { q <- quantile(v, c(.5,.025,.975), na.rm = TRUE)
   sprintf("%s (%s-%s)", formatC(round(q[1],d), big.mark=",", format="f", digits=d),
@@ -523,27 +393,7 @@ print(per100k_tbl, row.names = FALSE)
 
 
 # ------------------------------------------------------------
-# 6. Proportion still symptomatic at three months -- supplementary table.
-#
-# This is a PARAMETER-level table, not a Caldas Novas result: it describes the severity
-# inputs the two models draw from, so it carries no dependence on outbreak size, age mix
-# or vaccination. Sourced from disease_progression.xlsx so it can never drift from what
-# the engines actually sample.
-#
-# The comparable quantity across the two pathogens is the proportion of symptomatic cases
-# STILL SYMPTOMATIC AT ~3 MONTHS:
-#   Chikungunya  1 - (recovered by 14 d) - (recovered 14 d - 90 d) = sum of the 6 m, 12 m
-#                and 30 m rows of O'Driscoll et al. 2021, whose five rows are MARGINAL
-#                shares of one cohort (they sum to 1.000 age-wise) and are renormalised
-#                to sum to exactly 1, as in the engines.
-#   Mayaro       11/16 with arthralgia at the 3-month visit (Halsey et al. 2013), the
-#                third component of Dirichlet(1, 4, 11); its exact marginal is Beta(11, 5).
-#
-# Summed PER DRAW, never by adding medians: medians are not additive, and adding the three
-# components' UI endpoints would assume they move in lockstep, giving an interval ~1.6x too
-# wide (the three chikungunya Betas are drawn independently, so variances add, not SDs).
-# Means happen to be additive, and these Betas are near-symmetric, so summing the medians
-# would be within ~0.15% here -- but the interval would not be.
+# 6. Proportion still symptomatic at three months (supplementary)
 # ------------------------------------------------------------
 source("common/common.R")
 dpar <- load_daly_params()
@@ -552,12 +402,12 @@ rb <- function(p) rbeta(N_MC, p$a, p$b)
 
 chronic_share <- function(p14, p90, p6, p12, p30) {
   a <- rb(p14); s <- rb(p90); ch <- rb(p6) + rb(p12) + rb(p30)
-  tot <- a + s + ch                       # renormalise exactly as the engines do
+  tot <- a + s + ch
   list(acute = a/tot, subacute = s/tot, chronic = ch/tot, raw_total = tot)
 }
 cs_y <- chronic_share(dpar$p14_y, dpar$p90_y, dpar$p6_y, dpar$p12_y, dpar$p30_y)
 cs_o <- chronic_share(dpar$p14_o, dpar$p90_o, dpar$p6_o, dpar$p12_o, dpar$p30_o)
-mv_chronic <- rbeta(N_MC, 11, 5)          # exact marginal of Dirichlet(1, 4, 11)
+mv_chronic <- rbeta(N_MC, 11, 5)
 
 pc <- function(v, d = 1) { q <- quantile(v, c(.5, .025, .975))
   sprintf("%.*f%% (%.*f-%.*f)", d, 100*q[1], d, 100*q[2], d, 100*q[3]) }
@@ -574,7 +424,6 @@ chronic_tbl <- data.frame(
              "Halsey et al. 2013 (Peru, n = 16)"),
   stringsAsFactors = FALSE)
 
-# Full three-phase partition, for readers who want to see that the rows sum to 1.
 partition_tbl <- data.frame(
   pathogen  = c(rep("Chikungunya", 2), "Mayaro"),
   age_group = c("< 40 years", ">= 40 years", "All ages (not stratified)"),
