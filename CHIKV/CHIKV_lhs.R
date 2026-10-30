@@ -117,7 +117,7 @@ refit <- function(foi, g, s, r, ps, start) {
        pool=pool, immune=100*sum(Rimm*N)/sum(N))
 }
 
-if (!isTRUE(DEFS_ONLY)) {
+if (!isTRUE(DEFS_ONLY)) {   # DEFS_ONLY = TRUE loads the functions above without running the 1,000-draw fit
 
 # ------------------------------------------------------------
 # 5. Sample gamma/sigma/rho from model_calibration.xlsx
@@ -281,4 +281,4 @@ cat(sprintf("Saved CHIKV_lhs_ensemble.rds (%d of %d draws retained).\n",
             length(ok), n))
 
 
-} # you can load this above without running the 1,000 draws fit
+}  # end if (!DEFS_ONLY)
