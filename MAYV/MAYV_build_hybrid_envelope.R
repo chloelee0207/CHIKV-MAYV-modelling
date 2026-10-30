@@ -1,80 +1,39 @@
 # ============================================================
 # MAYV_build_hybrid_envelope.R
 # ------------------------------------------------------------
-# Builds caldas_hybrid_season.rds -- the MAYV transmission seasonality envelope used
-# by MAYV_lhs.R. It splices two sources, using each only where it is informative:
-#
-#   * RISE + PEAK (2025-W24 .. 2026-W10): the FITTED Caldas Novas CHIKV beta_t
-#     (caldas_beta_season.rds) -- an empirical transmission signal for the shared
-#     Aedes vector, well constrained by CHIKV case data.
-#   * DRY-SEASON TAIL (2026-W10 .. 2026-W22): the CHIRPS climatological rainfall
-#     shape (caldas_rain_season.rds, from rainfall_season.R), scaled to join
-#     continuously at 2026-W10. Rainfall is exogenous to the epidemic, so unlike the
-#     fitted beta_t it gives a seasonal shape uncontaminated by susceptible depletion.
-#
-# WHY. NOT for lack of data: 39.5% of the observed CHIKV cases (3,237) fall at or after
-# the 2026-W10 join, and only 2 of the 52 weeks have none. The reason is CONFOUNDING with
-# susceptible depletion. Over the tail the susceptible pool drops to 45% of its starting
-# value by 2026-W10 and 21% by 2026-W22, which on its own explains the 98% fall in
-# reported cases -- so the likelihood applies no pressure for beta_t to decline, and it
-# stays flat (0.638 -> 0.630, -1.2%). The tail therefore carries depletion, not
-# seasonality, and cannot be read as a seasonal signal.
-#
-# Transplanting it to MAYV would be wrong twice over: the MAYV population is fully
-# susceptible, so there is no depletion to damp transmission, and a flat beta against
-# MAYV's higher R0 holds R_eff ~ 1 so the outbreak never resolves inside the window.
-# The rainfall dry season (dropping to ~0.12 by 2026-W22) crashes R_eff after the peak,
-# so the outbreak collapses -- as CHIKV's own (lower-R0) outbreak does. Result: a
-# 52-week envelope, 2025-W24 -> 2026-W22 (CHIKV-aligned window), inside which the
-# outbreak peaks and ~98% resolves (only the deep dry-season trough past W22 is cut off).
-#
-# Ordinal-week bookkeeping (handles the 2025-W53 leap week):
-#   2025 W24..W53 = 24..53 ; 2026 W01..W22 = 54..75
-#   caldas_beta_season.rds: idx i -> ordinal 23+i  (W24=1 .. W22=52)  covers 24..75
-#   caldas_rain_season.rds: idx i -> ordinal 23+i  (W24=1 .. W22=52)  covers 24..75
-# The rainfall series is rescaled to meet beta at the join, so its own normalisation
-# cancels and only its SHAPE after 2026-W10 enters the hybrid.
-#
-# Output: caldas_hybrid_season.rds (52-wk, mean-1) + MAYV_hybrid_envelope.png (Fig S4)
-# Re-run whenever caldas_beta_season.rds or caldas_rain_season.rds changes.
+# Output: caldas_hybrid_season.rds & MAYV_hybrid_envelope.png (Fig. S4)
 # ============================================================
 suppressMessages(library(ggplot2))
-dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
+dir.create("outputs", showWarnings = FALSE)
 
-beta <- readRDS("outputs/caldas_beta_season.rds")   # 2025-W24 .. 2026-W22
-rain <- readRDS("outputs/caldas_rain_season.rds")   # 2025-W24 .. 2026-W22
-b_at <- function(o) beta[o - 23]            # valid ordinal 24..75
-r_at <- function(o) rain[o - 23]            # valid ordinal 24..75
+beta <- readRDS("outputs/caldas_beta_season.rds")
+rain <- readRDS("outputs/caldas_rain_season.rds")
+b_at <- function(o) beta[o - 23]
+r_at <- function(o) rain[o - 23]
 
-TRANS <- 63                                 # join at 2026-W10 (beta data-constrained up to here)
-ords  <- 24:75                              # hybrid window 2025-W24 -> 2026-W22 (52 weeks, CHIKV-aligned)
-scale <- b_at(TRANS) / r_at(TRANS)          # match level across the join -> continuous
+TRANS <- 63 # join at 2026-W10 because we want to constrain beta; beyond W10 beta goes up because susceptibles are depleting towards the end of the outbreak 
+ords  <- 24:75
+scale <- b_at(TRANS) / r_at(TRANS)
 hybrid <- sapply(ords, function(o) if (o <= TRANS) b_at(o) else r_at(o) * scale)
-hybrid <- hybrid / mean(hybrid)             # store mean-1 (the engine peak-scales anyway)
+hybrid <- hybrid / mean(hybrid)             # store mean-1
 
 stopifnot(length(hybrid) == 52, abs(mean(hybrid) - 1) < 1e-9)
 saveRDS(hybrid, "outputs/caldas_hybrid_season.rds")
 cat(sprintf("Wrote caldas_hybrid_season.rds: %d wks, mean=%.3f, max=%.2f, min-after-peak=%.3f\n",
             length(hybrid), mean(hybrid), max(hybrid), min(hybrid[which.max(hybrid):length(hybrid)])))
 
-# --- verification plot: the three envelopes on a shared ordinal-week axis ---
 wk_lab <- function(o) ifelse(o <= 53, o, o - 53)
-# Series labels. The colours are PINNED with scale_colour_manual rather than left to the
-# default hue palette: that palette assigns colours in factor order, which is alphabetical
-# for a character column, and "Average rainfall..." would sort first and steal the red from
-# the CHIKV series. Explicit hex values are the same three defaults, so the figure keeps the
-# red/green/blue reading it has always had whatever the labels say.
 LAB_BETA <- "CHIKV fitted weekly transmission rates \u03b2(t)"
 LAB_HYB  <- "Hybrid seasonal envelope"
 LAB_RAIN <- "Average rainfall in Caldas Novas"
-ENV_COL  <- c("#F8766D", "#00BA38", "#619CFF")            # ggplot hue_pal()(3): red, green, blue
+ENV_COL  <- c("#F8766D", "#00BA38", "#619CFF")
 names(ENV_COL) <- c(LAB_BETA, LAB_HYB, LAB_RAIN)
 
 df <- rbind(
   data.frame(ord = 24:75, val = beta,   env = LAB_BETA),
   data.frame(ord = 24:75, val = rain,   env = LAB_RAIN),
   data.frame(ord = ords,  val = hybrid, env = LAB_HYB))
-df$env <- factor(df$env, levels = names(ENV_COL))          # legend order, not alphabetical
+df$env <- factor(df$env, levels = names(ENV_COL))
 p <- ggplot(df, aes(ord, val, colour = env)) + geom_line(linewidth = .7) +
   geom_vline(xintercept = TRANS, linetype = "dashed", colour = "grey50") +
   annotate("text", x = TRANS, y = Inf, label = "join\n2026-W10", vjust = 1.2, size = 2.5) +
@@ -83,8 +42,6 @@ p <- ggplot(df, aes(ord, val, colour = env)) + geom_line(linewidth = .7) +
   scale_colour_manual(values = ENV_COL, name = NULL) +
   labs(x = "Week", y = "transmission envelope (mean-1)", colour = NULL) +
   theme_bw(9) + theme(legend.position = "bottom", legend.text = element_text(size = 7.2))
-# Supplementary figure (Fig S4), drawn at its printed size (190 mm, Elsevier's full page
-# width; theme_bw(9) puts axis and legend text at 7.2 pt) and saved as a PNG at 1000 dpi,
-# Elsevier's minimum for bitmapped line art.
+# supplementary figure (Fig. S4)
 ggsave("outputs/MAYV_hybrid_envelope.png", p, width = 190 / 25.4, height = 3.6, dpi = 1000)
 cat("Wrote MAYV_hybrid_envelope.png\n")
