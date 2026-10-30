@@ -1,9 +1,9 @@
 # Incremental health impact of chikungunya vaccine cross-protection against Mayaro virus disease in Brazil: a modeling study
 
-The code fits an age-structured SEIR model to the 2025–26 chikungunya outbreak in Caldas
-Novas (Goiás, Brazil), estimates the health impact of vaccination with Ixchiq, and projects
+The code fits an age-structured age-stratified SEIRV (susceptible-exposed-infectious-recovered-vaccinated) 
+model to the 2025–26 chikungunya outbreak in municipality A, estimates the health impact of vaccination with IxchiqTM, and projects
 the impact of the same vaccine against a hypothetical Mayaro virus outbreak in the same
-municipality. Outcomes are infections, symptomatic cases, hospitalisations, deaths and
+municipality. Outcomes are infections, symptomatic cases, hospitalizations, deaths and
 DALYs, over 52 epidemiological weeks (2025-W24 to 2026-W22, 8 June 2025 to 6 June 2026).
 
 ## Repository layout
