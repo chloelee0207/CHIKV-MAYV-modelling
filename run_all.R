@@ -29,7 +29,6 @@ steps <- list(
   list("MAYV/MAYV_lhs.R",    'R0_SCENARIO <- "high"'),   # high last: the untagged results
   list("MAYV/MAYV_engine.R"),                             # files are the main scenario
   list("MAYV/MAYV_outputs.R"),                  # Mayaro tables and figures
-  list("MAYV/MAYV_burden_outputs.R"),           # transmission-only Mayaro workbook
   list("MAYV/MAYV_owsa.R"),                     # one-way sensitivity and R0 response
   list("MAYV/MAYV_threshold_sensitivity.R"),    # transmission potential, seeding week
   list("common/combined_outputs.R")             # figures and tables combining both models

@@ -82,7 +82,7 @@ Follow the following order (each step reads what the previous one wrote):
 | 7 | `MAYV/MAYV_build_hybrid_envelope.R` | Seasonal transmission envelope for Mayaro (Fig. S4) |
 | 8 | `MAYV/MAYV_lhs.R` | Mayaro outbreak draws, run once per R0 scenario (`R0_SCENARIO <- "low"`, then `"high"`) |
 | 9 | `MAYV/MAYV_engine.R` | Mayaro vaccination scenario and health outcomes, after each step 8 |
-| 10 | `MAYV/MAYV_outputs.R`, `MAYV/MAYV_burden_outputs.R` | Mayaro tables and figures |
+| 10 | `MAYV/MAYV_outputs.R` | Mayaro tables and figures |
 | 11 | `MAYV/MAYV_owsa.R` | One-way sensitivity analysis |
 | 12 | `MAYV/MAYV_threshold_sensitivity.R` | Transmission-potential and seeding-week sensitivity |
 | 13 | `common/combined_outputs.R` | Figures and tables combining both models |
