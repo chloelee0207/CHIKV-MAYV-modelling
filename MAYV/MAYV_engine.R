@@ -1,5 +1,5 @@
 # ============================================================
-# MAYV_engine.R 
+# MAYV_engine.R
 # Run order: source("MAYV_lhs.R")  (ensemble, once);  source("MAYV_engine.R")
 # ============================================================
 library(dplyr); library(ggplot2)
@@ -8,12 +8,12 @@ source("common/common.R")   # fmtq, load_burden_params, load_daly_params
 # ---- knobs --------------------------------------------------
 PHASE_MODE             <- "hosp_severity" 
 OUTBREAK_ATTACK_THRESH <- 1.0 
-MAYV_ZERO_DEATHS       <- TRUE              # CFR = 0
-if (!exists("DEFS_ONLY")) DEFS_ONLY <- FALSE   # TRUE
+MAYV_ZERO_DEATHS       <- TRUE              # Mayaro deaths set to 0 (CFR = 0)
+if (!exists("DEFS_ONLY")) DEFS_ONLY <- FALSE   # TRUE = load the functions only (used by MAYV_owsa.R and MAYV_threshold_sensitivity.R)
 set.seed(2031)
 
 # ------------------------------------------------------------
-# SEIRV 
+# SEIRV
 # ------------------------------------------------------------
 seirv_vaccinated_MAYV <- function(
     T_weeks, A, N, R_init_prop, I0, base_beta, sigma, gamma, rho,
@@ -104,7 +104,7 @@ young_idx  <- which(age_to_band <= 4); old_idx <- which(age_to_band >= 5)
 target_age <- rep(0, A); target_age[c(4,5,6,7,8)] <- 1     # eligible adults 18-59
 target_pop_elig <- sum(N[target_age == 1])
 immun_delay <- 2
-start_pre   <- 17L      # 2025-W40, matching CHIKV start_s3, same week, CHIKV doses
+start_pre   <- 17L      # 2025-W40, the same pre-outbreak campaign week as the CHIKV engine
 stopifnot(start_pre >= 1, start_pre <= T_weeks, seed_week >= 1, seed_week <= T_weeks)
 
 # ------------------------------------------------------------
