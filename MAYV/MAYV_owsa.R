@@ -1,102 +1,42 @@
 # ============================================================
-# MAYV_owsa.R -- Caldas Novas MAYV one-way sensitivity analysis.
-#
-# DETERMINISTIC, at the scenario's MEDIAN peak R0. MAYV is not fitted to data, so no
-# re-fitting is needed: every run is a forward simulation at chosen parameter values.
-# No take-off conditioning: within one scenario's R0 range there is no fizzle/take-off split.
-#
-# BASE CASE. Peak R0 is the MEDIAN of the scenario's sampled range (M$R0_median; low =
-# 1.1-1.3, high = 2.1-2.9, both Caicedo et al. 2021). Within the scenario R0 is a tornado
-# row like any other sampled input (see below). The choice BETWEEN scenarios is not: it is
-# between-setting heterogeneity, not uncertainty, and is shown instead as structural rows
-# and a DEDICATED RESPONSE CURVE (sections 4b-4c), a fine sweep over R0_SWEEP reported as
-# a table + figure -- a curve, not an interval, because the relationship is steeply convex.
-#
-# The tornado therefore answers: GIVEN a MAYV outbreak in this scenario, what drives the
-# vaccine's impact.
-#
-# The vaccine is DISEASE-BLOCKING ONLY (Ixchiq cross-protection against MAYV is
-# hypothetical), so infections are identical across arms and only symptomatic cases,
-# hospitalisations and DALYs move.
-#
-# The inherited seasonal envelope (hybrid: CHIKV beta rise + climatological dry-season
-# tail) is reported as a structural sensitivity against its two pure components, not as
-# a tornado row.
-#
+# MAYV_owsa.R
 # Run order:  MAYV_lhs.R -> MAYV_engine.R (once) -> this file
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2); library(writexl)})
 
 DEFS_ONLY <- TRUE
-source("MAYV/MAYV_engine.R")        # seirv_vaccinated_MAYV, outcome_one, severity/DALY params
+source("MAYV/MAYV_engine.R")        # seirv_vaccinated_MAYV, outcome_one, severity/DALY parameters
 E <- readRDS("outputs/MAYV_lhs_ensemble.rds")
 M <- readRDS("outputs/MAYV_engine_results.rds")
-# GUARD: both files are untagged "current scenario" artefacts written by different scripts.
-# If the ensemble and the engine results come from different R0 scenarios (e.g. the engine
-# was re-run after switching R0_SCENARIO without re-running the LHS), every result below
-# would silently mix them.
+
 if (!identical(E$R0_scenario, M$R0_scenario))
   stop("MAYV_lhs_ensemble.rds is scenario '", E$R0_scenario,
        "' but MAYV_engine_results.rds is '", M$R0_scenario,
        "'. Re-run MAYV_lhs.R then MAYV_engine.R for one scenario before this script.")
 
-# Natural-history constants (defined before BASE, which uses PSYMP)
 GAMMA <- E$base_gamma; SIGMA <- E$base_sigma
-PSYMP <- E$base_prop_symp        # MAYV-specific median (~0.787), no longer the CHIKV 0.524
+PSYMP <- E$base_prop_symp        # MAYV-specific median (~0.787)
 EVAL_WIN <- 1:T_weeks
 
 # ------------------------------------------------------------
 # 1. Central values and one-way bounds
 # ------------------------------------------------------------
-ob <- M$outbreak                                   # ALL draws (no take-off conditioning)
-R0_BASE <- unname(M$R0_median)                     # the scenario's MEDIAN peak R0
+ob <- M$outbreak           
+R0_BASE <- unname(M$R0_median)    
 stopifnot(is.finite(R0_BASE))
-# Dedicated R0 response curve (section 5b). Step 0.1 is deliberate: in the steep region a
-# 0.1 increment roughly doubles outbreak size, so a coarser grid would hide the threshold.
-R0_MARKS <- c(low = 1.20, high = 2.47)             # scenario MEDIANS, for the figures
-# The scenario values are UNIONED into the grid: 2.47 is not on a 0.1 step, so without this
-# the r0_response table and the scenario markers on the figures would miss it entirely.
-# round() before unique(): seq() yields values like 1.2000000000000002, so a raw unique()
-# keeps both that and the literal 1.20 and the grid gains a duplicate row.
+
+R0_MARKS <- c(low = 1.20, high = 2.47)             # scenario medians
 R0_SWEEP <- sort(unique(round(c(seq(1.1, 3.6, by = 0.1), unname(R0_MARKS)), 4)))
 
-# Prior immunity is 0: the population is assumed fully susceptible to MAYV.
+# Prior immunity is 0
 IMM_BASE <- 0
 BASE <- list(R0 = R0_BASE, imm = IMM_BASE, rho = 0.25, ve = 4/12,
              cov = 0.30, deliv = 0.10, delay = 2, immun = 2, env = "hybrid",
-             psymp = PSYMP,                        # MAYV-specific symptomatic fraction (median)
-             latent = 1/SIGMA)                     # latent period, weeks (active scenario median)
+             psymp = PSYMP,  
+             latent = 1/SIGMA)  
 
-# The LATENT PERIOD is NOT a tornado row. Like the recovery rate, it is a natural-history
-# rate held at its central value, as in the CHIKV OWSA, which varies neither. Its
-# uncertainty is still propagated in the probabilistic analysis (sampled per draw from the
-# MAYV_LATENT prior), and the competing published sources (Martins 7-12 d, Diagne 1-6 d,
-# Caicedo 3.0 d, the 5-7 d band) are run as structural rows below.
-#
-# R0 IS a tornado row. Within a scenario it is SAMPLED per draw from a lognormal on the
-# scenario range and propagated into every reported interval, so leaving it out would make
-# the tornado understate what drives the result. Its bounds are the scenario range, the
-# sampled 95% UI, matching how ve is keyed, so the bars are comparable.
-# The response curve in section 4b complements it: the bar gives the swing across the
-# range, the curve shows the relationship is steeply convex, which a bar cannot convey.
-#
-# The following are deliberately NOT tornado rows, because none is a parameter with an
-# ordered uncertainty range; each is a structural choice reported in the
-# structural_sensitivity sheet instead:
-#   envelope -- a model-structure choice between the pure CHIKV beta shape, the pure
-#               rainfall shape and the hybrid. "Lower" and "upper" are meaningless for
-#               a categorical choice.
-#   prop_symp -- the MAYV-specific median (base) vs the CHIKV value 52.4%. Two competing
-#               ASSUMPTIONS, not a range on one quantity. It is also a pure multiplier:
-#               it never enters transmission, so infections and the attack rate are
-#               identical and only the SCALE of symptomatic burden changes.
-#               A tornado bar would show the scaling and hide the invariance.
-# The reporting rate is also excluded, but for a different reason: MAYV is not fitted,
-# so rho never enters the transmission model. The epidemic size comes from R0, prior
-# immunity and the seed; rho is applied afterwards only to convert TRUE cases into
-# REPORTED ones. It therefore has exactly zero effect on true cases averted.
 BOUNDS <- list(
-  R0     = unname(c(E$R0_lo, E$R0_hi)),                # the scenario's SAMPLED range
+  R0     = unname(c(E$R0_lo, E$R0_hi)),                # the scenario's sampled range
   ve     = c(0.109, 0.610),                            # Kostecki 2026, Beta(4,8) 95% UI
   cov   = c(0.20, 0.40),
   deliv = c(0.09, 0.11),
@@ -109,27 +49,27 @@ PAR_LAB <- c(R0 = "R0",
              delay = "Delay in deployment", immun = "Time to immunity",
              env = "Seasonal envelope (inherited)")
 
-# Seasonal envelopes: hybrid (base) vs its two pure components, each peak-normalised
+# Seasonal envelopes
 env_of <- function(tag) {
   v <- switch(tag,
     hybrid = readRDS("outputs/caldas_hybrid_season.rds"),
     beta   = readRDS("outputs/caldas_beta_season.rds"),
     rain   = { r <- readRDS("outputs/caldas_rain_season.rds"); r / mean(r) })
   v <- as.numeric(v); stopifnot(length(v) == T_weeks)
-  v / max(v)                                       # r0_is_peak = TRUE
+  v / max(v) 
 }
 
 # ------------------------------------------------------------
-# 2. One scenario: baseline + disease-blocking arm, deterministic
+# 2. baseline + disease-blocking arm, deterministic
 # ------------------------------------------------------------
 run_scenario <- function(p) {
   season <- env_of(p$env)
-  Rimm   <- rep(p$imm, A)                          # prior immunity (0: naive population)
+  Rimm   <- rep(p$imm, A)  
   sus    <- N * (1 - p$imm)
   I0i    <- E$I0_total * sus / sum(sus)
   beta_t <- p$R0 * GAMMA * season
-  psi    <- if (!is.null(p$psymp)) p$psymp else PSYMP   # symptomatic fraction (see BASE)
-  sg     <- if (!is.null(p$latent)) 1/p$latent else SIGMA   # latent PERIOD (wk) -> rate
+  psi    <- if (!is.null(p$psymp)) p$psymp else PSYMP   # symptomatic fraction 
+  sg     <- if (!is.null(p$latent)) 1/p$latent else SIGMA   # latent period (week) -> rate
   sim <- function(cov, vb)
     seirv_vaccinated_MAYV(T_weeks, A, N, Rimm, I0i, beta_t, sg, GAMMA, p$rho,
       target_age, cov, p$deliv, start_pre + p$delay, VE_inf = 0, VE_block = vb,
@@ -139,16 +79,10 @@ run_scenario <- function(p) {
   symp_v <- sum(colSums(psi * v$new_infections * (1 - p$ve * v$coverage_frac))[EVAL_WIN])
   inf    <- sum(b$new_infections[, EVAL_WIN])
   pool   <- sum(N * (1 - p$imm))
-  # Doses = the whole eligible 18-59 cohort times coverage, matching the engine's
-  # `doses` column (target_pop_elig * cov). Scale-free benefit metric, so rows with
-  # different outbreak sizes stay comparable.
+  # Doses = the whole eligible 18-59 cohort times coverage
   doses  <- target_pop_elig * p$cov
-  # Infections is the quantity R0 acts on FIRST; symptomatic = infections x prop_symp is a
-  # pure downstream multiplier. Reporting both makes that ordering visible.
   list(symptomatic_base = symp_b, infections_base = inf, averted = symp_b - symp_v,
-       # REPORTED = rho x TRUE, applied after the simulation. rho never enters transmission
-       # (seirv_vaccinated_MAYV does not even return a reported series), so these are the
-       # ONLY quantities a change in rho can move.
+       # reported = rho x true
        reported_symptomatic = p$rho * symp_b,
        reported_averted     = p$rho * (symp_b - symp_v),
        attack = 100 * inf / pool,
@@ -181,10 +115,7 @@ for (nm in names(BOUNDS)) {
 }
 owsa <- do.call(rbind, rows)
 
-# ---- structural sensitivities (NOT tornado rows): R0 scenario + seasonal envelope ----
-# One row per structural setting, all sharing the same columns. averted_per_100k_doses
-# is the scale-free benefit metric (1e5 x averted / doses), so settings that produce very
-# different outbreak sizes remain directly comparable.
+# ---- structural sensitivities ----
 srow <- function(input, setting, p) {
   r <- run_scenario(p)
   data.frame(input = input, setting = setting,
@@ -196,27 +127,16 @@ srow <- function(input, setting, p) {
              row.names = NULL)
 }
 struct <- rbind(
-  # Both scenarios at their median R0, for context (the full curve is in the r0_response sheet).
   do.call(rbind, lapply(unname(R0_MARKS), function(x)
     srow("Peak R0 (scenario median)", sprintf("%.2f", x), modifyList(BASE, list(R0 = x))))),
   do.call(rbind, lapply(c("beta", "hybrid", "rain"), function(x)
     srow("Seasonal envelope (structure)",
          c(beta = "pure CHIKV beta", hybrid = "hybrid (base case)",
            rain = "pure rainfall")[[x]], modifyList(BASE, list(env = x))))),
-  # Symptomatic fraction: MAYV-specific median (base) vs the CHIKV value. Infections and
-  # attack rate are identical between the two -- only the scale of symptomatic burden
-  # moves -- so the pair documents the multiplier explicitly.
   do.call(rbind, lapply(list(c(PSYMP,     sprintf("%.1f%% (MAYV-specific, base case)", 100*PSYMP)),
                              c(0.5242478, "52.4% (CHIKV value)")), function(x)
     srow("Symptomatic fraction (structure)", x[2],
          modifyList(BASE, list(psymp = as.numeric(x[1])))))),
-  # Latent period by SOURCE. The published estimates genuinely disagree -- Martins et al.
-  # 2020 give an incubation period of 7-12 d while Diagne et al. 2020 chart it at roughly
-  # 0-6 d, and the two barely overlap. They cannot be pooled into one prior, so each is run
-  # as its own structural row. Unlike prop_symp this is NOT a multiplier: it changes the
-  # generation time, hence how many transmission cycles fit inside the wet season before the
-  # dry-season tail collapses transmission, so infections and attack rate move too. This is
-  # the single largest structural lever in the model after R0.
   do.call(rbind, lapply(list(
       c(unname(BASE$latent), sprintf("%.2f d (Martins et al. 2020, 7-12 d; base case)", 7*BASE$latent)),
       c(sqrt(35)/7, "5.92 d (viraemia/symptom band 5-7 d)"),
@@ -226,12 +146,6 @@ struct <- rbind(
       c(12.0/7,     "12 d (earlier assumption)")), function(x)
     srow("Latent period (source)", x[2],
          modifyList(BASE, list(latent = as.numeric(x[1])))))),
-  # Reporting rate. Included for completeness, and the result is the point: because MAYV is
-  # NOT fitted, rho never enters the transmission model -- it converts TRUE cases to REPORTED
-  # ones after the simulation. Every true-burden column below is therefore IDENTICAL between
-  # the two settings, and only reported_symptomatic / reported_averted scale (x1.556).
-  # (Contrast the CHIKV OWSA, where rho ranks third: there it works backwards from the
-  # observed 8,204 cases to infer how large the true epidemic must have been.)
   do.call(rbind, lapply(list(c(0.25,  "25% (base case)"),
                              c(0.389, "38.9% (alternative point estimate)")), function(x)
     srow("Reporting rate (structure)", x[2],
@@ -257,13 +171,7 @@ ggsave("outputs/MAYV_owsa_symptomatic.png", p_t, width = 8.5, height = 4.6, dpi 
 print(p_t)
 
 # ------------------------------------------------------------
-# 4b. R0 RESPONSE CURVE (complements the within-scenario R0 tornado bar).
-# Outbreak size is a steep CONVEX function of peak R0: over R0_SWEEP, which spans both
-# scenarios, it covers several orders of magnitude, which a single "lower/upper" bar cannot
-# convey. Deterministic at median inputs, matching the rest of this script.
-# Note what the curve shows: the vaccine's RELATIVE effect (% symptomatic reduced) is
-# almost R0-INVARIANT -- disease-blocking scales symptomatic cases by (1 - VE*coverage)
-# whatever the epidemic size -- while the ABSOLUTE cases averted track outbreak size.
+# 4b. R0 response curve
 # ------------------------------------------------------------
 r0_response <- do.call(rbind, lapply(R0_SWEEP, function(x) {
   r <- run_scenario(modifyList(BASE, list(R0 = x)))
@@ -292,32 +200,14 @@ p_r0 <- ggplot(r0_response, aes(R0)) +
   scale_y_log10(labels = scales::comma) +
   scale_colour_manual(values = c("Baseline symptomatic" = "#c0392b",
                                  "Averted by vaccine"   = "#2c7fb8"), name = NULL) +
-  # No title on the figure: Elsevier puts the title in the caption. The caption should say
-  # this is deterministic at median inputs, with the base-case coverage and VE, and that the
-  # dotted lines mark the two scenario medians.
   labs(x = "Wet-season peak R0", y = "Symptomatic cases (log scale)") +
   theme_bw(9) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
-# Supplementary figure, drawn at its printed size (190 mm, Elsevier's full page width;
-# theme_bw(9) puts axis and legend text at 7.2 pt) and saved at 1000 dpi.
+# Supplementary figure
 ggsave("outputs/MAYV_r0_response.png", p_r0, width = 190 / 25.4, height = 3.8, dpi = 1000)
 cat("Saved MAYV_r0_response.png\n")
 
 # ------------------------------------------------------------
-# 4c. PROBABILISTIC R0 SWEEP -- median + 95% UI at each fixed peak R0.
-# The section-4b curve is deterministic (median inputs). This one re-runs the FULL
-# ensemble at every R0 on the grid, so each row is a proper median [95% UI] carrying the
-# same uncertainty the engine propagates: gamma, sigma, rho and prop_symp
-# from the LHS ensemble, plus the engine's OWN sampled coverage / VE / deployment delay
-# (reused draw-for-draw from MAYV_engine_results.rds). R0 is HELD at each grid value,
-# so a row is conditional on that R0: the row at the scenario median does NOT reproduce
-# the engine's headline, which also integrates over the sampled R0 range.
-#
-# Weekly delivery speed is held at its median rather than resampled: it is the weakest
-# input in the tornado (swing ~0.07 symptomatic cases) and the engine does not store its
-# per-draw vector. Everything else is paired exactly.
-#
-# Cost: length(R0_SWEEP) x N_DRAWS SEIRV runs (~26,000, about 2 minutes). Set
-# R0_PSA_RUN <- FALSE before sourcing to skip.
+# 4c. probabilistic R0 increment
 # ------------------------------------------------------------
 if (!exists("R0_PSA_RUN")) R0_PSA_RUN <- TRUE
 r0_response_psa <- NULL
@@ -325,8 +215,8 @@ if (R0_PSA_RUN) {
   nd      <- length(E$gamma)
   cov_v   <- as.numeric(M$cov_d)      # engine's sampled coverage of eligible 18-59
   ve_v    <- as.numeric(M$veb_d)      # engine's sampled disease-blocking VE
-  delay_v <- as.numeric(M$delay_d)    # engine's sampled deployment delay (wk)
-  deliv_c <- M$deliv_median           # weekly delivery speed, held at median (see above)
+  delay_v <- as.numeric(M$delay_d)    # engine's sampled deployment delay (week)
+  deliv_c <- M$deliv_median           # weekly delivery speed, held at median
   stopifnot(length(cov_v) == nd, length(ve_v) == nd, length(delay_v) == nd)
   season_psa <- env_of(BASE$env)
   q3 <- function(x) unname(quantile(x, c(.5, .025, .975), na.rm = TRUE))
@@ -337,12 +227,12 @@ if (R0_PSA_RUN) {
   r0_response_psa <- do.call(rbind, lapply(seq_along(R0_SWEEP), function(k) {
     x <- R0_SWEEP[k]
     sb <- av <- at <- nf <- numeric(nd)
-    dose_v <- target_pop_elig * cov_v      # per-draw doses; coverage is sampled
+    dose_v <- target_pop_elig * cov_v  
     for (i in seq_len(nd)) {
       Rimm <- rep(E$immune_frac[i], A)
       sus  <- N * (1 - E$immune_frac[i])
       I0i  <- E$I0_total * sus / sum(sus)
-      # VE_inf = 0 -> infections are vaccine-invariant, so ONE run yields both arms.
+      # VE_inf = 0 -> infections are vaccine-invariant
       r <- seirv_vaccinated_MAYV(T_weeks, A, N, Rimm, I0i, x * E$gamma[i] * season_psa,
              E$sigma[i], E$gamma[i], E$rho[i], target_age, cov_v[i], deliv_c,
              start_pre + delay_v[i], VE_inf = 0, VE_block = ve_v[i],
@@ -355,7 +245,7 @@ if (R0_PSA_RUN) {
       at[i] <- 100 * nf[i] / sum(sus)
     }
     pr <- 100 * av / pmax(sb, 1e-12)
-    p1e5 <- 1e5 * av / pmax(dose_v, 1e-12)   # scale-free: averted per 100,000 doses
+    p1e5 <- 1e5 * av / pmax(dose_v, 1e-12)   # averted per 100,000 doses
     qs <- q3(sb); qa <- q3(av); qp <- q3(pr); qt <- q3(at); qn <- q3(nf); q5 <- q3(p1e5)
     cat(sprintf("   R0 %.1f done (%2d/%2d)  symptomatic %.0f [%.0f, %.0f]\n",
                 x, k, length(R0_SWEEP), qs[1], qs[2], qs[3]))
@@ -371,7 +261,6 @@ if (R0_PSA_RUN) {
   cat(sprintf("   sweep finished in %.1f min\n",
               as.numeric(difftime(Sys.time(), t_start, units = "mins"))))
 
-  # formatted "median (95% UI)" table -- the presentation version
   fmt3 <- function(m, lo, hi, d = 0)
     sprintf(paste0("%.", d, "f (%.", d, "f - %.", d, "f)"), m, lo, hi)
   r0_table <- data.frame(
@@ -394,7 +283,7 @@ if (R0_PSA_RUN) {
   cat("\n=== R0 response TABLE: median (95% UI) over ", nd, " draws ===\n", sep = "")
   print(r0_table, row.names = FALSE)
 
-  # figure with 95% UI ribbons (log scale; the two reported scenarios marked)
+  # figure 
   p_r0p <- ggplot(r0_response_psa, aes(R0)) +
     geom_ribbon(aes(ymin = pmax(symptomatic_lo, .5), ymax = pmax(symptomatic_hi, .5),
                     fill = "Baseline symptomatic"), alpha = .22) +
@@ -409,13 +298,9 @@ if (R0_PSA_RUN) {
     scale_colour_manual(values = c("Baseline symptomatic" = "#c0392b",
                                    "Averted by vaccine"   = "#2c7fb8"), name = NULL,
                         aesthetics = c("colour", "fill")) +
-    # No title on the figure (Elsevier puts it in the caption). The caption should say the
-    # bands are the median and 95% UI over the draws (gamma, sigma, rho, prop_symp,
-    # coverage, VE, deployment delay) with R0 held at each value, so the R0 span is not
-    # inside the bands.
     labs(x = "Wet-season peak R0", y = "Symptomatic cases (log scale)") +
     theme_bw(9) + theme(legend.position = "bottom", panel.grid.minor = element_blank())
-  # Supplementary figure at its printed size (190 mm), 1000 dpi.
+  # Supplementary figure
   ggsave("outputs/MAYV_r0_response_psa.png", p_r0p, width = 190 / 25.4, height = 3.8, dpi = 1000)
   cat("Saved MAYV_r0_response_psa.png and MAYV_r0_response_table.csv\n")
 }
@@ -461,17 +346,7 @@ print(struct, row.names = FALSE, digits = 5)
 cat("\nWrote MAYV_owsa.xlsx, MAYV_owsa.rds, MAYV_owsa_symptomatic.png\n")
 
 # ------------------------------------------------------------
-# 7. Scenario sweep: vaccine efficacy x coverage.
-# For a DISEASE-BLOCKING vaccine, infections are vaccine-invariant, so the sweep needs
-# only one SEIR run per coverage level: symptomatic_vaccinated = prop_symp * infections
-# * (1 - VE * coverage_frac(t)). The grid is then exact, not interpolated.
-# Coverage is of the ELIGIBLE 18-59 group, who are 61.5% of the population, so the
-# ceiling on % averted is VE x 0.615 less a small timing discount.
-# R0-INVARIANCE: because disease-blocking scales symptomatic cases by (1 - VE*coverage_frac)
-# regardless of epidemic size, this grid is essentially the SAME under either R0
-# scenario, provided the outbreak peaks after the campaign completes (it does: peak ~wk 44
-# vs campaign done ~wk 29). So one heatmap serves both scenarios -- it is a property of the
-# vaccine and the age structure, not of transmission intensity.
+# 7. vaccine efficacy x coverage
 # ------------------------------------------------------------
 VE_GRID  <- seq(0.1, 1.0, by = 0.1)
 COV_GRID <- seq(0.1, 1.0, by = 0.1)
@@ -505,14 +380,11 @@ p_hm <- ggplot(grid_df, aes(factor(100*coverage), factor(100*ve), fill = pct)) +
   labs(x = "Vaccine coverage (% of eligible population aged 18-59)",
        y = "Vaccine efficacy (%)") +
   theme_bw(9) + theme(panel.grid = element_blank())
-# Supplementary figure, drawn at its printed size (190 mm, Elsevier's full page width;
-# cell labels 2.5 mm = 7.1 pt, axis text 7.2 pt) and saved at 1000 dpi.
+# Supplementary figure
 ggsave("outputs/MAYV_ve_coverage_heatmap.png", p_hm, width = 190 / 25.4, height = 5.0, dpi = 1000)
 print(p_hm)
 
 write_xlsx(list(ve_coverage_grid = grid_df), "outputs/MAYV_ve_coverage_sweep.xlsx")
-# The base-case VE (4/12) is not on the 0.1 grid, so report the nearest cell and label it
-# with that cell's own values.
 near <- which.min(abs(grid_df$ve - BASE$ve) + abs(grid_df$coverage - BASE$cov))
 cat(sprintf("\nVE x coverage sweep: %d cells | cell nearest the base case (VE %.0f%%, cov %.0f%%) = %.2f%% averted | max (VE 100%%, cov 100%%) = %.2f%%\n",
             nrow(grid_df), 100*grid_df$ve[near], 100*grid_df$coverage[near],
