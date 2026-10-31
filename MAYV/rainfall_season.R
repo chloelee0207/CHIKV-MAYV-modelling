@@ -1,58 +1,28 @@
 # ============================================================
-# Build the MAYV transmission seasonality envelope from CHIRPS rainfall.
-#
-# SOURCE: rainfall_caldas.csv (Caldas Novas rows extracted from the 129 MB HDX
-# CHIRPS workbook). We use rfh_avg = the FIXED long-term climatological normal
-# rainfall per dekad (identical across years; NOT a trailing mean), so the envelope
-# represents a CLIMATOLOGICALLY TYPICAL year and has NO gap for the un-observed
-# future weeks (mid-2026). This suits a HYPOTHETICAL MAYV outbreak: we pair it with
-# the typical seasonal rhythm, not one year's realised weather.
-#
-# WINDOW: 2025-W24 -> 2026-W22, the model window (52 epi weeks; 2025 carries an epi-week
-# 53, so 2025-W24..W53 = 30 wks and 2026-W01..W22 = 22 wks). Index i is the same week as
-# index i of every other envelope, so the series can be used directly as a 52-week
-# envelope (MAYV_owsa.R's pure-rainfall structural row does exactly that).
-#
-# LAG: envelope = normalised rainfall shifted by LAG_WEEKS. Set to 0 by DEFAULT.
-# Justification (see the CHIKV timing analysis): the envelope IS beta, and comparing
-# CLIMATOLOGICAL rainfall to the fitted CHIKV beta_t (the empirical transmission
-# signal, since we assume CHIKV & MAYV share the vector season) gives cross-corr 0.90
-# at lag 0, falling monotonically -> big lags are ruled out, ~0 fits best. The ~10-week
-# gap you SEE between rain onset and case take-off is the SEIR's own seed->outbreak
-# GROWTH time, not a transmission lag; the model reproduces it, so we must NOT bake it
-# into the envelope (that would double-count). A small lag (<=3 wk) is within noise;
-# change LAG_WEEKS to explore it.
-#
-# FORM: linear in rainfall, normalised to mean 1 (drop-in for base_beta = R0*gamma*season).
-# A saturating/optimum transform is a later refinement.
+# Build the MAYV transmission seasonality envelope from CHIRPS rainfall
 # ============================================================
 suppressMessages({library(dplyr); library(ggplot2)})
-dir.create("outputs", showWarnings = FALSE)    # every table and figure is written here
+dir.create("outputs", showWarnings = FALSE)  
 
-LAG_WEEKS <- 0                                   # rainfall -> transmission lag (weeks)
+LAG_WEEKS <- 0   
 
 # ------------------------------------------------------------
-# 1. Window: 52 epi weeks 2025-W24 -> 2026-W22, with MMWR-Sunday midpoints
+# 1. 52 epi weeks 2025-W24 -> 2026-W22
 # ------------------------------------------------------------
 win <- rbind(data.frame(Year = 2025, week = 24:53),
              data.frame(Year = 2026, week = 1:22))
 win$week_index <- seq_len(nrow(win))
 win$week_label <- sprintf("%d-W%02d", win$Year, win$week)
 stopifnot(nrow(win) == 52)
-# Epi-week 1 is the first Sun-Sat week with >= 4 days in the new year, so its Sunday is
-# 2025 -> 2024-12-29 and 2026 -> 2026-01-04 (28 Dec 2025 - 3 Jan 2026 has only 3 days in
-# 2026 and is 2025-W53). Use the week midpoint (+3 d).
 w01 <- ifelse(win$Year == 2025, as.Date("2024-12-29"), as.Date("2026-01-04"))
 win$date <- as.Date(w01, origin = "1970-01-01") + (win$week - 1) * 7 + 3
 
 # ------------------------------------------------------------
-# 2. Climatological rainfall grid (rfh_avg by dekad-of-year), spanning the window
+# 2. Climatological rainfall grid
 # ------------------------------------------------------------
 r <- read.csv("data/rainfall_caldas.csv"); r$date <- as.Date(r$date)
 r$md <- format(r$date, "%m-%d")
 clim <- r %>% group_by(md) %>% summarise(rfh_avg = first(rfh_avg), .groups = "drop")
-# Place each dekad-of-year at its ~mid-date in 2025 and 2026 (margin covers the window
-# edges and any small negative lag shift).
 grid <- do.call(rbind, lapply(c(2025, 2026), function(y)
   data.frame(date = as.Date(paste0(y, "-", clim$md)) + 4, rain = clim$rfh_avg)))
 grid <- grid[order(grid$date), ]
@@ -69,7 +39,7 @@ cat(sprintf("Rainfall envelope: lag %d wk | peak %s | range [%.2f, %.2f] | mean 
             LAG_WEEKS, win$week_label[which.max(season)], min(season), max(season), mean(season)))
 
 # ------------------------------------------------------------
-# 4. Save (drop-in for the old caldas_beta_season.rds) + diagnostic plot
+# 4. Save
 # ------------------------------------------------------------
 saveRDS(season, "outputs/caldas_rain_season.rds")
 write.csv(win[, c("week_index", "week_label", "rain", "season")],
