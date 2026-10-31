@@ -1,10 +1,6 @@
-# One-off: pull Caldas Novas out of the 129 MB CHIRPS workbook into a small CSV so
-# nothing downstream has to touch the full file again. Reads only the columns needed
-# (skips the r1h/r3h blocks) and filters to the municipality.
+# pull Caldas Novas out of the CHIRPS workbook into a small CSV
 suppressMessages(library(readxl))
 
-# Column order in the sheet:
-# date|adm_level|adm_id|PCODE|n_pixels|rfh|rfh_avg|r1h|r1h_avg|r3h|r3h_avg|rfq|r1q|r3q|version|state|municipality
 ct <- c("guess","numeric","skip","skip","skip","numeric","numeric",
         "skip","skip","skip","skip","numeric","skip","skip","skip","text","text")
 
