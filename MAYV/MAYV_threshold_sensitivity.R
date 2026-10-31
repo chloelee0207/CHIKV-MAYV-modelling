@@ -143,7 +143,7 @@ env_summary <- data.frame(quantity = c(
   stringsAsFactors = FALSE)
 
 write_xlsx(list(transmission_potential = tp, seeding_week = sd,
-                envelope = env, envelope_summary = env_summary, notes = notes),
+                envelope = env, envelope_summary = env_summary),
            "outputs/MAYV_threshold_sensitivity.xlsx")
 cat("\nWrote MAYV_threshold_sensitivity.xlsx\n")
 print(tp[, c("scenario","sampled_R0","mean_R_eff","peak_R_eff","weeks_R_eff_above_1","baseline_symptomatic","averted_symptomatic")], row.names = FALSE)
