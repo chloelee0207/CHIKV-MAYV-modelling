@@ -102,33 +102,6 @@ scenario_totals <- data.frame(scenario = scen_names,
                               do.call(rbind, lapply(scen_names, function(nm)
                                 round(apply(bmat[[nm]][, outcomes, drop=FALSE], 2, median, na.rm=TRUE), 1))),
                               row.names = NULL, check.names = FALSE)
-notes <- data.frame(
-  parameter = c("Data window", "Simulation horizon", "Observed reported cases",
-                "Reporting rate rho", "Symptomatic fraction (prop_symp)",
-                "Prior immunity model", "Vaccine efficacy (shared VE_inf/VE_block)",
-                "Coverage of 18-59", "Weekly delivery", "Deployment delay",
-                "Uncertainty", "Feasible LHS draws"),
-  value = c(sprintf("2025-W24 -> 2026-W22 (%d wk)", T_data),
-            sprintf("%d weeks; no projection beyond the observed data", T_sim),
-            format(sum(observed_cases), big.mark=","),
-            "Beta(20,60), median 0.25 (point est.)",
-            "Beta(35.84,32.56), median 0.524",
-            "truncated catalytic: 1 - exp(-FOI*min(age,12)), FOI ~ Lognormal",
-            "Beta(98.9%, 96.7-99.8)",
-            "Beta(30%, 95% 20-40)",
-            "Beta(10%, 95% 9-11)",
-            "median 2 wk (sampled 1-3), shifts scenario start",
-            "5-input LHS (FOI,gamma,sigma,rho,prop_symp) re-fit per draw + vaccine LHS",
-            as.character(nrow(base_true))),
-  stringsAsFactors = FALSE)
-notes <- rbind(notes, data.frame(parameter = "Scope of the window", value = paste(
-  "Burden for EVERY scenario, including the no-vaccine baseline, is counted only within",
-  "the 52-week observed window (2025-W24 -> 2026-W22). The model is not projected past",
-  "the data, since that needs an assumed transmission rate beyond the last observation.",
-  "Averted = baseline - scenario, both inside this window. For infection-blocking arms",
-  "the within-window reduction combines cases prevented outright with cases the vaccine",
-  "delays past 2026-W22; neither is counted after the window, by design."),
-  stringsAsFactors = FALSE))
 
 # doses actually delivered to the eligible 18-59, and dose wastage, per vaccine
 pct3 <- function(x) { q <- quantile(x, c(.5,.025,.975), na.rm = TRUE)
@@ -160,7 +133,7 @@ attack_rates <- data.frame(
     format(round(G$pop_total), big.mark = ",")),
   row.names = NULL)
 
-sheets <- list(notes = notes, baseline_true_reported = base_tbl,
+sheets <- list(baseline_true_reported = base_tbl,
                vaccinated_true_reported = vtr, averted_MC_95UI = mc_tbl,
                averted_per_100k_doses = mc_per100k, doses_wastage = doses_wastage,
                scenario_totals = scenario_totals, weekly_reported = weekly_reported,

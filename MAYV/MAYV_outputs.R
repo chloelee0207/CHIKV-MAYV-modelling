@@ -32,7 +32,7 @@ av <- setNames(lapply(vac_names, function(nm)
 base_symp_ok <- base_pd[ok, "symptomatic"]
 
 # ============================================================
-# burden workbook
+# MAYV_vacc_outputs.xlsx
 # ============================================================
 # baseline true-vs-reported: reported = rho x true
 base_tbl <- do.call(rbind, lapply(outcomes, function(o) {
@@ -81,30 +81,6 @@ scenario_totals <- data.frame(
     round(apply(G$per_draw[[nm]][ok, outcomes, drop=FALSE], 2, median, na.rm=TRUE), 1))),
   row.names = NULL, check.names = FALSE)
 
-notes <- data.frame(
-  parameter = c("Disease", "Seasonal envelope", "Evaluation window", "R0 interpretation",
-                "R0 scenario (FIXED)", "Draws exceeding legacy 1% filter", "Conditioning",
-                "Draws summarised (n)", "Vaccine mechanism", "Coverage of 18-59 (median)",
-                "VE disease-blocking (median)", "Deaths / CFR", "Severity + DALY source",
-                "Reporting rate rho", "REPORTED definition", "Uncertainty"),
-  value = c("Mayaro virus (MAYV), Caldas Novas, hypothetical outbreak.",
-            "Hybrid: Caldas CHIKV beta_t for the rise/peak + CHIRPS climatological dry-season tail (2026-W10 join), mean-1.",
-            sprintf("2025-W24 -> 2026-W22 (weeks %d-%d).", min(G$EVAL_WIN), max(G$EVAL_WIN)),
-            "R0 = wet-season PEAK R_eff (envelope rescaled so max = 1).",
-            sprintf("'%s': R0 SAMPLED from %.1f-%.1f (lognormal, endpoints as 2.5th/97.5th percentiles; median %.2f). Both scenario ranges are Caicedo et al. 2021 -- low = outside the Amazon basin, high = Amazon basin applied to Goias as a PEAK R0 -- so this is within-source uncertainty, not a mix across settings.", G$R0_scenario, G$R0_lo, G$R0_hi, G$R0_median),
-            sprintf("%.1f%% of %d draws exceed attack > %.1f%% of susceptibles. DIAGNOSTIC ONLY -- not used to filter: within one scenario's R0 range the outbreak-size distribution is unimodal (on the log scale), so this threshold would bisect a single continuous distribution.",
-                    100*G$frac_over_legacy_thresh, G$N_DRAWS, G$OUTBREAK_ATTACK_THRESH),
-            sprintf("NONE. All %d draws are summarised (one scenario's R0 range -> one transmission regime).", length(ok)),
-            as.character(length(ok)),
-            "Disease-blocking ONLY (VE_inf = 0), pre-outbreak campaign -> infections never averted.",
-            sprintf("%.0f%%", 100*median(G$cov_d)),
-            sprintf("%.1f%% mean (Kostecki et al. 2026: 4 of 12 CHIKV patients cross-neutralised MAYV; Beta(4,8), 95%% UI 10.9-61.0%%)", 100*mean(G$veb_d)),
-            "Zero: no confirmed MAYV-attributable death -> CFR = 0, so deaths & YLL = 0, DALY = YLD.",
-            "CHIKV set (Kang et al. 2025 Table S4) with MAYV-specific hospitalisation 5% (4-6%), acute duration (= infectious period), recovery shares (Halsey et al. 2013) and no deaths; disability weights and the severe, sub-acute and chronic durations are borrowed from CHIKV.",
-            "Per-draw (Beta, median ~0.25).",
-            "REPORTED = rho x TRUE per draw. Severe outcomes (hosp) are usually better ascertained, so their REPORTED values are conservative lower bounds.",
-            "Latin-hypercube over gamma/sigma/rho/prop_symp/R0 + vaccine + severity/DALY, propagated jointly. R0 IS sampled within the scenario range, so its span IS inside these UIs and dominates them -- outbreak size is a steep convex function of R0, so the intervals are wide and right-skewed. Read the deciles, not just the median."),
-  stringsAsFactors = FALSE)
 
 # doses actually delivered to the eligible 18-59, and dose wastage
 doses_wastage <- data.frame(
@@ -135,7 +111,7 @@ attack_rates <- data.frame(
     format(round(G$pop_total), big.mark = ",")),
   row.names = NULL)
 
-write_xlsx(list(notes = notes, baseline_true_reported = base_tbl,
+write_xlsx(list(baseline_true_reported = base_tbl,
                 vaccinated_true_reported = vtr, averted_MC_95UI = mc_tbl,
                 averted_per_100k_doses = mc_per100k, doses_wastage = doses_wastage,
                 scenario_totals = scenario_totals, attack_rates = attack_rates),
@@ -223,7 +199,7 @@ add_res <- function(outcome, scen, v) res_rows[[length(res_rows)+1]] <<- data.fr
   med = median(v, na.rm = TRUE), lo = quantile(v, .025, na.rm = TRUE),
   hi = quantile(v, .975, na.rm = TRUE), row.names = NULL)
 
-# outcome label
+# Outcomes shown in the residual-burden panels (Fig. 1 B-E)
 resid_outcomes <- list(
   list(lab = "Cumulative symptomatic cases", col = "symptomatic"),
   list(lab = "Cumulative hospitalisations",  col = "hospitalisations"),
@@ -267,7 +243,7 @@ cat("Saved MAYV_residual_burden.png and .xlsx (burden as % of no vaccination;\n"
     "     deaths panel omitted -- MAYV CFR is fixed at 0).\n", sep = "")
 
 # ------------------------------------------------------------
-cat("Wrote MAYV_vacc_outputs.xlsx (notes, baseline_true_reported, vaccinated_true_reported,\n",
+cat("Wrote MAYV_vacc_outputs.xlsx (baseline_true_reported, vaccinated_true_reported,\n",
     "     averted_MC_95UI, averted_per_100k_doses, scenario_totals)\n", sep = "")
 cat("Wrote MAYV_daly_outputs.xlsx (daly_by_scenario, daly_averted, yld_by_phase)\n")
 cat("Wrote MAYV_nnv_outputs.xlsx  (nnv)\n\n")

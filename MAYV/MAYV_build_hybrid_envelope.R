@@ -1,6 +1,7 @@
 # ============================================================
 # MAYV_build_hybrid_envelope.R
 # ------------------------------------------------------------
+# Run after: CHIKV_lhs.R and rainfall_season.R
 # Output: caldas_hybrid_season.rds & MAYV_hybrid_envelope.png (Fig. S4)
 # ============================================================
 suppressMessages(library(ggplot2))
@@ -8,10 +9,11 @@ dir.create("outputs", showWarnings = FALSE)
 
 beta <- readRDS("outputs/caldas_beta_season.rds")
 rain <- readRDS("outputs/caldas_rain_season.rds")
+# Ordinal weeks: 2025-W24..W53 = 24..53, 2026-W01..W22 = 54..75; series index = ordinal - 23
 b_at <- function(o) beta[o - 23]
 r_at <- function(o) rain[o - 23]
 
-TRANS <- 63 # join at 2026-W10: after this the fitted beta stays flat because depletion, not season, drives the decline, so rainfall shapes the tail 
+TRANS <- 63 # join at 2026-W10: after this the fitted beta stays flat because depletion, not season, drives the decline, so rainfall shapes the tail
 ords  <- 24:75
 scale <- b_at(TRANS) / r_at(TRANS)
 hybrid <- sapply(ords, function(o) if (o <= TRANS) b_at(o) else r_at(o) * scale)
