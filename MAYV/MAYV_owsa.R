@@ -308,25 +308,9 @@ if (R0_PSA_RUN) {
 # ------------------------------------------------------------
 # 5. Export
 # ------------------------------------------------------------
-notes <- data.frame(item = c("Analysis", "Base case R0", "R0 response curve", "Vaccine",
-                             "Seasonal envelope", "Fixed (not varied)", "Window"),
-  detail = c(
-  "Deterministic one-way sensitivity; MAYV is not fitted, so every run is a forward simulation.",
-  sprintf("Peak R0 %.2f, the median of the '%s' scenario's sampled range %.1f-%.1f (Caicedo et al. 2021: low = 1.1-1.3 outside the Amazon basin, high = 2.1-2.9 Amazon basin applied to Goias as a peak R0). R0 is sampled within the scenario range; the two scenarios are not pooled, because published MAYV R0 estimates come from different settings and decades.",
-          R0_BASE, M$R0_scenario, E$R0_lo, E$R0_hi),
-  sprintf("R0 is a tornado row over the scenario's own range. Across both scenarios outbreak size is a steep CONVEX function of R0 (%.0f -> %.0f symptomatic across R0 %.1f-%.1f), which a bar cannot show, so it is also swept as a response curve: see the r0_response sheet and MAYV_r0_response.png. No take-off conditioning is applied anywhere (one scenario's R0 range -> one transmission regime, unimodal outbreak size on the log scale).",
-          min(r0_response$symptomatic_base), max(r0_response$symptomatic_base),
-          min(R0_SWEEP), max(R0_SWEEP)),
-  "Disease-blocking only (VE_inf = 0): infections are identical across arms; only symptomatic cases and downstream outcomes move.",
-  sprintf("Inherited from the CHIKV fit (hybrid = CHIKV beta rise + climatological dry-season tail). Reported as a structural sensitivity. The pure-rainfall envelope peaks at week %d (index 1 = 2025-W24); the pre-outbreak campaign starts dosing at week %d and completes at about week %d.",
-          which.max(env_of("rain")), start_pre + BASE$delay, start_pre + BASE$delay + round(1/BASE$deliv)),
-  "gamma, the latent period and prop_symp (as in the CHIKV OWSA, which varies neither natural-history rate; the latent period and prop_symp have structural rows instead). Also the reporting rate: MAYV is not fitted, so rho does not enter the transmission model at all -- it converts true cases to reported cases after the simulation and has exactly zero effect on true burden averted. (In the CHIKV OWSA rho ranks third, because there it works backwards from the observed 8,204 cases to infer the size of the true epidemic.)",
-  sprintf("52 weeks, 2025-W24 -> 2026-W22 (indices %d-%d).", min(EVAL_WIN), max(EVAL_WIN))),
-  stringsAsFactors = FALSE)
-write_xlsx(c(list(notes = notes,
-                base_case = data.frame(symptomatic_base = base_run$symptomatic_base,
-                                       averted = base_run$averted, attack_pct = base_run$attack,
-                                       pct_reduction = 100*base_run$averted/base_run$symptomatic_base),
+write_xlsx(c(list(base_case = data.frame(symptomatic_base = base_run$symptomatic_base,
+                                         averted = base_run$averted, attack_pct = base_run$attack,
+                                         pct_reduction = 100*base_run$averted/base_run$symptomatic_base),
                 owsa = owsa, structural_sensitivity = struct,
                 r0_response = r0_response),
              if (!is.null(r0_response_psa))
@@ -380,7 +364,7 @@ p_hm <- ggplot(grid_df, aes(factor(100*coverage), factor(100*ve), fill = pct)) +
   labs(x = "Vaccine coverage (% of eligible population aged 18-59)",
        y = "Vaccine efficacy (%)") +
   theme_bw(9) + theme(panel.grid = element_blank())
-# Supplementary figure
+# Fig. S8
 ggsave("outputs/MAYV_ve_coverage_heatmap.png", p_hm, width = 190 / 25.4, height = 5.0, dpi = 1000)
 print(p_hm)
 
