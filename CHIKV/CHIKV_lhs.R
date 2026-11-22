@@ -79,7 +79,7 @@ ca_cases       <- load_caldas_age_cases()
 caldas_obs     <- ca_cases$caldas_obs
 observed_cases <- ca_cases$observed_cases
 T_weeks <- length(observed_cases)
-stopifnot(T_weeks == 52, sum(observed_cases) == 7746)   # confirmed cases only (SINAN, downloaded 22 Nov 2026)
+stopifnot(T_weeks == 52, sum(observed_cases) == 7746)   # confirmed cases only
 weeks <- 1:T_weeks; obs_total <- sum(observed_cases); week_1_cases <- observed_cases[1]
 
 # ------------------------------------------------------------

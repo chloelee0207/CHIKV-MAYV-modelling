@@ -124,15 +124,11 @@ env <- data.frame(
   R0_t_at_scenario    = round(R0_MAIN * v_mean1 / max(v_mean1), 3),
   R_eff_t_at_scenario = round(R0_MAIN * v_mean1 / max(v_mean1) * SN, 3),
   stringsAsFactors = FALSE)
-# CHIKV fit statistics behind the rainfall tail, from the current fit
-CH <- readRDS("outputs/CHIKV_lhs_ensemble.rds")
-pct_after <- 100 * sum(CH$observed_cases[SPLICE:length(CH$observed_cases)]) / sum(CH$observed_cases)
-beta_med  <- apply(CH$beta, 2, median)
 env_summary <- data.frame(quantity = c(
   "mean of the stored mean-1 envelope", "max of the stored mean-1 envelope",
   "mean(season) after peak-normalisation", "derivation",
   "min(season)", "weeks with season > 0.5", "peak week",
-  "source split", "why the tail is rainfall"),
+  "source split"),
   value = c(
   sprintf("%.6f (1 by construction)", mean(v_mean1)),
   sprintf("%.6f", max(v_mean1)),
@@ -142,9 +138,7 @@ env_summary <- data.frame(quantity = c(
   sprintf("%d of %d", sum(v_mean1/max(v_mean1) > 0.5), length(v_mean1)),
   sprintf("week %d (%s)", which.max(v_mean1), wk_lab(which.max(v_mean1))),
   sprintf("weeks 1-%d (%.0f%%) fitted CHIKV beta_t; weeks %d-%d (%.0f%%) rainfall climatology, rescaled to join continuously at 2026-W10",
-          SPLICE, 100*SPLICE/52, SPLICE+1, length(v_mean1), 100*(52-SPLICE)/52),
-  sprintf("The fitted CHIKV beta_t tail is confounded with susceptible depletion, not short of data: %.1f%% of observed CHIKV cases fall at or after the join. Depletion alone explains the case decline, so the fitted beta_t tail carries no seasonal signal (median beta_t %.3f at the join, %.3f at 2026-W22). Rainfall is exogenous to the epidemic.",
-          pct_after, beta_med[SPLICE], beta_med[length(beta_med)])),
+          SPLICE, 100*SPLICE/52, SPLICE+1, length(v_mean1), 100*(52-SPLICE)/52)),
   stringsAsFactors = FALSE)
 
 write_xlsx(list(transmission_potential = tp, seeding_week = sd,
