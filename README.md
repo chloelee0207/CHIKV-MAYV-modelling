@@ -117,11 +117,10 @@ transmission scenario (the second `MAYV/MAYV_lhs.R` run).
 | Table S4 | `CHIKV_vacc_outputs.xlsx` [doses_wastage] | `CHIKV/CHIKV_outputs.R` |
 | Fig. S6 | `CHIKV_timing_coverage.png`; values in `CHIKV_owsa.xlsx` [intended_vs_actual] | `CHIKV/CHIKV_owsa.R` |
 | Table S5 | `MAYV_threshold_sensitivity.xlsx` [transmission_potential] (both scenarios) | `MAYV/MAYV_threshold_sensitivity.R` |
-| Table S6 | `MAYV_owsa.xlsx` [r0_response_table] | `MAYV/MAYV_owsa.R` |
-| Table S7 | `CHIKV_daly_outputs.xlsx` and `MAYV_daly_outputs.xlsx` [daly_by_scenario, yld_by_phase, daly_averted] | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
+| Table S6 | `CHIKV_daly_outputs.xlsx` and `MAYV_daly_outputs.xlsx` [daly_by_scenario, yld_by_phase, daly_averted] | `CHIKV/CHIKV_outputs.R`, `MAYV/MAYV_outputs.R` |
 | Fig. S7 | `CHIKV_MAYV_owsa.png`; values in `CHIKV_owsa.xlsx` and `MAYV_owsa.xlsx` [owsa] | `CHIKV/CHIKV_owsa.R`, `MAYV/MAYV_owsa.R` (analyses); `common/combined_outputs.R` (figure) |
 | Fig. S8 | `MAYV_ve_coverage_heatmap.png`; values in `MAYV_ve_coverage_sweep.xlsx` | `MAYV/MAYV_owsa.R` |
-| Table S8 | `MAYV_threshold_sensitivity.xlsx` [seeding_week] | `MAYV/MAYV_threshold_sensitivity.R` |
+| Table S7 | `MAYV_threshold_sensitivity.xlsx` [seeding_week] | `MAYV/MAYV_threshold_sensitivity.R` |
 
 ## Reproducibility
 
