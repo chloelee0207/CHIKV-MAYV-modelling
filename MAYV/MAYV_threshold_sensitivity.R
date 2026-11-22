@@ -128,7 +128,7 @@ env_summary <- data.frame(quantity = c(
   "mean of the stored mean-1 envelope", "max of the stored mean-1 envelope",
   "mean(season) after peak-normalisation", "derivation",
   "min(season)", "weeks with season > 0.5", "peak week",
-  "source split", "why the tail is rainfall"),
+  "source split"),
   value = c(
   sprintf("%.6f (1 by construction)", mean(v_mean1)),
   sprintf("%.6f", max(v_mean1)),
@@ -138,8 +138,7 @@ env_summary <- data.frame(quantity = c(
   sprintf("%d of %d", sum(v_mean1/max(v_mean1) > 0.5), length(v_mean1)),
   sprintf("week %d (%s)", which.max(v_mean1), wk_lab(which.max(v_mean1))),
   sprintf("weeks 1-%d (%.0f%%) fitted CHIKV beta_t; weeks %d-%d (%.0f%%) rainfall climatology, rescaled to join continuously at 2026-W10",
-          SPLICE, 100*SPLICE/52, SPLICE+1, length(v_mean1), 100*(52-SPLICE)/52),
-  "The fitted CHIKV beta_t tail is confounded with susceptible depletion, not short of data: 39.5% of observed CHIKV cases fall at or after the join. Depletion alone explains the case decline, so beta_t stays flat (0.638 -> 0.630) and carries no seasonal signal. Rainfall is exogenous to the epidemic."),
+          SPLICE, 100*SPLICE/52, SPLICE+1, length(v_mean1), 100*(52-SPLICE)/52)),
   stringsAsFactors = FALSE)
 
 write_xlsx(list(transmission_potential = tp, seeding_week = sd,
