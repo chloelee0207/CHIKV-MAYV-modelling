@@ -79,7 +79,7 @@ ca_cases       <- load_caldas_age_cases()
 caldas_obs     <- ca_cases$caldas_obs
 observed_cases <- ca_cases$observed_cases
 T_weeks <- length(observed_cases)
-stopifnot(T_weeks == 52, sum(observed_cases) == 8204)
+stopifnot(T_weeks == 52, sum(observed_cases) == 7746)   # confirmed cases only (SINAN, downloaded 22 Nov 2026)
 weeks <- 1:T_weeks; obs_total <- sum(observed_cases); week_1_cases <- observed_cases[1]
 
 # ------------------------------------------------------------
@@ -112,7 +112,7 @@ refit <- function(foi, g, s, r, ps, start) {
   if (is.null(f)) return(NULL)
   bt <- make_beta_t(f$par[1:df_spline])
   o  <- seir_baseline(T_weeks,A,N,Rimm,I0i,bt,s,g,r,ps,E0=E0)
-  list(par=f$par, beta=bt, pred=colSums(o$new_reported), inf=colSums(o$new_infections),
+  list(par=f$par, conv=f$convergence, beta=bt, pred=colSums(o$new_reported), inf=colSums(o$new_infections),
        R0=bt/g, attack=100*sum(o$new_infections)/pool, total=sum(colSums(o$new_reported)),
        pool=pool, immune=100*sum(Rimm*N)/sum(N))
 }
@@ -143,6 +143,7 @@ cat(sprintf("Samplers: gamma~N(%.3f,%.3f) latent~N(%.3f,%.3f) rho~Beta(%.1f,%.1f
 # 6. Baseline
 # ------------------------------------------------------------
 base <- refit(foi_med, 0.54, 1/0.60, rho_pt, prop_symp, gen_start); warm <- base$par
+cat(sprintf("Baseline fit: optim convergence code %d (0 = converged)\n", base$conv))
 pk   <- which.max(base$beta)
 cat(sprintf("Baseline (median inputs): immune %.1f%% | R0 at peak %.2f | attack %.1f%% | total %.0f\n",
             base$immune, (base$beta/0.54)[pk], base$attack, base$total))
@@ -175,13 +176,13 @@ rho <- qbeta (U[,4], rab["a"], rab["b"])
 psy <- qbeta (U[,5], ps_a, ps_b)
 
 beta_mat <- pred_mat <- inf_mat <- r0_mat <- matrix(NA_real_, n, T_weeks)
-R0peak <- attack <- totrep <- immune <- loglik <- rep(NA_real_, n)
+R0peak <- attack <- totrep <- immune <- loglik <- conv <- rep(NA_real_, n)
 cat("Re-fitting", n, "LHS draws (5 inputs)...\n")
 for (i in 1:n) {
   d <- tryCatch(refit(foi[i], gam[i], sig[i], rho[i], psy[i], warm), error=function(e) NULL)
   if (is.null(d)) next
   beta_mat[i,]<-d$beta; pred_mat[i,]<-d$pred; inf_mat[i,]<-d$inf; r0_mat[i,]<-d$R0
-  R0peak[i]<-d$R0[pk]; attack[i]<-d$attack; totrep[i]<-d$total; immune[i]<-d$immune
+  R0peak[i]<-d$R0[pk]; attack[i]<-d$attack; totrep[i]<-d$total; immune[i]<-d$immune; conv[i]<-d$conv
   loglik[i]<-sum(dnbinom(observed_cases, mu=pmax(d$pred,1e-6), size=1+exp(d$par[df_spline+1]), log=TRUE))
   if (i %% 50 == 0) cat("  ", i, "/", n, "\n")
 }
@@ -189,6 +190,7 @@ for (i in 1:n) {
 ok <- which(!is.na(totrep) & attack < 100)
 cat(sprintf("Kept %d / %d draws (dropped %d: re-fit failed or attack >= 100%%).\n",
             length(ok), n, n-length(ok)))
+cat(sprintf("optim converged (code 0) in %d / %d kept draws\n", sum(conv[ok] == 0), length(ok)))
 
 # ------------------------------------------------------------
 # 8. Summary
@@ -249,7 +251,7 @@ ggsave("outputs/CHIKV_prop_infections.png",
 dir.create(DRAWS_DIR, recursive = TRUE, showWarnings = FALSE)
 write.csv(data.frame(draw=1:n, FOI=foi, gamma=gam, sigma=sig, rho=rho, prop_symp=psy,
                      immune_pct=immune, R0_peak=R0peak, attack_pct=attack, total_reported=totrep,
-                     loglik=loglik, AIC=aic_d, BIC=bic_d,
+                     loglik=loglik, AIC=aic_d, BIC=bic_d, optim_convergence=conv,
                      feasible=(seq_len(n) %in% ok)),
           file.path(DRAWS_DIR, "CHIKV_lhs_draws.csv"), row.names=FALSE)
 cat("\nSaved CHIKV_prop_beta.png, CHIKV_prop_beta_zoom.png, CHIKV_prop_R0.png,",
