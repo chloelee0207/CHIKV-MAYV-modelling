@@ -1,7 +1,7 @@
 # Incremental health impact of chikungunya vaccine cross-protection against Mayaro virus disease in Brazil: a modeling study
 
 The code fits an age-structured age-stratified SEIRV (susceptible-exposed-infectious-recovered-vaccinated) 
-model to the 2025–26 chikungunya outbreak in municipality A, estimates the health impact of vaccination with IxchiqTM, and projects
+model to the 2025–26 chikungunya outbreak in Caldas Novas (Goiás), estimates the health impact of vaccination with IxchiqTM, and projects
 the impact of the same vaccine against a hypothetical Mayaro virus outbreak in the same
 municipality. Outcomes are infections, symptomatic cases, hospitalizations, deaths and
 DALYs, over 52 epidemiological weeks (2025-W24 to 2026-W22, 8 June 2025 to 6 June 2026).
@@ -39,11 +39,11 @@ The input files are deposited on Mendeley Data:
 
 | File | Contents | Source |
 |---|---|---|
-| `weekly_case.xlsx` | Weekly reported chikungunya cases by age group, municipality A (sheet `ca_combined`) | SINAN, Brazilian Ministry of Health |
-| `population.xlsx` | Population by age group, municipality A (sheet `prop_immune`) | IBGE 2022 census |
+| `weekly_case.xlsx` | Weekly confirmed chikungunya cases by age group, Caldas Novas (sheet `ca_combined`) | SINAN, Brazilian Ministry of Health |
+| `population.xlsx` | Population by age group, Caldas Novas (sheet `prop_immune`) | IBGE 2022 census |
 | `disease_progression.xlsx` | Severity, recovery, disability-weight and life-expectancy parameters | Kang et al. 2025 (Table S4) and sources cited in the supplementary materials |
 | `model_calibration.xlsx` | Natural-history and reporting priors | Sources cited in the supplementary materials |
-| `rainfall_caldas.csv` | Climatological rainfall for municipality A | CHIRPS, via the Humanitarian Data Exchange (WFP, Brazil subnational rainfall) |
+| `rainfall_caldas.csv` | Climatological rainfall for Caldas Novas | CHIRPS, via the Humanitarian Data Exchange (WFP, Brazil subnational rainfall) |
 
 The Mendeley deposit also contains the sampled parameter values behind every published
 estimate (the Latin hypercube draws). `run_all.R` writes the same files to `outputs/lhs_draws/`:
