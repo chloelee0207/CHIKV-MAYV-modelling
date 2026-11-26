@@ -7,7 +7,7 @@
 DEFS_ONLY <- TRUE
 suppressMessages({library(writexl); source("CHIKV/CHIKV_lhs.R")})
 
-RHO_UPPER <- 0.3887               # upper bound of the estimate 15.40% (7.02-38.87%)
+RHO_UPPER <- 0.3327               # upper bound of the estimate 13.18% (6.01-33.27%)
 
 draws_csv <- file.path(DRAWS_DIR, "CHIKV_lhs_draws.csv")
 if (!file.exists(draws_csv))
@@ -37,7 +37,7 @@ fmt <- function(x, d = 1) { q <- q3(x); sprintf("%s (%s-%s)",
 both <- intersect(ok_main, ok_up)
 summary_tbl <- data.frame(
   reporting_rate  = c("Main analysis: rho ~ Beta(20,60), 25% (16-35%)",
-                      sprintf("Fixed at %.2f%% (upper bound of 15.40%%, 7.02-38.87%%)", 100*RHO_UPPER)),
+                      sprintf("Fixed at %.2f%% (upper bound of 13.18%%, 6.01-33.27%%)", 100*RHO_UPPER)),
   draws_retained  = c(sprintf("%d / %d", length(ok_main), n), sprintf("%d / %d", length(ok_up), n)),
   attack_rate_pct = c(fmt(D$attack_pct[ok_main]), fmt(attack[ok_up])),
   stringsAsFactors = FALSE)
