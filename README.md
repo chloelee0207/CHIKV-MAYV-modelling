@@ -108,7 +108,6 @@ transmission scenario (the second `MAYV/MAYV_lhs.R` run).
 |---|---|---|
 | Fig. S1 | Model schematic, not produced by the code | – |
 | Table S1 | Inputs: `data/model_calibration.xlsx` and `data/disease_progression.xlsx` (chikungunya symptomatic fraction); the other priors (FOI, reporting rate, R0, Mayaro symptomatic fraction, vaccine parameters) are set in the scripts | `CHIKV/CHIKV_lhs.R`, `CHIKV/CHIKV_engine.R`, `MAYV/MAYV_lhs.R`, `MAYV/MAYV_engine.R` |
-| Fig. S2 | Map, not produced by the code | – |
 | Fig. S3 | `CHIKV_fit_cases_infections.png` | `CHIKV/CHIKV_outputs.R` |
 | Fig. S4 | `MAYV_hybrid_envelope.png` | `MAYV/MAYV_build_hybrid_envelope.R` |
 | Fig. S5 | Prognosis diagram, not produced by the code | – |
