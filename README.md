@@ -34,7 +34,7 @@ run_all.R runs the whole analysis in the right order
 ## Data
 
 The input files are deposited on Mendeley Data:
-[doi:10.17632/ykjh4tbym7.1](https://doi.org/10.17632/ykjh4tbym7.1). Download them into
+[doi:10.17632/ykjh4tbym7.1](https://data.mendeley.com/datasets/ykjh4tbym7/1). Download them into
 `data/`:
 
 | File | Contents | Source |
